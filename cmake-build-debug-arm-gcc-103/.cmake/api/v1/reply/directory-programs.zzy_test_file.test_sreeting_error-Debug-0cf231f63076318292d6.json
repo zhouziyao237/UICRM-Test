@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "programs/zzy_test_file/test_sreeting_error",
+		"source" : "programs/zzy_test_file/test_sreeting_error"
+	}
+}

@@ -1,0 +1,3 @@
+add_subdirectory(test_model_select)
+add_subdirectory(test_sreeting_error)
+add_subdirectory(test_sreeting_error_theta)

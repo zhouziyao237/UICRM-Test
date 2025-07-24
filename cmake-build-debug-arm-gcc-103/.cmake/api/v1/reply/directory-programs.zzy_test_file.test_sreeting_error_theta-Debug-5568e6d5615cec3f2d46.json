@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "programs/zzy_test_file/test_sreeting_error_theta",
+		"source" : "programs/zzy_test_file/test_sreeting_error_theta"
+	}
+}

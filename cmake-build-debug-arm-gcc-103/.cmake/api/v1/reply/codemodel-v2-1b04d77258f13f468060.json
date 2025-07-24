@@ -1,0 +1,3834 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1,
+						16,
+						35
+					],
+					"jsonFile" : "directory-.-Debug-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"projectIndex" : 0,
+					"source" : "."
+				},
+				{
+					"build" : "boards",
+					"childIndexes" : 
+					[
+						2,
+						8,
+						12,
+						13,
+						14,
+						15
+					],
+					"jsonFile" : "directory-boards-Debug-81f8fe346ce5f68076e2.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "boards"
+				},
+				{
+					"build" : "boards/base",
+					"childIndexes" : 
+					[
+						3,
+						4,
+						5,
+						6,
+						7
+					],
+					"jsonFile" : "directory-boards.base-Debug-8c65aefe121524afb78c.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "boards/base"
+				},
+				{
+					"build" : "boards/base/DJI_Board_TypeC_general",
+					"jsonFile" : "directory-boards.base.DJI_Board_TypeC_general-Debug-c3cf5bee9cfbd93e1edb.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 2,
+					"projectIndex" : 1,
+					"source" : "boards/base/DJI_Board_TypeC_general",
+					"targetIndexes" : 
+					[
+						10,
+						14
+					]
+				},
+				{
+					"build" : "boards/base/DM_MC01_general",
+					"jsonFile" : "directory-boards.base.DM_MC01_general-Debug-29b513de50d7880523f9.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 2,
+					"projectIndex" : 2,
+					"source" : "boards/base/DM_MC01_general",
+					"targetIndexes" : 
+					[
+						16,
+						20
+					]
+				},
+				{
+					"build" : "boards/base/DJI_Board_TypeA_general",
+					"jsonFile" : "directory-boards.base.DJI_Board_TypeA_general-Debug-49a67f5420c8515a945c.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 2,
+					"projectIndex" : 3,
+					"source" : "boards/base/DJI_Board_TypeA_general",
+					"targetIndexes" : 
+					[
+						4,
+						8
+					]
+				},
+				{
+					"build" : "boards/base/F103_Nano_general",
+					"jsonFile" : "directory-boards.base.F103_Nano_general-Debug-84f9c85e4b3c04899f15.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 2,
+					"projectIndex" : 4,
+					"source" : "boards/base/F103_Nano_general",
+					"targetIndexes" : 
+					[
+						29,
+						33
+					]
+				},
+				{
+					"build" : "boards/base/DM_MC02_general",
+					"jsonFile" : "directory-boards.base.DM_MC02_general-Debug-7a910d9fcf975e2fcf14.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 2,
+					"projectIndex" : 5,
+					"source" : "boards/base/DM_MC02_general",
+					"targetIndexes" : 
+					[
+						22,
+						26
+					]
+				},
+				{
+					"build" : "boards/platform",
+					"childIndexes" : 
+					[
+						9,
+						10,
+						11
+					],
+					"jsonFile" : "directory-boards.platform-Debug-7f0ff178d10253262fc7.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "boards/platform"
+				},
+				{
+					"build" : "boards/platform/stm32f1",
+					"jsonFile" : "directory-boards.platform.stm32f1-Debug-4f71bc672c115515a5c7.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 8,
+					"projectIndex" : 0,
+					"source" : "boards/platform/stm32f1",
+					"targetIndexes" : 
+					[
+						34
+					]
+				},
+				{
+					"build" : "boards/platform/stm32f4",
+					"jsonFile" : "directory-boards.platform.stm32f4-Debug-e05a6bfca10adc8fe4b4.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 8,
+					"projectIndex" : 0,
+					"source" : "boards/platform/stm32f4",
+					"targetIndexes" : 
+					[
+						9,
+						15,
+						21
+					]
+				},
+				{
+					"build" : "boards/platform/stm32h7",
+					"jsonFile" : "directory-boards.platform.stm32h7-Debug-411832ec1fb77415c9f9.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 8,
+					"projectIndex" : 0,
+					"source" : "boards/platform/stm32h7",
+					"targetIndexes" : 
+					[
+						27
+					]
+				},
+				{
+					"build" : "boards/algorithm",
+					"jsonFile" : "directory-boards.algorithm-Debug-96a6814f93412ce6d4a6.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "boards/algorithm",
+					"targetIndexes" : 
+					[
+						5,
+						11,
+						17,
+						23,
+						30
+					]
+				},
+				{
+					"build" : "boards/drivers",
+					"jsonFile" : "directory-boards.drivers-Debug-48a68773518210a601a9.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "boards/drivers",
+					"targetIndexes" : 
+					[
+						7,
+						13,
+						19,
+						25,
+						32
+					]
+				},
+				{
+					"build" : "boards/components",
+					"jsonFile" : "directory-boards.components-Debug-68c556d34d119a65ce2c.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "boards/components",
+					"targetIndexes" : 
+					[
+						6,
+						12,
+						18,
+						24,
+						31
+					]
+				},
+				{
+					"build" : "boards/third_party",
+					"jsonFile" : "directory-boards.third_party-Debug-3884c2912792956a1314.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 0,
+					"source" : "boards/third_party"
+				},
+				{
+					"build" : "programs",
+					"childIndexes" : 
+					[
+						17,
+						18,
+						21,
+						24,
+						25,
+						28,
+						29,
+						30,
+						31
+					],
+					"jsonFile" : "directory-programs-Debug-95654c7abf89d881f526.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "programs"
+				},
+				{
+					"build" : "programs/Car3",
+					"jsonFile" : "directory-programs.Car3-Debug-b32d67c5c3edea7bb297.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 16,
+					"projectIndex" : 6,
+					"source" : "programs/Car3",
+					"targetIndexes" : 
+					[
+						1
+					]
+				},
+				{
+					"build" : "programs/DGStandard",
+					"childIndexes" : 
+					[
+						19,
+						20
+					],
+					"jsonFile" : "directory-programs.DGStandard-Debug-a7b899d0621fdf37870a.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 16,
+					"projectIndex" : 0,
+					"source" : "programs/DGStandard"
+				},
+				{
+					"build" : "programs/DGStandard/gimbal",
+					"jsonFile" : "directory-programs.DGStandard.gimbal-Debug-c5d0f6ae9852e89b2282.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 18,
+					"projectIndex" : 7,
+					"source" : "programs/DGStandard/gimbal",
+					"targetIndexes" : 
+					[
+						3
+					]
+				},
+				{
+					"build" : "programs/DGStandard/chassis",
+					"jsonFile" : "directory-programs.DGStandard.chassis-Debug-f9a5eb9047c406bde519.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 18,
+					"projectIndex" : 8,
+					"source" : "programs/DGStandard/chassis",
+					"targetIndexes" : 
+					[
+						2
+					]
+				},
+				{
+					"build" : "programs/Hero",
+					"childIndexes" : 
+					[
+						22,
+						23
+					],
+					"jsonFile" : "directory-programs.Hero-Debug-7b625341ed8e19862b9a.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 16,
+					"projectIndex" : 0,
+					"source" : "programs/Hero"
+				},
+				{
+					"build" : "programs/Hero/gimbal",
+					"jsonFile" : "directory-programs.Hero.gimbal-Debug-762356c037836fda4b9f.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 21,
+					"projectIndex" : 9,
+					"source" : "programs/Hero/gimbal",
+					"targetIndexes" : 
+					[
+						37
+					]
+				},
+				{
+					"build" : "programs/Hero/chassis",
+					"jsonFile" : "directory-programs.Hero.chassis-Debug-f7006915bf053f8d3b2a.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 21,
+					"projectIndex" : 10,
+					"source" : "programs/Hero/chassis",
+					"targetIndexes" : 
+					[
+						36
+					]
+				},
+				{
+					"build" : "programs/Dart",
+					"jsonFile" : "directory-programs.Dart-Debug-4baafc546012dd4458ed.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 16,
+					"projectIndex" : 11,
+					"source" : "programs/Dart",
+					"targetIndexes" : 
+					[
+						28
+					]
+				},
+				{
+					"build" : "programs/Sentry",
+					"childIndexes" : 
+					[
+						26,
+						27
+					],
+					"jsonFile" : "directory-programs.Sentry-Debug-c475647e69365ef61c86.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 16,
+					"projectIndex" : 0,
+					"source" : "programs/Sentry"
+				},
+				{
+					"build" : "programs/Sentry/chassis",
+					"jsonFile" : "directory-programs.Sentry.chassis-Debug-31aee44d2b6640a51e87.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 25,
+					"projectIndex" : 12,
+					"source" : "programs/Sentry/chassis",
+					"targetIndexes" : 
+					[
+						39
+					]
+				},
+				{
+					"build" : "programs/Sentry/gimbal",
+					"jsonFile" : "directory-programs.Sentry.gimbal-Debug-5204d13e5ad4db90797b.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 25,
+					"projectIndex" : 13,
+					"source" : "programs/Sentry/gimbal",
+					"targetIndexes" : 
+					[
+						38
+					]
+				},
+				{
+					"build" : "programs/FakeSentry",
+					"jsonFile" : "directory-programs.FakeSentry-Debug-bc291b8641af1e42096e.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 16,
+					"projectIndex" : 14,
+					"source" : "programs/FakeSentry",
+					"targetIndexes" : 
+					[
+						35
+					]
+				},
+				{
+					"build" : "programs/WheatCake",
+					"jsonFile" : "directory-programs.WheatCake-Debug-3a4d407cb18f3aec977a.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 16,
+					"projectIndex" : 15,
+					"source" : "programs/WheatCake",
+					"targetIndexes" : 
+					[
+						40
+					]
+				},
+				{
+					"build" : "programs/Cakey",
+					"jsonFile" : "directory-programs.Cakey-Debug-578ad80c0064a0c775b3.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 16,
+					"projectIndex" : 16,
+					"source" : "programs/Cakey",
+					"targetIndexes" : 
+					[
+						0
+					]
+				},
+				{
+					"build" : "programs/zzy_test_file",
+					"childIndexes" : 
+					[
+						32,
+						33,
+						34
+					],
+					"jsonFile" : "directory-programs.zzy_test_file-Debug-d273f1ccb3e02d244498.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 16,
+					"projectIndex" : 0,
+					"source" : "programs/zzy_test_file"
+				},
+				{
+					"build" : "programs/zzy_test_file/test_model_select",
+					"jsonFile" : "directory-programs.zzy_test_file.test_model_select-Debug-d493b32663da97c1008f.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 31,
+					"projectIndex" : 17,
+					"source" : "programs/zzy_test_file/test_model_select",
+					"targetIndexes" : 
+					[
+						168
+					]
+				},
+				{
+					"build" : "programs/zzy_test_file/test_sreeting_error",
+					"jsonFile" : "directory-programs.zzy_test_file.test_sreeting_error-Debug-0cf231f63076318292d6.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 31,
+					"projectIndex" : 18,
+					"source" : "programs/zzy_test_file/test_sreeting_error",
+					"targetIndexes" : 
+					[
+						171
+					]
+				},
+				{
+					"build" : "programs/zzy_test_file/test_sreeting_error_theta",
+					"jsonFile" : "directory-programs.zzy_test_file.test_sreeting_error_theta-Debug-5568e6d5615cec3f2d46.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 31,
+					"projectIndex" : 19,
+					"source" : "programs/zzy_test_file/test_sreeting_error_theta",
+					"targetIndexes" : 
+					[
+						172
+					]
+				},
+				{
+					"build" : "examples",
+					"childIndexes" : 
+					[
+						36,
+						57,
+						70,
+						79,
+						84
+					],
+					"jsonFile" : "directory-examples-Debug-2e8964349ffea94e1580.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "examples"
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general",
+					"childIndexes" : 
+					[
+						37,
+						38,
+						39,
+						40,
+						41,
+						42,
+						43,
+						44,
+						45,
+						46,
+						47,
+						48,
+						49,
+						50,
+						51,
+						52,
+						53,
+						54,
+						55,
+						56
+					],
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general-Debug-f93aa89649b66a9e4ea5.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 35,
+					"projectIndex" : 0,
+					"source" : "examples/DJI_Board_TypeC_general"
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/BMI088",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.BMI088-Debug-08b1c7ab110141a40f1d.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 20,
+					"source" : "examples/DJI_Board_TypeC_general/BMI088",
+					"targetIndexes" : 
+					[
+						43,
+						44,
+						45,
+						46
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/buzzer",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.buzzer-Debug-628c0a5d393c1aa92378.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 21,
+					"source" : "examples/DJI_Board_TypeC_general/buzzer",
+					"targetIndexes" : 
+					[
+						53
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/can_bridge",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.can_bridge-Debug-c9e003b85d507d863f09.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 22,
+					"source" : "examples/DJI_Board_TypeC_general/can_bridge",
+					"targetIndexes" : 
+					[
+						59,
+						60
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/chassis",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.chassis-Debug-9a4afa91b793d0104b11.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 23,
+					"source" : "examples/DJI_Board_TypeC_general/chassis",
+					"targetIndexes" : 
+					[
+						69,
+						70,
+						71,
+						72,
+						73
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/cybergear",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.cybergear-Debug-7558b78f06062b03faa3.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 24,
+					"source" : "examples/DJI_Board_TypeC_general/cybergear",
+					"targetIndexes" : 
+					[
+						77,
+						78
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/dbus",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.dbus-Debug-070e824cea605017e370.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 25,
+					"source" : "examples/DJI_Board_TypeC_general/dbus",
+					"targetIndexes" : 
+					[
+						80
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/gimbal",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.gimbal-Debug-e92fc05136039255303f.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 26,
+					"source" : "examples/DJI_Board_TypeC_general/gimbal",
+					"targetIndexes" : 
+					[
+						85,
+						86
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/imu",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.imu-Debug-aefc77d017da42113aab.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 27,
+					"source" : "examples/DJI_Board_TypeC_general/imu",
+					"targetIndexes" : 
+					[
+						87,
+						88,
+						89
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/ist8310",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.ist8310-Debug-6bda02f4c2bbc633a3e5.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 28,
+					"source" : "examples/DJI_Board_TypeC_general/ist8310",
+					"targetIndexes" : 
+					[
+						90
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/key",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.key-Debug-e6598db698ee7ba72dc7.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 29,
+					"source" : "examples/DJI_Board_TypeC_general/key",
+					"targetIndexes" : 
+					[
+						91
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/led",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.led-Debug-663f5ba4d076b9be9301.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 30,
+					"source" : "examples/DJI_Board_TypeC_general/led",
+					"targetIndexes" : 
+					[
+						92
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/motor",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.motor-Debug-64c9dcb32932c8b429b0.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 31,
+					"source" : "examples/DJI_Board_TypeC_general/motor",
+					"targetIndexes" : 
+					[
+						107,
+						108,
+						109,
+						110,
+						111,
+						112,
+						113,
+						114,
+						115,
+						116,
+						117,
+						118,
+						119
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/oled",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.oled-Debug-72ca838df1944014675a.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 32,
+					"source" : "examples/DJI_Board_TypeC_general/oled",
+					"targetIndexes" : 
+					[
+						154
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/onboard_temp",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.onboard_temp-Debug-99d94de065a1fad5c2a9.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 33,
+					"source" : "examples/DJI_Board_TypeC_general/onboard_temp",
+					"targetIndexes" : 
+					[
+						156
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/referee",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.referee-Debug-4125a2d889219432844c.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 34,
+					"source" : "examples/DJI_Board_TypeC_general/referee",
+					"targetIndexes" : 
+					[
+						160,
+						161
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/sbus",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.sbus-Debug-75f2a181d4e97820aa6f.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 35,
+					"source" : "examples/DJI_Board_TypeC_general/sbus",
+					"targetIndexes" : 
+					[
+						162
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/witimu",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.witimu-Debug-21e9cc4c56f3dde32cfc.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 36,
+					"source" : "examples/DJI_Board_TypeC_general/witimu",
+					"targetIndexes" : 
+					[
+						167
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/usb",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.usb-Debug-22484bc3d17cfdee3052.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 37,
+					"source" : "examples/DJI_Board_TypeC_general/usb",
+					"targetIndexes" : 
+					[
+						165
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/supercap",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.supercap-Debug-5799cfaedc4bcda89a73.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 38,
+					"source" : "examples/DJI_Board_TypeC_general/supercap",
+					"targetIndexes" : 
+					[
+						163
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeC_general/test_sreeting_error",
+					"jsonFile" : "directory-examples.DJI_Board_TypeC_general.test_sreeting_error-Debug-fdef7545a4cf4cf0dd48.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 36,
+					"projectIndex" : 39,
+					"source" : "examples/DJI_Board_TypeC_general/test_sreeting_error",
+					"targetIndexes" : 
+					[
+						170
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeA_general",
+					"childIndexes" : 
+					[
+						58,
+						59,
+						60,
+						61,
+						62,
+						63,
+						64,
+						65,
+						66,
+						67,
+						68,
+						69
+					],
+					"jsonFile" : "directory-examples.DJI_Board_TypeA_general-Debug-008996813110793c2fba.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 35,
+					"projectIndex" : 0,
+					"source" : "examples/DJI_Board_TypeA_general"
+				},
+				{
+					"build" : "examples/DJI_Board_TypeA_general/buzzer",
+					"jsonFile" : "directory-examples.DJI_Board_TypeA_general.buzzer-Debug-c2747d87fcd3b634ef7b.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 57,
+					"projectIndex" : 40,
+					"source" : "examples/DJI_Board_TypeA_general/buzzer",
+					"targetIndexes" : 
+					[
+						52
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeA_general/can_bridge",
+					"jsonFile" : "directory-examples.DJI_Board_TypeA_general.can_bridge-Debug-62b371f8a3a112494afb.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 57,
+					"projectIndex" : 41,
+					"source" : "examples/DJI_Board_TypeA_general/can_bridge",
+					"targetIndexes" : 
+					[
+						57,
+						58
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeA_general/chassis",
+					"jsonFile" : "directory-examples.DJI_Board_TypeA_general.chassis-Debug-53687a3dc9c3d80da29d.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 57,
+					"projectIndex" : 42,
+					"source" : "examples/DJI_Board_TypeA_general/chassis",
+					"targetIndexes" : 
+					[
+						65,
+						66,
+						67,
+						68
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeA_general/dbus",
+					"jsonFile" : "directory-examples.DJI_Board_TypeA_general.dbus-Debug-2c061a4841019c540e12.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 57,
+					"projectIndex" : 43,
+					"source" : "examples/DJI_Board_TypeA_general/dbus",
+					"targetIndexes" : 
+					[
+						79
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeA_general/MPU6500",
+					"jsonFile" : "directory-examples.DJI_Board_TypeA_general.MPU6500-Debug-281d36bb381cc19bffec.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 57,
+					"projectIndex" : 44,
+					"source" : "examples/DJI_Board_TypeA_general/MPU6500",
+					"targetIndexes" : 
+					[
+						41,
+						42
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeA_general/fatfs",
+					"jsonFile" : "directory-examples.DJI_Board_TypeA_general.fatfs-Debug-5c3e45d33fb438dd6c91.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 57,
+					"projectIndex" : 45,
+					"source" : "examples/DJI_Board_TypeA_general/fatfs",
+					"targetIndexes" : 
+					[
+						83
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeA_general/led_flow",
+					"jsonFile" : "directory-examples.DJI_Board_TypeA_general.led_flow-Debug-eba8d2148cbae7d52d9c.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 57,
+					"projectIndex" : 46,
+					"source" : "examples/DJI_Board_TypeA_general/led_flow",
+					"targetIndexes" : 
+					[
+						96
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeA_general/gimbal",
+					"jsonFile" : "directory-examples.DJI_Board_TypeA_general.gimbal-Debug-665048d8f786a82979b7.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 57,
+					"projectIndex" : 47,
+					"source" : "examples/DJI_Board_TypeA_general/gimbal",
+					"targetIndexes" : 
+					[
+						84
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeA_general/motor",
+					"jsonFile" : "directory-examples.DJI_Board_TypeA_general.motor-Debug-0345762f6fb10b52846e.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 57,
+					"projectIndex" : 48,
+					"source" : "examples/DJI_Board_TypeA_general/motor",
+					"targetIndexes" : 
+					[
+						97,
+						98,
+						99,
+						100,
+						101,
+						102,
+						103,
+						104,
+						105,
+						106
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeA_general/witimu",
+					"jsonFile" : "directory-examples.DJI_Board_TypeA_general.witimu-Debug-9ffab7c846ab924b5d2c.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 57,
+					"projectIndex" : 49,
+					"source" : "examples/DJI_Board_TypeA_general/witimu",
+					"targetIndexes" : 
+					[
+						166
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeA_general/referee",
+					"jsonFile" : "directory-examples.DJI_Board_TypeA_general.referee-Debug-09dea58ec81837acf87e.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 57,
+					"projectIndex" : 50,
+					"source" : "examples/DJI_Board_TypeA_general/referee",
+					"targetIndexes" : 
+					[
+						158,
+						159
+					]
+				},
+				{
+					"build" : "examples/DJI_Board_TypeA_general/test_sreeting_error",
+					"jsonFile" : "directory-examples.DJI_Board_TypeA_general.test_sreeting_error-Debug-af2b705e53bbb979b53d.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 57,
+					"projectIndex" : 51,
+					"source" : "examples/DJI_Board_TypeA_general/test_sreeting_error",
+					"targetIndexes" : 
+					[
+						169
+					]
+				},
+				{
+					"build" : "examples/DM_MC01_general",
+					"childIndexes" : 
+					[
+						71,
+						72,
+						73,
+						74,
+						75,
+						76,
+						77,
+						78
+					],
+					"jsonFile" : "directory-examples.DM_MC01_general-Debug-90680ae3a93e9fa3f3a6.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 35,
+					"projectIndex" : 0,
+					"source" : "examples/DM_MC01_general"
+				},
+				{
+					"build" : "examples/DM_MC01_general/BMI088",
+					"jsonFile" : "directory-examples.DM_MC01_general.BMI088-Debug-4a45674e517c46c3b8ae.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 70,
+					"projectIndex" : 52,
+					"source" : "examples/DM_MC01_general/BMI088",
+					"targetIndexes" : 
+					[
+						47,
+						48
+					]
+				},
+				{
+					"build" : "examples/DM_MC01_general/buzzer",
+					"jsonFile" : "directory-examples.DM_MC01_general.buzzer-Debug-d1a492af825b0cd7353e.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 70,
+					"projectIndex" : 53,
+					"source" : "examples/DM_MC01_general/buzzer",
+					"targetIndexes" : 
+					[
+						54
+					]
+				},
+				{
+					"build" : "examples/DM_MC01_general/can_bridge",
+					"jsonFile" : "directory-examples.DM_MC01_general.can_bridge-Debug-0541a5224d996a891b4e.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 70,
+					"projectIndex" : 54,
+					"source" : "examples/DM_MC01_general/can_bridge",
+					"targetIndexes" : 
+					[
+						61,
+						62
+					]
+				},
+				{
+					"build" : "examples/DM_MC01_general/chassis",
+					"jsonFile" : "directory-examples.DM_MC01_general.chassis-Debug-03479bbe8ec23cd58d7c.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 70,
+					"projectIndex" : 55,
+					"source" : "examples/DM_MC01_general/chassis",
+					"targetIndexes" : 
+					[
+						74,
+						75,
+						76
+					]
+				},
+				{
+					"build" : "examples/DM_MC01_general/dbus",
+					"jsonFile" : "directory-examples.DM_MC01_general.dbus-Debug-65329224ccd9b6c09648.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 70,
+					"projectIndex" : 56,
+					"source" : "examples/DM_MC01_general/dbus",
+					"targetIndexes" : 
+					[
+						81
+					]
+				},
+				{
+					"build" : "examples/DM_MC01_general/led",
+					"jsonFile" : "directory-examples.DM_MC01_general.led-Debug-54b6f0a7441531fff1de.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 70,
+					"projectIndex" : 57,
+					"source" : "examples/DM_MC01_general/led",
+					"targetIndexes" : 
+					[
+						93
+					]
+				},
+				{
+					"build" : "examples/DM_MC01_general/motor",
+					"jsonFile" : "directory-examples.DM_MC01_general.motor-Debug-5166fc20b6fe2453fb22.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 70,
+					"projectIndex" : 58,
+					"source" : "examples/DM_MC01_general/motor",
+					"targetIndexes" : 
+					[
+						120,
+						121,
+						122,
+						123,
+						124,
+						125,
+						126,
+						127,
+						128,
+						129,
+						130
+					]
+				},
+				{
+					"build" : "examples/DM_MC01_general/onboard_temp",
+					"jsonFile" : "directory-examples.DM_MC01_general.onboard_temp-Debug-a19f0ec3998b6187a682.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 70,
+					"projectIndex" : 59,
+					"source" : "examples/DM_MC01_general/onboard_temp",
+					"targetIndexes" : 
+					[
+						157
+					]
+				},
+				{
+					"build" : "examples/F103_Nano_general",
+					"childIndexes" : 
+					[
+						80,
+						81,
+						82,
+						83
+					],
+					"jsonFile" : "directory-examples.F103_Nano_general-Debug-97e5b308566ab2d030e4.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 35,
+					"projectIndex" : 0,
+					"source" : "examples/F103_Nano_general"
+				},
+				{
+					"build" : "examples/F103_Nano_general/buzzer",
+					"jsonFile" : "directory-examples.F103_Nano_general.buzzer-Debug-df6257adbf4a026cc8bd.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 79,
+					"projectIndex" : 60,
+					"source" : "examples/F103_Nano_general/buzzer",
+					"targetIndexes" : 
+					[
+						56
+					]
+				},
+				{
+					"build" : "examples/F103_Nano_general/led",
+					"jsonFile" : "directory-examples.F103_Nano_general.led-Debug-7aff6fd5bd8a6a9d8837.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 79,
+					"projectIndex" : 61,
+					"source" : "examples/F103_Nano_general/led",
+					"targetIndexes" : 
+					[
+						95
+					]
+				},
+				{
+					"build" : "examples/F103_Nano_general/motor",
+					"jsonFile" : "directory-examples.F103_Nano_general.motor-Debug-615a18338022507157e2.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 79,
+					"projectIndex" : 62,
+					"source" : "examples/F103_Nano_general/motor",
+					"targetIndexes" : 
+					[
+						146,
+						147,
+						148,
+						149,
+						150,
+						151,
+						152,
+						153
+					]
+				},
+				{
+					"build" : "examples/F103_Nano_general/oled",
+					"jsonFile" : "directory-examples.F103_Nano_general.oled-Debug-a24d741cccc7f4ff58f7.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 79,
+					"projectIndex" : 63,
+					"source" : "examples/F103_Nano_general/oled",
+					"targetIndexes" : 
+					[
+						155
+					]
+				},
+				{
+					"build" : "examples/DM_MC02_general",
+					"childIndexes" : 
+					[
+						85,
+						86,
+						87,
+						88,
+						89,
+						90,
+						91
+					],
+					"jsonFile" : "directory-examples.DM_MC02_general-Debug-13e8d64624826e7a185e.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 35,
+					"projectIndex" : 0,
+					"source" : "examples/DM_MC02_general"
+				},
+				{
+					"build" : "examples/DM_MC02_general/BMI088",
+					"jsonFile" : "directory-examples.DM_MC02_general.BMI088-Debug-94fc9eee162b36e73504.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 84,
+					"projectIndex" : 64,
+					"source" : "examples/DM_MC02_general/BMI088",
+					"targetIndexes" : 
+					[
+						49,
+						50,
+						51
+					]
+				},
+				{
+					"build" : "examples/DM_MC02_general/buzzer",
+					"jsonFile" : "directory-examples.DM_MC02_general.buzzer-Debug-542544da57426a317994.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 84,
+					"projectIndex" : 65,
+					"source" : "examples/DM_MC02_general/buzzer",
+					"targetIndexes" : 
+					[
+						55
+					]
+				},
+				{
+					"build" : "examples/DM_MC02_general/can_bridge",
+					"jsonFile" : "directory-examples.DM_MC02_general.can_bridge-Debug-3cbfe87fa3d83b7589c6.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 84,
+					"projectIndex" : 66,
+					"source" : "examples/DM_MC02_general/can_bridge",
+					"targetIndexes" : 
+					[
+						63,
+						64
+					]
+				},
+				{
+					"build" : "examples/DM_MC02_general/dbus",
+					"jsonFile" : "directory-examples.DM_MC02_general.dbus-Debug-28a596d7e67dcbff6219.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 84,
+					"projectIndex" : 67,
+					"source" : "examples/DM_MC02_general/dbus",
+					"targetIndexes" : 
+					[
+						82
+					]
+				},
+				{
+					"build" : "examples/DM_MC02_general/led",
+					"jsonFile" : "directory-examples.DM_MC02_general.led-Debug-a11b96058b8858c46888.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 84,
+					"projectIndex" : 68,
+					"source" : "examples/DM_MC02_general/led",
+					"targetIndexes" : 
+					[
+						94
+					]
+				},
+				{
+					"build" : "examples/DM_MC02_general/motor",
+					"jsonFile" : "directory-examples.DM_MC02_general.motor-Debug-74099fe45ca3ac624b0a.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 84,
+					"projectIndex" : 69,
+					"source" : "examples/DM_MC02_general/motor",
+					"targetIndexes" : 
+					[
+						131,
+						132,
+						133,
+						134,
+						135,
+						136,
+						137,
+						138,
+						139,
+						140,
+						141,
+						142,
+						143,
+						144,
+						145
+					]
+				},
+				{
+					"build" : "examples/DM_MC02_general/uart",
+					"jsonFile" : "directory-examples.DM_MC02_general.uart-Debug-5c08e2c51ea9691ce734.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 84,
+					"projectIndex" : 70,
+					"source" : "examples/DM_MC02_general/uart",
+					"targetIndexes" : 
+					[
+						164
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						8,
+						9,
+						10,
+						11,
+						12,
+						13,
+						14,
+						15,
+						16,
+						17,
+						18,
+						19,
+						20,
+						21,
+						22,
+						23,
+						24,
+						25,
+						26,
+						27,
+						28,
+						29,
+						30,
+						31,
+						32,
+						33,
+						34,
+						35,
+						36,
+						37,
+						38,
+						39,
+						40,
+						41,
+						42,
+						43,
+						44,
+						45,
+						46,
+						47,
+						48,
+						49,
+						50,
+						51,
+						52,
+						53,
+						54,
+						55,
+						56,
+						57,
+						58,
+						59,
+						60,
+						61,
+						62,
+						63,
+						64,
+						65,
+						66,
+						67,
+						68,
+						69,
+						70
+					],
+					"directoryIndexes" : 
+					[
+						0,
+						1,
+						2,
+						8,
+						9,
+						10,
+						11,
+						12,
+						13,
+						14,
+						15,
+						16,
+						18,
+						21,
+						25,
+						31,
+						35,
+						36,
+						57,
+						70,
+						79,
+						84
+					],
+					"name" : "uicrm",
+					"targetIndexes" : 
+					[
+						5,
+						6,
+						7,
+						9,
+						11,
+						12,
+						13,
+						15,
+						17,
+						18,
+						19,
+						21,
+						23,
+						24,
+						25,
+						27,
+						30,
+						31,
+						32,
+						34
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						3
+					],
+					"name" : "DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						10,
+						14
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						4
+					],
+					"name" : "DM_MC01_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						16,
+						20
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						5
+					],
+					"name" : "DJI_Board_TypeA_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						4,
+						8
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						6
+					],
+					"name" : "F103_Nano_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						29,
+						33
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						7
+					],
+					"name" : "DM_MC02_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						22,
+						26
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						17
+					],
+					"name" : "Car3",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						1
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						19
+					],
+					"name" : "DGStandard_gimbal",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						3
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						20
+					],
+					"name" : "DGStandard_chassis",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						2
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						22
+					],
+					"name" : "Hero",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						37
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						23
+					],
+					"name" : "Hero_chassis",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						36
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						24
+					],
+					"name" : "Dart",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						28
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						26
+					],
+					"name" : "Sentry_chassis",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						39
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						27
+					],
+					"name" : "Sentry_Gimbal",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						38
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						28
+					],
+					"name" : "FakeSentry",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						35
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						29
+					],
+					"name" : "WheatCake",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						40
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						30
+					],
+					"name" : "Cakey",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						0
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						32
+					],
+					"name" : "test_model_select",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						168
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						33
+					],
+					"name" : "test_sreeting_error_TypeA",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						171
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						34
+					],
+					"name" : "test_sreeting_error_theta_TypeA",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						172
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						37
+					],
+					"name" : "example_bmi088_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						43,
+						44,
+						45,
+						46
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						38
+					],
+					"name" : "example_buzzer_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						53
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						39
+					],
+					"name" : "example_can_bridge_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						59,
+						60
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						40
+					],
+					"name" : "example_chassis_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						69,
+						70,
+						71,
+						72,
+						73
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						41
+					],
+					"name" : "example_cybergear_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						77,
+						78
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						42
+					],
+					"name" : "example_dbus_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						80
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						43
+					],
+					"name" : "example_gimbal_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						85,
+						86
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						44
+					],
+					"name" : "example_imu_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						87,
+						88,
+						89
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						45
+					],
+					"name" : "example_ist8310_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						90
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						46
+					],
+					"name" : "example_key_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						91
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						47
+					],
+					"name" : "example_led_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						92
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						48
+					],
+					"name" : "example_motor_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						107,
+						108,
+						109,
+						110,
+						111,
+						112,
+						113,
+						114,
+						115,
+						116,
+						117,
+						118,
+						119
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						49
+					],
+					"name" : "example_oled_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						154
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						50
+					],
+					"name" : "example_onboard_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						156
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						51
+					],
+					"name" : "example_referee_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						160,
+						161
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						52
+					],
+					"name" : "example_sbus_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						162
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						53
+					],
+					"name" : "example_witimu_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						167
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						54
+					],
+					"name" : "example_usb_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						165
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						55
+					],
+					"name" : "example_supercap_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						163
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						56
+					],
+					"name" : "test_sreeting_error_DJI_Board_TypeC_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						170
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						58
+					],
+					"name" : "example_buzzer_DJI_Board_TypeA_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						52
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						59
+					],
+					"name" : "example_can_bridge_DJI_Board_TypeA_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						57,
+						58
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						60
+					],
+					"name" : "example_chassis_DJI_Board_TypeA_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						65,
+						66,
+						67,
+						68
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						61
+					],
+					"name" : "example_dbus_DJI_Board_TypeA_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						79
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						62
+					],
+					"name" : "example_MPU6500_DJI_Board_TypeA_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						41,
+						42
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						63
+					],
+					"name" : "example_fatfs_DJI_Board_TypeA_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						83
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						64
+					],
+					"name" : "example_led_flow_DJI_Board_TypeA_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						96
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						65
+					],
+					"name" : "example_gimbal_DJI_Board_TypeA_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						84
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						66
+					],
+					"name" : "example_motor_DJI_Board_TypeA_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						97,
+						98,
+						99,
+						100,
+						101,
+						102,
+						103,
+						104,
+						105,
+						106
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						67
+					],
+					"name" : "example_witimu_DJI_Board_TypeA_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						166
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						68
+					],
+					"name" : "example_referee_DJI_Board_TypeA_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						158,
+						159
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						69
+					],
+					"name" : "test_sreeting_error_DJI_Board_TypeA_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						169
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						71
+					],
+					"name" : "example_bmi088_DM_MC01_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						47,
+						48
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						72
+					],
+					"name" : "example_buzzer_DM_MC01_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						54
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						73
+					],
+					"name" : "example_can_bridge_DM_MC01_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						61,
+						62
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						74
+					],
+					"name" : "example_chassis_DM_MC01_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						74,
+						75,
+						76
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						75
+					],
+					"name" : "example_dbus_DM_MC01_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						81
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						76
+					],
+					"name" : "example_led_DM_MC01_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						93
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						77
+					],
+					"name" : "example_motor_DM_MC01_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						120,
+						121,
+						122,
+						123,
+						124,
+						125,
+						126,
+						127,
+						128,
+						129,
+						130
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						78
+					],
+					"name" : "example_onboard_DM_MC01_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						157
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						80
+					],
+					"name" : "example_buzzer_F103_Nano_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						56
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						81
+					],
+					"name" : "example_led_F103_Nano_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						95
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						82
+					],
+					"name" : "example_motor_F103_Nano_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						146,
+						147,
+						148,
+						149,
+						150,
+						151,
+						152,
+						153
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						83
+					],
+					"name" : "example_oled_F103_Nano_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						155
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						85
+					],
+					"name" : "example_bmi088_DM_MC02_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						49,
+						50,
+						51
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						86
+					],
+					"name" : "example_buzzer_DM_MC02_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						55
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						87
+					],
+					"name" : "example_can_bridge_DM_MC02_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						63,
+						64
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						88
+					],
+					"name" : "example_dbus_DM_MC02_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						82
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						89
+					],
+					"name" : "example_led_DM_MC02_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						94
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						90
+					],
+					"name" : "example_motor_DM_MC02_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						131,
+						132,
+						133,
+						134,
+						135,
+						136,
+						137,
+						138,
+						139,
+						140,
+						141,
+						142,
+						143,
+						144,
+						145
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						91
+					],
+					"name" : "example_uart_DM_MC02_general",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						164
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 30,
+					"id" : "Cakey_typeA.elf::@417e26571c6045a216a7",
+					"jsonFile" : "target-Cakey_typeA.elf-Debug-430014cfb5b01b518d9e.json",
+					"name" : "Cakey_typeA.elf",
+					"projectIndex" : 16
+				},
+				{
+					"directoryIndex" : 17,
+					"id" : "Car3_typeC.elf::@4dd6ecc5571eeabb9153",
+					"jsonFile" : "target-Car3_typeC.elf-Debug-3032ce20f88ede2cfef0.json",
+					"name" : "Car3_typeC.elf",
+					"projectIndex" : 6
+				},
+				{
+					"directoryIndex" : 20,
+					"id" : "DGStandard_chassis_typeC.elf::@9a493a17716f80bd1b64",
+					"jsonFile" : "target-DGStandard_chassis_typeC.elf-Debug-c5c7b9bb1f3c7ba86158.json",
+					"name" : "DGStandard_chassis_typeC.elf",
+					"projectIndex" : 8
+				},
+				{
+					"directoryIndex" : 19,
+					"id" : "DGStandard_gimbal_typeA.elf::@fb42dea7f6f6998eda6d",
+					"jsonFile" : "target-DGStandard_gimbal_typeA.elf-Debug-110846e6677bb1b1906e.json",
+					"name" : "DGStandard_gimbal_typeA.elf",
+					"projectIndex" : 7
+				},
+				{
+					"directoryIndex" : 5,
+					"id" : "DJI_Board_TypeA_general::@0f2067ae9082aebadabf",
+					"jsonFile" : "target-DJI_Board_TypeA_general-Debug-835066df21128dddf313.json",
+					"name" : "DJI_Board_TypeA_general",
+					"projectIndex" : 3
+				},
+				{
+					"directoryIndex" : 12,
+					"id" : "DJI_Board_TypeA_general_algorithm::@f85c889408ec60e84176",
+					"jsonFile" : "target-DJI_Board_TypeA_general_algorithm-Debug-59176f4b7a54bf7521aa.json",
+					"name" : "DJI_Board_TypeA_general_algorithm",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 14,
+					"id" : "DJI_Board_TypeA_general_components::@7e3e98385174a30bc5e4",
+					"jsonFile" : "target-DJI_Board_TypeA_general_components-Debug-fb79c69a48d69a570517.json",
+					"name" : "DJI_Board_TypeA_general_components",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 13,
+					"id" : "DJI_Board_TypeA_general_drivers::@fa52034afb78f9802074",
+					"jsonFile" : "target-DJI_Board_TypeA_general_drivers-Debug-01c562ebacd67d8eaffb.json",
+					"name" : "DJI_Board_TypeA_general_drivers",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 5,
+					"id" : "DJI_Board_TypeA_general_libDSP::@0f2067ae9082aebadabf",
+					"jsonFile" : "target-DJI_Board_TypeA_general_libDSP-Debug-12d79d970c5089abf805.json",
+					"name" : "DJI_Board_TypeA_general_libDSP",
+					"projectIndex" : 3
+				},
+				{
+					"directoryIndex" : 10,
+					"id" : "DJI_Board_TypeA_general_platform::@2c63e28c9383ea6b0a66",
+					"jsonFile" : "target-DJI_Board_TypeA_general_platform-Debug-e84bb4f026fd05050de5.json",
+					"name" : "DJI_Board_TypeA_general_platform",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 3,
+					"id" : "DJI_Board_TypeC_general::@77822f96047a39a93168",
+					"jsonFile" : "target-DJI_Board_TypeC_general-Debug-c0ecb32366e497f1cf67.json",
+					"name" : "DJI_Board_TypeC_general",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 12,
+					"id" : "DJI_Board_TypeC_general_algorithm::@f85c889408ec60e84176",
+					"jsonFile" : "target-DJI_Board_TypeC_general_algorithm-Debug-536af9c269dc19b39df8.json",
+					"name" : "DJI_Board_TypeC_general_algorithm",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 14,
+					"id" : "DJI_Board_TypeC_general_components::@7e3e98385174a30bc5e4",
+					"jsonFile" : "target-DJI_Board_TypeC_general_components-Debug-3b412c90cd7a91353541.json",
+					"name" : "DJI_Board_TypeC_general_components",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 13,
+					"id" : "DJI_Board_TypeC_general_drivers::@fa52034afb78f9802074",
+					"jsonFile" : "target-DJI_Board_TypeC_general_drivers-Debug-e5b887d7a4eda7781158.json",
+					"name" : "DJI_Board_TypeC_general_drivers",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 3,
+					"id" : "DJI_Board_TypeC_general_libDSP::@77822f96047a39a93168",
+					"jsonFile" : "target-DJI_Board_TypeC_general_libDSP-Debug-c8afb9f7a8f6fd537672.json",
+					"name" : "DJI_Board_TypeC_general_libDSP",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 10,
+					"id" : "DJI_Board_TypeC_general_platform::@2c63e28c9383ea6b0a66",
+					"jsonFile" : "target-DJI_Board_TypeC_general_platform-Debug-23203ed7d226975a073c.json",
+					"name" : "DJI_Board_TypeC_general_platform",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "DM_MC01_general::@ad92199e1cf2b003476d",
+					"jsonFile" : "target-DM_MC01_general-Debug-6cd6b82af46823dc9781.json",
+					"name" : "DM_MC01_general",
+					"projectIndex" : 2
+				},
+				{
+					"directoryIndex" : 12,
+					"id" : "DM_MC01_general_algorithm::@f85c889408ec60e84176",
+					"jsonFile" : "target-DM_MC01_general_algorithm-Debug-a5e95d0d07cbf8618c01.json",
+					"name" : "DM_MC01_general_algorithm",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 14,
+					"id" : "DM_MC01_general_components::@7e3e98385174a30bc5e4",
+					"jsonFile" : "target-DM_MC01_general_components-Debug-7c1c552088cf1bad126e.json",
+					"name" : "DM_MC01_general_components",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 13,
+					"id" : "DM_MC01_general_drivers::@fa52034afb78f9802074",
+					"jsonFile" : "target-DM_MC01_general_drivers-Debug-276a54b227defd70733b.json",
+					"name" : "DM_MC01_general_drivers",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 4,
+					"id" : "DM_MC01_general_libDSP::@ad92199e1cf2b003476d",
+					"jsonFile" : "target-DM_MC01_general_libDSP-Debug-fb52023357191b3f793d.json",
+					"name" : "DM_MC01_general_libDSP",
+					"projectIndex" : 2
+				},
+				{
+					"directoryIndex" : 10,
+					"id" : "DM_MC01_general_platform::@2c63e28c9383ea6b0a66",
+					"jsonFile" : "target-DM_MC01_general_platform-Debug-4a54036f1a7f07617d88.json",
+					"name" : "DM_MC01_general_platform",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 7,
+					"id" : "DM_MC02_general::@802959ddc0016d8f1761",
+					"jsonFile" : "target-DM_MC02_general-Debug-7e67a0c5e79eb6b4bf25.json",
+					"name" : "DM_MC02_general",
+					"projectIndex" : 5
+				},
+				{
+					"directoryIndex" : 12,
+					"id" : "DM_MC02_general_algorithm::@f85c889408ec60e84176",
+					"jsonFile" : "target-DM_MC02_general_algorithm-Debug-3b5d3361c5e834b31cc1.json",
+					"name" : "DM_MC02_general_algorithm",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 14,
+					"id" : "DM_MC02_general_components::@7e3e98385174a30bc5e4",
+					"jsonFile" : "target-DM_MC02_general_components-Debug-b1a66886445e13f42a3d.json",
+					"name" : "DM_MC02_general_components",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 13,
+					"id" : "DM_MC02_general_drivers::@fa52034afb78f9802074",
+					"jsonFile" : "target-DM_MC02_general_drivers-Debug-22eba50e1c368f99cdf0.json",
+					"name" : "DM_MC02_general_drivers",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 7,
+					"id" : "DM_MC02_general_libDSP::@802959ddc0016d8f1761",
+					"jsonFile" : "target-DM_MC02_general_libDSP-Debug-28f2ef2924223aa4d002.json",
+					"name" : "DM_MC02_general_libDSP",
+					"projectIndex" : 5
+				},
+				{
+					"directoryIndex" : 11,
+					"id" : "DM_MC02_general_platform::@b0fa9ca640f49d839945",
+					"jsonFile" : "target-DM_MC02_general_platform-Debug-3d2ccdae1f14394dbb4f.json",
+					"name" : "DM_MC02_general_platform",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 24,
+					"id" : "Dart_typeC.elf::@17746b57790a1f89727d",
+					"jsonFile" : "target-Dart_typeC.elf-Debug-3f6094c8dc368d56f056.json",
+					"name" : "Dart_typeC.elf",
+					"projectIndex" : 11
+				},
+				{
+					"directoryIndex" : 6,
+					"id" : "F103_Nano_general::@93f1e479ef796782219b",
+					"jsonFile" : "target-F103_Nano_general-Debug-e2ace6ddaf24fb6f99df.json",
+					"name" : "F103_Nano_general",
+					"projectIndex" : 4
+				},
+				{
+					"directoryIndex" : 12,
+					"id" : "F103_Nano_general_algorithm::@f85c889408ec60e84176",
+					"jsonFile" : "target-F103_Nano_general_algorithm-Debug-26cdf96bc72f3435e798.json",
+					"name" : "F103_Nano_general_algorithm",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 14,
+					"id" : "F103_Nano_general_components::@7e3e98385174a30bc5e4",
+					"jsonFile" : "target-F103_Nano_general_components-Debug-5a80c2b0d8cdedba4b0a.json",
+					"name" : "F103_Nano_general_components",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 13,
+					"id" : "F103_Nano_general_drivers::@fa52034afb78f9802074",
+					"jsonFile" : "target-F103_Nano_general_drivers-Debug-31c6e73af89d965447c9.json",
+					"name" : "F103_Nano_general_drivers",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 6,
+					"id" : "F103_Nano_general_libDSP::@93f1e479ef796782219b",
+					"jsonFile" : "target-F103_Nano_general_libDSP-Debug-12f0991e49e7086397a8.json",
+					"name" : "F103_Nano_general_libDSP",
+					"projectIndex" : 4
+				},
+				{
+					"directoryIndex" : 9,
+					"id" : "F103_Nano_general_platform::@ee2546cfea08078ecd35",
+					"jsonFile" : "target-F103_Nano_general_platform-Debug-f65f85d3a83cfaa1c832.json",
+					"name" : "F103_Nano_general_platform",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 28,
+					"id" : "FakeSentry_typeC.elf::@4741eaa503e709a6cf43",
+					"jsonFile" : "target-FakeSentry_typeC.elf-Debug-8e97d5d1c1dd21d40d3a.json",
+					"name" : "FakeSentry_typeC.elf",
+					"projectIndex" : 14
+				},
+				{
+					"directoryIndex" : 23,
+					"id" : "Hero_chassis_typeC.elf::@e12f24cca2a3b006e6c8",
+					"jsonFile" : "target-Hero_chassis_typeC.elf-Debug-4fa6bdc84cf9e4867874.json",
+					"name" : "Hero_chassis_typeC.elf",
+					"projectIndex" : 10
+				},
+				{
+					"directoryIndex" : 22,
+					"id" : "Hero_typeC.elf::@fd5b3999f38a7be70b8d",
+					"jsonFile" : "target-Hero_typeC.elf-Debug-5be18b8c132612adde0a.json",
+					"name" : "Hero_typeC.elf",
+					"projectIndex" : 9
+				},
+				{
+					"directoryIndex" : 27,
+					"id" : "Sentry_Gimbal_typeC.elf::@41e11b150cead3c7f288",
+					"jsonFile" : "target-Sentry_Gimbal_typeC.elf-Debug-39898fe41b21dc8490cc.json",
+					"name" : "Sentry_Gimbal_typeC.elf",
+					"projectIndex" : 13
+				},
+				{
+					"directoryIndex" : 26,
+					"id" : "Sentry_chassis.elf::@d7e5f7620a1706dd84d8",
+					"jsonFile" : "target-Sentry_chassis.elf-Debug-9a5244748e164684bf65.json",
+					"name" : "Sentry_chassis.elf",
+					"projectIndex" : 12
+				},
+				{
+					"directoryIndex" : 29,
+					"id" : "WheatCake_typeC.elf::@6c2bae8a3a86acfaa5fd",
+					"jsonFile" : "target-WheatCake_typeC.elf-Debug-f6243d41e881035b0be1.json",
+					"name" : "WheatCake_typeC.elf",
+					"projectIndex" : 15
+				},
+				{
+					"directoryIndex" : 62,
+					"id" : "example_MPU6500_DJI_Board_TypeA_general.elf::@b63f94b97d3fbf4e9bce",
+					"jsonFile" : "target-example_MPU6500_DJI_Board_TypeA_general.elf-Debug-6604fe291eecd5b7cf02.json",
+					"name" : "example_MPU6500_DJI_Board_TypeA_general.elf",
+					"projectIndex" : 44
+				},
+				{
+					"directoryIndex" : 62,
+					"id" : "example_MPU6500_DJI_Board_TypeA_general_AHRS.elf::@b63f94b97d3fbf4e9bce",
+					"jsonFile" : "target-example_MPU6500_DJI_Board_TypeA_general_AHRS.elf-Debug-e670ac47d61db4661788.json",
+					"name" : "example_MPU6500_DJI_Board_TypeA_general_AHRS.elf",
+					"projectIndex" : 44
+				},
+				{
+					"directoryIndex" : 37,
+					"id" : "example_bmi088_DJI_Board_TypeC_general.elf::@74408bcf9d75b9a0d7e8",
+					"jsonFile" : "target-example_bmi088_DJI_Board_TypeC_general.elf-Debug-4ef2b9d8eaae5d653ca2.json",
+					"name" : "example_bmi088_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 20
+				},
+				{
+					"directoryIndex" : 37,
+					"id" : "example_bmi088_DJI_Board_TypeC_general_AHRS.elf::@74408bcf9d75b9a0d7e8",
+					"jsonFile" : "target-example_bmi088_DJI_Board_TypeC_general_AHRS.elf-Debug-aeb5f4b272f1f6471380.json",
+					"name" : "example_bmi088_DJI_Board_TypeC_general_AHRS.elf",
+					"projectIndex" : 20
+				},
+				{
+					"directoryIndex" : 37,
+					"id" : "example_bmi088_DJI_Board_TypeC_general_QEKF.elf::@74408bcf9d75b9a0d7e8",
+					"jsonFile" : "target-example_bmi088_DJI_Board_TypeC_general_QEKF.elf-Debug-60d9a42daa4baf1a587d.json",
+					"name" : "example_bmi088_DJI_Board_TypeC_general_QEKF.elf",
+					"projectIndex" : 20
+				},
+				{
+					"directoryIndex" : 37,
+					"id" : "example_bmi088_DJI_Board_TypeC_general_with_ist8310.elf::@74408bcf9d75b9a0d7e8",
+					"jsonFile" : "target-example_bmi088_DJI_Board_TypeC_general_with_ist8310.elf-Debug-68834d120e9e8389070f.json",
+					"name" : "example_bmi088_DJI_Board_TypeC_general_with_ist8310.elf",
+					"projectIndex" : 20
+				},
+				{
+					"directoryIndex" : 71,
+					"id" : "example_bmi088_DM_MC01_general.elf::@5e0c4dccd84eb934af16",
+					"jsonFile" : "target-example_bmi088_DM_MC01_general.elf-Debug-0be4be8782c69d11a7a9.json",
+					"name" : "example_bmi088_DM_MC01_general.elf",
+					"projectIndex" : 52
+				},
+				{
+					"directoryIndex" : 71,
+					"id" : "example_bmi088_DM_MC01_general_AHRS.elf::@5e0c4dccd84eb934af16",
+					"jsonFile" : "target-example_bmi088_DM_MC01_general_AHRS.elf-Debug-6b18cdad7599f5c46ccd.json",
+					"name" : "example_bmi088_DM_MC01_general_AHRS.elf",
+					"projectIndex" : 52
+				},
+				{
+					"directoryIndex" : 85,
+					"id" : "example_bmi088_DM_MC02_general.elf::@81ed86c80d4816173ecf",
+					"jsonFile" : "target-example_bmi088_DM_MC02_general.elf-Debug-5f7da0d2c237b0aedce9.json",
+					"name" : "example_bmi088_DM_MC02_general.elf",
+					"projectIndex" : 64
+				},
+				{
+					"directoryIndex" : 85,
+					"id" : "example_bmi088_DM_MC02_general_AHRS.elf::@81ed86c80d4816173ecf",
+					"jsonFile" : "target-example_bmi088_DM_MC02_general_AHRS.elf-Debug-70dc218d0e1899bb641a.json",
+					"name" : "example_bmi088_DM_MC02_general_AHRS.elf",
+					"projectIndex" : 64
+				},
+				{
+					"directoryIndex" : 85,
+					"id" : "example_bmi088_DM_MC02_general_QEKF.elf::@81ed86c80d4816173ecf",
+					"jsonFile" : "target-example_bmi088_DM_MC02_general_QEKF.elf-Debug-9969495a5a152d7a25ce.json",
+					"name" : "example_bmi088_DM_MC02_general_QEKF.elf",
+					"projectIndex" : 64
+				},
+				{
+					"directoryIndex" : 58,
+					"id" : "example_buzzer_DJI_Board_TypeA_general.elf::@13ce7cd693f8dedf5ba6",
+					"jsonFile" : "target-example_buzzer_DJI_Board_TypeA_general.elf-Debug-cbbf55bd0296aa7446c0.json",
+					"name" : "example_buzzer_DJI_Board_TypeA_general.elf",
+					"projectIndex" : 40
+				},
+				{
+					"directoryIndex" : 38,
+					"id" : "example_buzzer_DJI_Board_TypeC_general.elf::@ca7370738a847f2ab27d",
+					"jsonFile" : "target-example_buzzer_DJI_Board_TypeC_general.elf-Debug-47395e32fd4667465a0c.json",
+					"name" : "example_buzzer_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 21
+				},
+				{
+					"directoryIndex" : 72,
+					"id" : "example_buzzer_DM_MC01_general.elf::@e0f3d1975df5cce6e477",
+					"jsonFile" : "target-example_buzzer_DM_MC01_general.elf-Debug-c0bc0559c7a635458d9f.json",
+					"name" : "example_buzzer_DM_MC01_general.elf",
+					"projectIndex" : 53
+				},
+				{
+					"directoryIndex" : 86,
+					"id" : "example_buzzer_DM_MC02_general.elf::@01580473cb4d51ade567",
+					"jsonFile" : "target-example_buzzer_DM_MC02_general.elf-Debug-611091934f3472eee9f0.json",
+					"name" : "example_buzzer_DM_MC02_general.elf",
+					"projectIndex" : 65
+				},
+				{
+					"directoryIndex" : 80,
+					"id" : "example_buzzer_F103_Nano_general.elf::@61fb14700f38a0f9ad86",
+					"jsonFile" : "target-example_buzzer_F103_Nano_general.elf-Debug-2ad52c66c84a68b44c7d.json",
+					"name" : "example_buzzer_F103_Nano_general.elf",
+					"projectIndex" : 60
+				},
+				{
+					"directoryIndex" : 59,
+					"id" : "example_can_bridge_DJI_Board_TypeA_general_client.elf::@b0c6ff222073ed1fea1e",
+					"jsonFile" : "target-example_can_bridge_DJI_Board_TypeA_general_client.elf-Debug-467dbad69b5fa2c5c7f2.json",
+					"name" : "example_can_bridge_DJI_Board_TypeA_general_client.elf",
+					"projectIndex" : 41
+				},
+				{
+					"directoryIndex" : 59,
+					"id" : "example_can_bridge_DJI_Board_TypeA_general_host.elf::@b0c6ff222073ed1fea1e",
+					"jsonFile" : "target-example_can_bridge_DJI_Board_TypeA_general_host.elf-Debug-2a604afcbcf655486240.json",
+					"name" : "example_can_bridge_DJI_Board_TypeA_general_host.elf",
+					"projectIndex" : 41
+				},
+				{
+					"directoryIndex" : 39,
+					"id" : "example_can_bridge_DJI_Board_TypeC_general_client.elf::@4f1a91e55d425fb09a76",
+					"jsonFile" : "target-example_can_bridge_DJI_Board_TypeC_general_client.elf-Debug-a44cb9b1b351ef1810bd.json",
+					"name" : "example_can_bridge_DJI_Board_TypeC_general_client.elf",
+					"projectIndex" : 22
+				},
+				{
+					"directoryIndex" : 39,
+					"id" : "example_can_bridge_DJI_Board_TypeC_general_host.elf::@4f1a91e55d425fb09a76",
+					"jsonFile" : "target-example_can_bridge_DJI_Board_TypeC_general_host.elf-Debug-0e8f70f64b5088653d61.json",
+					"name" : "example_can_bridge_DJI_Board_TypeC_general_host.elf",
+					"projectIndex" : 22
+				},
+				{
+					"directoryIndex" : 73,
+					"id" : "example_can_bridge_DM_MC01_general_client.elf::@1ebb57448810791bcc5c",
+					"jsonFile" : "target-example_can_bridge_DM_MC01_general_client.elf-Debug-a664f58b5bbcacfe0945.json",
+					"name" : "example_can_bridge_DM_MC01_general_client.elf",
+					"projectIndex" : 54
+				},
+				{
+					"directoryIndex" : 73,
+					"id" : "example_can_bridge_DM_MC01_general_host.elf::@1ebb57448810791bcc5c",
+					"jsonFile" : "target-example_can_bridge_DM_MC01_general_host.elf-Debug-5e5572eadbe33457241c.json",
+					"name" : "example_can_bridge_DM_MC01_general_host.elf",
+					"projectIndex" : 54
+				},
+				{
+					"directoryIndex" : 87,
+					"id" : "example_can_bridge_DM_MC02_general_client.elf::@40857066779aa9300417",
+					"jsonFile" : "target-example_can_bridge_DM_MC02_general_client.elf-Debug-23b0bedfc142101b28c4.json",
+					"name" : "example_can_bridge_DM_MC02_general_client.elf",
+					"projectIndex" : 66
+				},
+				{
+					"directoryIndex" : 87,
+					"id" : "example_can_bridge_DM_MC02_general_host.elf::@40857066779aa9300417",
+					"jsonFile" : "target-example_can_bridge_DM_MC02_general_host.elf-Debug-aec8072faa071c9eb0f7.json",
+					"name" : "example_can_bridge_DM_MC02_general_host.elf",
+					"projectIndex" : 66
+				},
+				{
+					"directoryIndex" : 60,
+					"id" : "example_chassis_DJI_Board_TypeA_general.elf::@095f3fa8469d6f5ae643",
+					"jsonFile" : "target-example_chassis_DJI_Board_TypeA_general.elf-Debug-cd9b24a3855051fe1ff5.json",
+					"name" : "example_chassis_DJI_Board_TypeA_general.elf",
+					"projectIndex" : 42
+				},
+				{
+					"directoryIndex" : 60,
+					"id" : "example_chassis_DJI_Board_TypeA_general_can_bridge.elf::@095f3fa8469d6f5ae643",
+					"jsonFile" : "target-example_chassis_DJI_Board_TypeA_general_can_bridge.elf-Debug-34dbd17f8df7ab575f74.json",
+					"name" : "example_chassis_DJI_Board_TypeA_general_can_bridge.elf",
+					"projectIndex" : 42
+				},
+				{
+					"directoryIndex" : 60,
+					"id" : "example_chassis_DJI_Board_TypeA_general_can_bridge_sender.elf::@095f3fa8469d6f5ae643",
+					"jsonFile" : "target-example_chassis_DJI_Board_TypeA_general_can_bridge_sender.elf-Debug-3da148009fe71f66a3cb.json",
+					"name" : "example_chassis_DJI_Board_TypeA_general_can_bridge_sender.elf",
+					"projectIndex" : 42
+				},
+				{
+					"directoryIndex" : 60,
+					"id" : "example_chassis_DJI_Board_TypeA_general_sbus.elf::@095f3fa8469d6f5ae643",
+					"jsonFile" : "target-example_chassis_DJI_Board_TypeA_general_sbus.elf-Debug-156916ecad9573096c99.json",
+					"name" : "example_chassis_DJI_Board_TypeA_general_sbus.elf",
+					"projectIndex" : 42
+				},
+				{
+					"directoryIndex" : 40,
+					"id" : "example_chassis_DJI_Board_TypeC_general.elf::@f8d544a6480cea257a36",
+					"jsonFile" : "target-example_chassis_DJI_Board_TypeC_general.elf-Debug-3a099a5f3c52e9264d51.json",
+					"name" : "example_chassis_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 23
+				},
+				{
+					"directoryIndex" : 40,
+					"id" : "example_chassis_DJI_Board_TypeC_general_can_bridge.elf::@f8d544a6480cea257a36",
+					"jsonFile" : "target-example_chassis_DJI_Board_TypeC_general_can_bridge.elf-Debug-2844e6bee00054408ddf.json",
+					"name" : "example_chassis_DJI_Board_TypeC_general_can_bridge.elf",
+					"projectIndex" : 23
+				},
+				{
+					"directoryIndex" : 40,
+					"id" : "example_chassis_DJI_Board_TypeC_general_power_data_collect.elf::@f8d544a6480cea257a36",
+					"jsonFile" : "target-example_chassis_DJI_Board_TypeC_general_power_data_collect.elf-Debug-0335487937744f0f0c78.json",
+					"name" : "example_chassis_DJI_Board_TypeC_general_power_data_collect.elf",
+					"projectIndex" : 23
+				},
+				{
+					"directoryIndex" : 40,
+					"id" : "example_chassis_DJI_Board_TypeC_general_power_limit_test.elf::@f8d544a6480cea257a36",
+					"jsonFile" : "target-example_chassis_DJI_Board_TypeC_general_power_limit_test.elf-Debug-b3e613eafe5c0cb00420.json",
+					"name" : "example_chassis_DJI_Board_TypeC_general_power_limit_test.elf",
+					"projectIndex" : 23
+				},
+				{
+					"directoryIndex" : 40,
+					"id" : "example_chassis_DJI_Board_TypeC_general_sbus.elf::@f8d544a6480cea257a36",
+					"jsonFile" : "target-example_chassis_DJI_Board_TypeC_general_sbus.elf-Debug-e0552a0ed66fcc609a44.json",
+					"name" : "example_chassis_DJI_Board_TypeC_general_sbus.elf",
+					"projectIndex" : 23
+				},
+				{
+					"directoryIndex" : 74,
+					"id" : "example_chassis_DM_MC01_general.elf::@056cbbbf90a1364ea96b",
+					"jsonFile" : "target-example_chassis_DM_MC01_general.elf-Debug-09eb46d0d9403829f492.json",
+					"name" : "example_chassis_DM_MC01_general.elf",
+					"projectIndex" : 55
+				},
+				{
+					"directoryIndex" : 74,
+					"id" : "example_chassis_DM_MC01_general_can_bridge.elf::@056cbbbf90a1364ea96b",
+					"jsonFile" : "target-example_chassis_DM_MC01_general_can_bridge.elf-Debug-0f0f411c733cf688fd1e.json",
+					"name" : "example_chassis_DM_MC01_general_can_bridge.elf",
+					"projectIndex" : 55
+				},
+				{
+					"directoryIndex" : 74,
+					"id" : "example_chassis_DM_MC01_general_sbus.elf::@056cbbbf90a1364ea96b",
+					"jsonFile" : "target-example_chassis_DM_MC01_general_sbus.elf-Debug-98d83834f28478b06248.json",
+					"name" : "example_chassis_DM_MC01_general_sbus.elf",
+					"projectIndex" : 55
+				},
+				{
+					"directoryIndex" : 41,
+					"id" : "example_cybergear_DJI_Board_TypeC_general_current.elf::@544869f736becd95d7b6",
+					"jsonFile" : "target-example_cybergear_DJI_Board_TypeC_general_current.elf-Debug-9a2ef5db9a1be1d5025f.json",
+					"name" : "example_cybergear_DJI_Board_TypeC_general_current.elf",
+					"projectIndex" : 24
+				},
+				{
+					"directoryIndex" : 41,
+					"id" : "example_cybergear_DJI_Board_TypeC_general_mit.elf::@544869f736becd95d7b6",
+					"jsonFile" : "target-example_cybergear_DJI_Board_TypeC_general_mit.elf-Debug-bb87b0ac39d6378862a4.json",
+					"name" : "example_cybergear_DJI_Board_TypeC_general_mit.elf",
+					"projectIndex" : 24
+				},
+				{
+					"directoryIndex" : 61,
+					"id" : "example_dbus_DJI_Board_TypeA_general.elf::@3480d0c6c730ffe753d1",
+					"jsonFile" : "target-example_dbus_DJI_Board_TypeA_general.elf-Debug-2478b9d1fd2e12eb59e2.json",
+					"name" : "example_dbus_DJI_Board_TypeA_general.elf",
+					"projectIndex" : 43
+				},
+				{
+					"directoryIndex" : 42,
+					"id" : "example_dbus_DJI_Board_TypeC_general.elf::@8f939dc501c08161d879",
+					"jsonFile" : "target-example_dbus_DJI_Board_TypeC_general.elf-Debug-4f8bfb7aa461005f0a3b.json",
+					"name" : "example_dbus_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 25
+				},
+				{
+					"directoryIndex" : 75,
+					"id" : "example_dbus_DM_MC01_general.elf::@a04cb3e1fc6049164559",
+					"jsonFile" : "target-example_dbus_DM_MC01_general.elf-Debug-d7a9c5262f2b42ae6a8f.json",
+					"name" : "example_dbus_DM_MC01_general.elf",
+					"projectIndex" : 56
+				},
+				{
+					"directoryIndex" : 88,
+					"id" : "example_dbus_DM_MC02_general.elf::@8a56a5f0d20339d6df70",
+					"jsonFile" : "target-example_dbus_DM_MC02_general.elf-Debug-f5aeb2f565a4c05892f8.json",
+					"name" : "example_dbus_DM_MC02_general.elf",
+					"projectIndex" : 67
+				},
+				{
+					"directoryIndex" : 63,
+					"id" : "example_fatfs_DJI_Board_TypeA_general.elf::@0854e4aaeb222482fc00",
+					"jsonFile" : "target-example_fatfs_DJI_Board_TypeA_general.elf-Debug-4f41bd29607b3fecc1a3.json",
+					"name" : "example_fatfs_DJI_Board_TypeA_general.elf",
+					"projectIndex" : 45
+				},
+				{
+					"directoryIndex" : 65,
+					"id" : "example_gimbal_DJI_Board_TypeA_general.elf::@ccfb79f6343299e0440d",
+					"jsonFile" : "target-example_gimbal_DJI_Board_TypeA_general.elf-Debug-b61c30dceda04a8a91ef.json",
+					"name" : "example_gimbal_DJI_Board_TypeA_general.elf",
+					"projectIndex" : 47
+				},
+				{
+					"directoryIndex" : 43,
+					"id" : "example_gimbal_DJI_Board_TypeC_general.elf::@10802661e31019479add",
+					"jsonFile" : "target-example_gimbal_DJI_Board_TypeC_general.elf-Debug-ba39d51d69a328209926.json",
+					"name" : "example_gimbal_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 26
+				},
+				{
+					"directoryIndex" : 43,
+					"id" : "example_gimbal_DJI_Board_TypeC_general_sbus.elf::@10802661e31019479add",
+					"jsonFile" : "target-example_gimbal_DJI_Board_TypeC_general_sbus.elf-Debug-2259afd603f537d622c8.json",
+					"name" : "example_gimbal_DJI_Board_TypeC_general_sbus.elf",
+					"projectIndex" : 26
+				},
+				{
+					"directoryIndex" : 44,
+					"id" : "example_imu_DJI_Board_TypeC_general.elf::@31b51a37fa91bed2fea7",
+					"jsonFile" : "target-example_imu_DJI_Board_TypeC_general.elf-Debug-04972d619a06a9401836.json",
+					"name" : "example_imu_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 27
+				},
+				{
+					"directoryIndex" : 44,
+					"id" : "example_imu_DJI_Board_TypeC_general_oled.elf::@31b51a37fa91bed2fea7",
+					"jsonFile" : "target-example_imu_DJI_Board_TypeC_general_oled.elf-Debug-0b99282854762ac723bc.json",
+					"name" : "example_imu_DJI_Board_TypeC_general_oled.elf",
+					"projectIndex" : 27
+				},
+				{
+					"directoryIndex" : 44,
+					"id" : "example_imu_DJI_Board_TypeC_general_usb.elf::@31b51a37fa91bed2fea7",
+					"jsonFile" : "target-example_imu_DJI_Board_TypeC_general_usb.elf-Debug-01f4fecb6ec4d12a06fb.json",
+					"name" : "example_imu_DJI_Board_TypeC_general_usb.elf",
+					"projectIndex" : 27
+				},
+				{
+					"directoryIndex" : 45,
+					"id" : "example_ist8310_DJI_Board_TypeC_general.elf::@b6413a482b4d87b7cb74",
+					"jsonFile" : "target-example_ist8310_DJI_Board_TypeC_general.elf-Debug-acb823e464f5383ffff4.json",
+					"name" : "example_ist8310_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 28
+				},
+				{
+					"directoryIndex" : 46,
+					"id" : "example_key_DJI_Board_TypeC_general_typeC.elf::@2b8be268d6f8fdf219a3",
+					"jsonFile" : "target-example_key_DJI_Board_TypeC_general_typeC.elf-Debug-6d090f2cf82a69250236.json",
+					"name" : "example_key_DJI_Board_TypeC_general_typeC.elf",
+					"projectIndex" : 29
+				},
+				{
+					"directoryIndex" : 47,
+					"id" : "example_led_DJI_Board_TypeC_general.elf::@8e87b57825275266c689",
+					"jsonFile" : "target-example_led_DJI_Board_TypeC_general.elf-Debug-39d64a1ac7b7aeddd3e0.json",
+					"name" : "example_led_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 30
+				},
+				{
+					"directoryIndex" : 76,
+					"id" : "example_led_DM_MC01_general.elf::@6577fd4a6a9fedcb004a",
+					"jsonFile" : "target-example_led_DM_MC01_general.elf-Debug-a793a140548325937020.json",
+					"name" : "example_led_DM_MC01_general.elf",
+					"projectIndex" : 57
+				},
+				{
+					"directoryIndex" : 89,
+					"id" : "example_led_DM_MC02_general.elf::@e0b64303dd62a6f429f4",
+					"jsonFile" : "target-example_led_DM_MC02_general.elf-Debug-27d6fe8417cd4ae0a0f0.json",
+					"name" : "example_led_DM_MC02_general.elf",
+					"projectIndex" : 68
+				},
+				{
+					"directoryIndex" : 81,
+					"id" : "example_led_F103_Nano_general.elf::@e075201e71e009c1a9a1",
+					"jsonFile" : "target-example_led_F103_Nano_general.elf-Debug-1d3610f9fd8f6a3ccc9e.json",
+					"name" : "example_led_F103_Nano_general.elf",
+					"projectIndex" : 61
+				},
+				{
+					"directoryIndex" : 64,
+					"id" : "example_led_flow_DJI_Board_TypeA_general.elf::@134e0dd0842a4a416b16",
+					"jsonFile" : "target-example_led_flow_DJI_Board_TypeA_general.elf-Debug-8c8bd23e4eed49a61a37.json",
+					"name" : "example_led_flow_DJI_Board_TypeA_general.elf",
+					"projectIndex" : 46
+				},
+				{
+					"directoryIndex" : 66,
+					"id" : "example_motor_DJI_Board_TypeA_general_m2006.elf::@c7853835866b11e3b67e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeA_general_m2006.elf-Debug-8340abe00c6bf2c86cd3.json",
+					"name" : "example_motor_DJI_Board_TypeA_general_m2006.elf",
+					"projectIndex" : 48
+				},
+				{
+					"directoryIndex" : 66,
+					"id" : "example_motor_DJI_Board_TypeA_general_m2006_theta.elf::@c7853835866b11e3b67e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeA_general_m2006_theta.elf-Debug-b4ef6e993386982c8e88.json",
+					"name" : "example_motor_DJI_Board_TypeA_general_m2006_theta.elf",
+					"projectIndex" : 48
+				},
+				{
+					"directoryIndex" : 66,
+					"id" : "example_motor_DJI_Board_TypeA_general_m2305.elf::@c7853835866b11e3b67e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeA_general_m2305.elf-Debug-fc1729b9b2b26d0449a6.json",
+					"name" : "example_motor_DJI_Board_TypeA_general_m2305.elf",
+					"projectIndex" : 48
+				},
+				{
+					"directoryIndex" : 66,
+					"id" : "example_motor_DJI_Board_TypeA_general_m3508.elf::@c7853835866b11e3b67e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeA_general_m3508.elf-Debug-aab7ccc2131c00a7431b.json",
+					"name" : "example_motor_DJI_Board_TypeA_general_m3508.elf",
+					"projectIndex" : 48
+				},
+				{
+					"directoryIndex" : 66,
+					"id" : "example_motor_DJI_Board_TypeA_general_m3508_theta.elf::@c7853835866b11e3b67e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeA_general_m3508_theta.elf-Debug-a6823518b941744aef25.json",
+					"name" : "example_motor_DJI_Board_TypeA_general_m3508_theta.elf",
+					"projectIndex" : 48
+				},
+				{
+					"directoryIndex" : 66,
+					"id" : "example_motor_DJI_Board_TypeA_general_m6020.elf::@c7853835866b11e3b67e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeA_general_m6020.elf-Debug-79c740324dba1ef4ba69.json",
+					"name" : "example_motor_DJI_Board_TypeA_general_m6020.elf",
+					"projectIndex" : 48
+				},
+				{
+					"directoryIndex" : 66,
+					"id" : "example_motor_DJI_Board_TypeA_general_m6020_theta.elf::@c7853835866b11e3b67e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeA_general_m6020_theta.elf-Debug-7ad076571fafba85809f.json",
+					"name" : "example_motor_DJI_Board_TypeA_general_m6020_theta.elf",
+					"projectIndex" : 48
+				},
+				{
+					"directoryIndex" : 66,
+					"id" : "example_motor_DJI_Board_TypeA_general_pwm.elf::@c7853835866b11e3b67e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeA_general_pwm.elf-Debug-455fd3191a2477d4159e.json",
+					"name" : "example_motor_DJI_Board_TypeA_general_pwm.elf",
+					"projectIndex" : 48
+				},
+				{
+					"directoryIndex" : 66,
+					"id" : "example_motor_DJI_Board_TypeA_general_servo_m2006.elf::@c7853835866b11e3b67e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeA_general_servo_m2006.elf-Debug-80201b570c9a3c2c6775.json",
+					"name" : "example_motor_DJI_Board_TypeA_general_servo_m2006.elf",
+					"projectIndex" : 48
+				},
+				{
+					"directoryIndex" : 66,
+					"id" : "example_motor_DJI_Board_TypeA_general_servo_m3508.elf::@c7853835866b11e3b67e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeA_general_servo_m3508.elf-Debug-e0ee63fc22670f383467.json",
+					"name" : "example_motor_DJI_Board_TypeA_general_servo_m3508.elf",
+					"projectIndex" : 48
+				},
+				{
+					"directoryIndex" : 48,
+					"id" : "example_motor_DJI_Board_TypeC_general_dm4310.elf::@f1d0e221c3a4dc23481e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeC_general_dm4310.elf-Debug-cbcdd8f8e59bea48a70c.json",
+					"name" : "example_motor_DJI_Board_TypeC_general_dm4310.elf",
+					"projectIndex" : 31
+				},
+				{
+					"directoryIndex" : 48,
+					"id" : "example_motor_DJI_Board_TypeC_general_m2006.elf::@f1d0e221c3a4dc23481e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeC_general_m2006.elf-Debug-8fb0692eadfd84369b9f.json",
+					"name" : "example_motor_DJI_Board_TypeC_general_m2006.elf",
+					"projectIndex" : 31
+				},
+				{
+					"directoryIndex" : 48,
+					"id" : "example_motor_DJI_Board_TypeC_general_m2006_theta.elf::@f1d0e221c3a4dc23481e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeC_general_m2006_theta.elf-Debug-ed1a1845fdb14523f523.json",
+					"name" : "example_motor_DJI_Board_TypeC_general_m2006_theta.elf",
+					"projectIndex" : 31
+				},
+				{
+					"directoryIndex" : 48,
+					"id" : "example_motor_DJI_Board_TypeC_general_m2305.elf::@f1d0e221c3a4dc23481e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeC_general_m2305.elf-Debug-85c3ef23f5fc5f881747.json",
+					"name" : "example_motor_DJI_Board_TypeC_general_m2305.elf",
+					"projectIndex" : 31
+				},
+				{
+					"directoryIndex" : 48,
+					"id" : "example_motor_DJI_Board_TypeC_general_m3508.elf::@f1d0e221c3a4dc23481e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeC_general_m3508.elf-Debug-e1d5511e8fb7dc841d16.json",
+					"name" : "example_motor_DJI_Board_TypeC_general_m3508.elf",
+					"projectIndex" : 31
+				},
+				{
+					"directoryIndex" : 48,
+					"id" : "example_motor_DJI_Board_TypeC_general_m3508_flywheel.elf::@f1d0e221c3a4dc23481e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeC_general_m3508_flywheel.elf-Debug-7ad2a5a228b23b1e6515.json",
+					"name" : "example_motor_DJI_Board_TypeC_general_m3508_flywheel.elf",
+					"projectIndex" : 31
+				},
+				{
+					"directoryIndex" : 48,
+					"id" : "example_motor_DJI_Board_TypeC_general_m3508_theta.elf::@f1d0e221c3a4dc23481e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeC_general_m3508_theta.elf-Debug-e762d41c9509283d7f95.json",
+					"name" : "example_motor_DJI_Board_TypeC_general_m3508_theta.elf",
+					"projectIndex" : 31
+				},
+				{
+					"directoryIndex" : 48,
+					"id" : "example_motor_DJI_Board_TypeC_general_m6020.elf::@f1d0e221c3a4dc23481e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeC_general_m6020.elf-Debug-239510331da2ea56909f.json",
+					"name" : "example_motor_DJI_Board_TypeC_general_m6020.elf",
+					"projectIndex" : 31
+				},
+				{
+					"directoryIndex" : 48,
+					"id" : "example_motor_DJI_Board_TypeC_general_m6020_theta.elf::@f1d0e221c3a4dc23481e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeC_general_m6020_theta.elf-Debug-9c68dda315c3be5beaa5.json",
+					"name" : "example_motor_DJI_Board_TypeC_general_m6020_theta.elf",
+					"projectIndex" : 31
+				},
+				{
+					"directoryIndex" : 48,
+					"id" : "example_motor_DJI_Board_TypeC_general_pid_adjust.elf::@f1d0e221c3a4dc23481e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeC_general_pid_adjust.elf-Debug-008b5ef40163035f5fcb.json",
+					"name" : "example_motor_DJI_Board_TypeC_general_pid_adjust.elf",
+					"projectIndex" : 31
+				},
+				{
+					"directoryIndex" : 48,
+					"id" : "example_motor_DJI_Board_TypeC_general_pwm.elf::@f1d0e221c3a4dc23481e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeC_general_pwm.elf-Debug-6281f056a32b71af9a62.json",
+					"name" : "example_motor_DJI_Board_TypeC_general_pwm.elf",
+					"projectIndex" : 31
+				},
+				{
+					"directoryIndex" : 48,
+					"id" : "example_motor_DJI_Board_TypeC_general_servo_m2006.elf::@f1d0e221c3a4dc23481e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeC_general_servo_m2006.elf-Debug-0c627c51759ee960d0ab.json",
+					"name" : "example_motor_DJI_Board_TypeC_general_servo_m2006.elf",
+					"projectIndex" : 31
+				},
+				{
+					"directoryIndex" : 48,
+					"id" : "example_motor_DJI_Board_TypeC_general_servo_m3508.elf::@f1d0e221c3a4dc23481e",
+					"jsonFile" : "target-example_motor_DJI_Board_TypeC_general_servo_m3508.elf-Debug-9c8da357ce983b2f5f53.json",
+					"name" : "example_motor_DJI_Board_TypeC_general_servo_m3508.elf",
+					"projectIndex" : 31
+				},
+				{
+					"directoryIndex" : 77,
+					"id" : "example_motor_DM_MC01_general_dm4310.elf::@833eaae0f4184ffcf57b",
+					"jsonFile" : "target-example_motor_DM_MC01_general_dm4310.elf-Debug-9105bd3077267c30f444.json",
+					"name" : "example_motor_DM_MC01_general_dm4310.elf",
+					"projectIndex" : 58
+				},
+				{
+					"directoryIndex" : 77,
+					"id" : "example_motor_DM_MC01_general_m2006.elf::@833eaae0f4184ffcf57b",
+					"jsonFile" : "target-example_motor_DM_MC01_general_m2006.elf-Debug-0a9d05c20abc7dcb5c49.json",
+					"name" : "example_motor_DM_MC01_general_m2006.elf",
+					"projectIndex" : 58
+				},
+				{
+					"directoryIndex" : 77,
+					"id" : "example_motor_DM_MC01_general_m2305.elf::@833eaae0f4184ffcf57b",
+					"jsonFile" : "target-example_motor_DM_MC01_general_m2305.elf-Debug-5064a719c9e57a052486.json",
+					"name" : "example_motor_DM_MC01_general_m2305.elf",
+					"projectIndex" : 58
+				},
+				{
+					"directoryIndex" : 77,
+					"id" : "example_motor_DM_MC01_general_m3508.elf::@833eaae0f4184ffcf57b",
+					"jsonFile" : "target-example_motor_DM_MC01_general_m3508.elf-Debug-5b0587f226af88f78ab8.json",
+					"name" : "example_motor_DM_MC01_general_m3508.elf",
+					"projectIndex" : 58
+				},
+				{
+					"directoryIndex" : 77,
+					"id" : "example_motor_DM_MC01_general_m4310_mit.elf::@833eaae0f4184ffcf57b",
+					"jsonFile" : "target-example_motor_DM_MC01_general_m4310_mit.elf-Debug-82256e623420a39c2527.json",
+					"name" : "example_motor_DM_MC01_general_m4310_mit.elf",
+					"projectIndex" : 58
+				},
+				{
+					"directoryIndex" : 77,
+					"id" : "example_motor_DM_MC01_general_m4310_posvel.elf::@833eaae0f4184ffcf57b",
+					"jsonFile" : "target-example_motor_DM_MC01_general_m4310_posvel.elf-Debug-93f758d711a1c568c7ff.json",
+					"name" : "example_motor_DM_MC01_general_m4310_posvel.elf",
+					"projectIndex" : 58
+				},
+				{
+					"directoryIndex" : 77,
+					"id" : "example_motor_DM_MC01_general_m4310_vel.elf::@833eaae0f4184ffcf57b",
+					"jsonFile" : "target-example_motor_DM_MC01_general_m4310_vel.elf-Debug-de8ef71520a1674ff483.json",
+					"name" : "example_motor_DM_MC01_general_m4310_vel.elf",
+					"projectIndex" : 58
+				},
+				{
+					"directoryIndex" : 77,
+					"id" : "example_motor_DM_MC01_general_m6020.elf::@833eaae0f4184ffcf57b",
+					"jsonFile" : "target-example_motor_DM_MC01_general_m6020.elf-Debug-ed29aa51ddecb542393a.json",
+					"name" : "example_motor_DM_MC01_general_m6020.elf",
+					"projectIndex" : 58
+				},
+				{
+					"directoryIndex" : 77,
+					"id" : "example_motor_DM_MC01_general_pwm.elf::@833eaae0f4184ffcf57b",
+					"jsonFile" : "target-example_motor_DM_MC01_general_pwm.elf-Debug-708b6371f778ef2e1b80.json",
+					"name" : "example_motor_DM_MC01_general_pwm.elf",
+					"projectIndex" : 58
+				},
+				{
+					"directoryIndex" : 77,
+					"id" : "example_motor_DM_MC01_general_servo_m2006.elf::@833eaae0f4184ffcf57b",
+					"jsonFile" : "target-example_motor_DM_MC01_general_servo_m2006.elf-Debug-0be53a2fb55c06be3b70.json",
+					"name" : "example_motor_DM_MC01_general_servo_m2006.elf",
+					"projectIndex" : 58
+				},
+				{
+					"directoryIndex" : 77,
+					"id" : "example_motor_DM_MC01_general_servo_m3508.elf::@833eaae0f4184ffcf57b",
+					"jsonFile" : "target-example_motor_DM_MC01_general_servo_m3508.elf-Debug-13f0a10a128299dcaf87.json",
+					"name" : "example_motor_DM_MC01_general_servo_m3508.elf",
+					"projectIndex" : 58
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_dm4310.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_dm4310.elf-Debug-9dea8d1b16fea556ea60.json",
+					"name" : "example_motor_DM_MC02_general_dm4310.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_m2006.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_m2006.elf-Debug-8431b8f0510050f60794.json",
+					"name" : "example_motor_DM_MC02_general_m2006.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_m2006_theta.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_m2006_theta.elf-Debug-1d636746da32580b20bd.json",
+					"name" : "example_motor_DM_MC02_general_m2006_theta.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_m2305.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_m2305.elf-Debug-651421c11008747f5587.json",
+					"name" : "example_motor_DM_MC02_general_m2305.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_m3508.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_m3508.elf-Debug-d09a08df419b0843526e.json",
+					"name" : "example_motor_DM_MC02_general_m3508.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_m3508_flywheel.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_m3508_flywheel.elf-Debug-6714cdca43fcd6af91e9.json",
+					"name" : "example_motor_DM_MC02_general_m3508_flywheel.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_m3508_theta.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_m3508_theta.elf-Debug-ed6698fc45cb38e758fd.json",
+					"name" : "example_motor_DM_MC02_general_m3508_theta.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_m4310_mit.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_m4310_mit.elf-Debug-e5090da37b37a723849c.json",
+					"name" : "example_motor_DM_MC02_general_m4310_mit.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_m4310_posvel.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_m4310_posvel.elf-Debug-1766bcec4fc52918ee9b.json",
+					"name" : "example_motor_DM_MC02_general_m4310_posvel.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_m4310_vel.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_m4310_vel.elf-Debug-7958b8c1a044a370b027.json",
+					"name" : "example_motor_DM_MC02_general_m4310_vel.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_m6020.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_m6020.elf-Debug-85980dbb580659465304.json",
+					"name" : "example_motor_DM_MC02_general_m6020.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_m6020_theta.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_m6020_theta.elf-Debug-4bf0a12a92c54c401587.json",
+					"name" : "example_motor_DM_MC02_general_m6020_theta.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_pwm.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_pwm.elf-Debug-01a3d7e0637f923571a5.json",
+					"name" : "example_motor_DM_MC02_general_pwm.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_servo_m2006.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_servo_m2006.elf-Debug-1bbf91e26886fbe9d331.json",
+					"name" : "example_motor_DM_MC02_general_servo_m2006.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 90,
+					"id" : "example_motor_DM_MC02_general_servo_m3508.elf::@608155b2464d9f1c44d4",
+					"jsonFile" : "target-example_motor_DM_MC02_general_servo_m3508.elf-Debug-2978bcd5c8926e7a331e.json",
+					"name" : "example_motor_DM_MC02_general_servo_m3508.elf",
+					"projectIndex" : 69
+				},
+				{
+					"directoryIndex" : 82,
+					"id" : "example_motor_F103_Nano_general_m2006.elf::@81c973cbad9815d9be7a",
+					"jsonFile" : "target-example_motor_F103_Nano_general_m2006.elf-Debug-bfa2ffa97bb84f7c33cf.json",
+					"name" : "example_motor_F103_Nano_general_m2006.elf",
+					"projectIndex" : 62
+				},
+				{
+					"directoryIndex" : 82,
+					"id" : "example_motor_F103_Nano_general_m2305.elf::@81c973cbad9815d9be7a",
+					"jsonFile" : "target-example_motor_F103_Nano_general_m2305.elf-Debug-a70c9e9cfcca9410994e.json",
+					"name" : "example_motor_F103_Nano_general_m2305.elf",
+					"projectIndex" : 62
+				},
+				{
+					"directoryIndex" : 82,
+					"id" : "example_motor_F103_Nano_general_m3508.elf::@81c973cbad9815d9be7a",
+					"jsonFile" : "target-example_motor_F103_Nano_general_m3508.elf-Debug-fd60fea82b6cd0202107.json",
+					"name" : "example_motor_F103_Nano_general_m3508.elf",
+					"projectIndex" : 62
+				},
+				{
+					"directoryIndex" : 82,
+					"id" : "example_motor_F103_Nano_general_m3508_flywheel.elf::@81c973cbad9815d9be7a",
+					"jsonFile" : "target-example_motor_F103_Nano_general_m3508_flywheel.elf-Debug-b66746205db64a9872c4.json",
+					"name" : "example_motor_F103_Nano_general_m3508_flywheel.elf",
+					"projectIndex" : 62
+				},
+				{
+					"directoryIndex" : 82,
+					"id" : "example_motor_F103_Nano_general_m6020.elf::@81c973cbad9815d9be7a",
+					"jsonFile" : "target-example_motor_F103_Nano_general_m6020.elf-Debug-3ff28418a1d236038672.json",
+					"name" : "example_motor_F103_Nano_general_m6020.elf",
+					"projectIndex" : 62
+				},
+				{
+					"directoryIndex" : 82,
+					"id" : "example_motor_F103_Nano_general_pwm.elf::@81c973cbad9815d9be7a",
+					"jsonFile" : "target-example_motor_F103_Nano_general_pwm.elf-Debug-ab28fd88be744e3b5ea4.json",
+					"name" : "example_motor_F103_Nano_general_pwm.elf",
+					"projectIndex" : 62
+				},
+				{
+					"directoryIndex" : 82,
+					"id" : "example_motor_F103_Nano_general_servo_m2006.elf::@81c973cbad9815d9be7a",
+					"jsonFile" : "target-example_motor_F103_Nano_general_servo_m2006.elf-Debug-ff05fdd86e6f76feb0a8.json",
+					"name" : "example_motor_F103_Nano_general_servo_m2006.elf",
+					"projectIndex" : 62
+				},
+				{
+					"directoryIndex" : 82,
+					"id" : "example_motor_F103_Nano_general_servo_m3508.elf::@81c973cbad9815d9be7a",
+					"jsonFile" : "target-example_motor_F103_Nano_general_servo_m3508.elf-Debug-b8cdf7596691d2863456.json",
+					"name" : "example_motor_F103_Nano_general_servo_m3508.elf",
+					"projectIndex" : 62
+				},
+				{
+					"directoryIndex" : 49,
+					"id" : "example_oled_DJI_Board_TypeC_general.elf::@bcb9950b80a93dbadd93",
+					"jsonFile" : "target-example_oled_DJI_Board_TypeC_general.elf-Debug-6efd26779cb4e5c5d196.json",
+					"name" : "example_oled_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 32
+				},
+				{
+					"directoryIndex" : 83,
+					"id" : "example_oled_F103_Nano_general.elf::@d8ae00623995cf38d3ad",
+					"jsonFile" : "target-example_oled_F103_Nano_general.elf-Debug-3226c3cf7f2281963727.json",
+					"name" : "example_oled_F103_Nano_general.elf",
+					"projectIndex" : 63
+				},
+				{
+					"directoryIndex" : 50,
+					"id" : "example_onboard_DJI_Board_TypeC_general.elf::@21066e8fe59df2daa95f",
+					"jsonFile" : "target-example_onboard_DJI_Board_TypeC_general.elf-Debug-f4db661a834e43f92be6.json",
+					"name" : "example_onboard_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 33
+				},
+				{
+					"directoryIndex" : 78,
+					"id" : "example_onboard_DM_MC01_general.elf::@cd119a3d4733ce008dc2",
+					"jsonFile" : "target-example_onboard_DM_MC01_general.elf-Debug-caa841b2aac3527a4f81.json",
+					"name" : "example_onboard_DM_MC01_general.elf",
+					"projectIndex" : 59
+				},
+				{
+					"directoryIndex" : 68,
+					"id" : "example_referee_DJI_Board_TypeA_general.elf::@b2095c9f593791fe36b1",
+					"jsonFile" : "target-example_referee_DJI_Board_TypeA_general.elf-Debug-823b52b9a571f8cb2a69.json",
+					"name" : "example_referee_DJI_Board_TypeA_general.elf",
+					"projectIndex" : 50
+				},
+				{
+					"directoryIndex" : 68,
+					"id" : "example_referee_DJI_Board_TypeA_general_rc.elf::@b2095c9f593791fe36b1",
+					"jsonFile" : "target-example_referee_DJI_Board_TypeA_general_rc.elf-Debug-883efc78fce7ab1afcb4.json",
+					"name" : "example_referee_DJI_Board_TypeA_general_rc.elf",
+					"projectIndex" : 50
+				},
+				{
+					"directoryIndex" : 51,
+					"id" : "example_referee_DJI_Board_TypeC_general.elf::@31208c964ccb8234b08d",
+					"jsonFile" : "target-example_referee_DJI_Board_TypeC_general.elf-Debug-f088fb769c578e481115.json",
+					"name" : "example_referee_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 34
+				},
+				{
+					"directoryIndex" : 51,
+					"id" : "example_referee_DJI_Board_TypeC_general_rc.elf::@31208c964ccb8234b08d",
+					"jsonFile" : "target-example_referee_DJI_Board_TypeC_general_rc.elf-Debug-6e24af4311d934c9113d.json",
+					"name" : "example_referee_DJI_Board_TypeC_general_rc.elf",
+					"projectIndex" : 34
+				},
+				{
+					"directoryIndex" : 52,
+					"id" : "example_sbus_DJI_Board_TypeC_general.elf::@08a855d2bc855cd17f54",
+					"jsonFile" : "target-example_sbus_DJI_Board_TypeC_general.elf-Debug-d6643f5f9829375e1e9a.json",
+					"name" : "example_sbus_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 35
+				},
+				{
+					"directoryIndex" : 55,
+					"id" : "example_supercap_DJI_Board_TypeC_general.elf::@4be95fece4868be89e55",
+					"jsonFile" : "target-example_supercap_DJI_Board_TypeC_general.elf-Debug-2c444ade0ebb8ecc444d.json",
+					"name" : "example_supercap_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 38
+				},
+				{
+					"directoryIndex" : 91,
+					"id" : "example_uart_DM_MC02_general.elf::@728204a484b1aa2b2647",
+					"jsonFile" : "target-example_uart_DM_MC02_general.elf-Debug-f3de952af63cd3520a83.json",
+					"name" : "example_uart_DM_MC02_general.elf",
+					"projectIndex" : 70
+				},
+				{
+					"directoryIndex" : 54,
+					"id" : "example_usb_DJI_Board_TypeC_general.elf::@622d175b912fcff63692",
+					"jsonFile" : "target-example_usb_DJI_Board_TypeC_general.elf-Debug-466df22943ac0bddfea9.json",
+					"name" : "example_usb_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 37
+				},
+				{
+					"directoryIndex" : 67,
+					"id" : "example_witimu_DJI_Board_TypeA_general.elf::@d901d76f1095da0c5931",
+					"jsonFile" : "target-example_witimu_DJI_Board_TypeA_general.elf-Debug-09b21595fb66d9734309.json",
+					"name" : "example_witimu_DJI_Board_TypeA_general.elf",
+					"projectIndex" : 49
+				},
+				{
+					"directoryIndex" : 53,
+					"id" : "example_witimu_DJI_Board_TypeC_general.elf::@e82e462c874b24a90010",
+					"jsonFile" : "target-example_witimu_DJI_Board_TypeC_general.elf-Debug-4ae82eb978dc76e62b38.json",
+					"name" : "example_witimu_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 36
+				},
+				{
+					"directoryIndex" : 32,
+					"id" : "test_model_select.elf::@8afe05c9e172299477c4",
+					"jsonFile" : "target-test_model_select.elf-Debug-a6d4113fd996ec23a8b3.json",
+					"name" : "test_model_select.elf",
+					"projectIndex" : 17
+				},
+				{
+					"directoryIndex" : 69,
+					"id" : "test_sreeting_error_DJI_Board_TypeA_general.elf::@59ed01ac65444aab00d7",
+					"jsonFile" : "target-test_sreeting_error_DJI_Board_TypeA_general.elf-Debug-7c0cbdf34cd9765deb0d.json",
+					"name" : "test_sreeting_error_DJI_Board_TypeA_general.elf",
+					"projectIndex" : 51
+				},
+				{
+					"directoryIndex" : 56,
+					"id" : "test_sreeting_error_DJI_Board_TypeC_general.elf::@84e57514d72481f488c1",
+					"jsonFile" : "target-test_sreeting_error_DJI_Board_TypeC_general.elf-Debug-8bc928c578e24ad3ccf1.json",
+					"name" : "test_sreeting_error_DJI_Board_TypeC_general.elf",
+					"projectIndex" : 39
+				},
+				{
+					"directoryIndex" : 33,
+					"id" : "test_sreeting_error_TypeA.elf::@caa9ade2b70d00c06757",
+					"jsonFile" : "target-test_sreeting_error_TypeA.elf-Debug-4866b8088aa31db0cef6.json",
+					"name" : "test_sreeting_error_TypeA.elf",
+					"projectIndex" : 18
+				},
+				{
+					"directoryIndex" : 34,
+					"id" : "test_sreeting_error_theta_TypeA.elf::@62c8baab0d5bca016ec1",
+					"jsonFile" : "target-test_sreeting_error_theta_TypeA.elf-Debug-edc3d14779646761431a.json",
+					"name" : "test_sreeting_error_theta_TypeA.elf",
+					"projectIndex" : 19
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "C:/Users/Administrator/Desktop/RM_code_(25)/UICRM-Embedded/cmake-build-debug-arm-gcc-103",
+		"source" : "C:/Users/Administrator/Desktop/RM_code_(25)/UICRM-Embedded"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 7
+	}
+}
