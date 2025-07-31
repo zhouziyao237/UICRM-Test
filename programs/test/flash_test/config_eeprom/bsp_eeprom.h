@@ -71,8 +71,6 @@ extern const uint8_t __config_end[];
 #define ARRAYLEN(x) (sizeof(x) / sizeof((x)[0]))
 #define ARRAYEND(x) (&(x)[ARRAYLEN(x)])
 
-typedef enum { BUSY = 1, ERROR_PG, ERROR_WRP, COMPLETE, TIMEOUT } FLASH_Status;
-
 typedef struct config_streamer_s {
     uintptr_t address;
     int size;
@@ -85,15 +83,8 @@ typedef struct config_streamer_s {
     bool unlocked;
 } config_streamer_t;
 
-HAL_StatusTypeDef EEPROM_EraseData(uint32_t start, uint32_t size);
-
-HAL_StatusTypeDef EEPROM_WriteData(uint32_t Address, uint32_t* wData, uint32_t len);
-HAL_StatusTypeDef EEPROM_ReadData(uint32_t Address, uint32_t* rData, uint32_t len);
-
-HAL_StatusTypeDef EEPROM_WRITE_Verify_CHECK(uint32_t Address, uint32_t* wData, uint32_t len);
-HAL_StatusTypeDef EEPROM_Read_Verify_CHECK(uint32_t Address, uint32_t* rData, uint32_t len);
-
-FLASH_Status FLASH_EraseSector(uint32_t Sector);
+HAL_StatusTypeDef EEPROM_EraseSector(uint32_t Sector);
+HAL_StatusTypeDef EEPROM__ProgramWord(uint32_t Address, uint32_t Data);
 
 void config_streamer_init(config_streamer_t* c);
 

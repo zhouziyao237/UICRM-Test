@@ -83,16 +83,11 @@ static uint32_t getFLASHSectorForEEPROM(void) {
 /*返回值：无                                       */
 /*-------------------------------------------------*/
 
-HAL_StatusTypeDef EEPROM_EraseData(uint32_t start, uint32_t size) {
-    uint32_t Address = start;
+HAL_StatusTypeDef EEPROM_EraseSector(uint32_t Sector) {
     HAL_StatusTypeDef status = HAL_OK;
 
-    // print("EEPROM_EraseData len:%d\r\n", size);
-
-    // STM32F4没有专门的EEPROM，使用Flash模拟EEPROM
-    // 这里我们不实际擦除，而是在写入时处理
-    // 只需确保地址在有效范围内
-    if ((Address < DATA_EEPROM_START_ADDR) || (Address + size * 4 > DATA_EEPROM_END_ADDR)) {
+    // 检查扇区是否有效
+    if (Sector == HAL_ERROR) {
         return HAL_ERROR;
     }
 
@@ -107,18 +102,11 @@ HAL_StatusTypeDef EEPROM_EraseData(uint32_t start, uint32_t size) {
     erase_init.TypeErase = FLASH_TYPEERASE_SECTORS;
     erase_init.VoltageRange = FLASH_VOLTAGE_RANGE_3;
     erase_init.NbSectors = 1;
-    erase_init.Sector = getFLASHSectorForEEPROM();
-
-    // 检查扇区是否有效
-    if (getFLASHSectorForEEPROM() == HAL_ERROR) {
-        HAL_FLASH_Lock();
-        return HAL_ERROR;
-    }
-
-    status = HAL_FLASHEx_Erase(&erase_init, &sector_error);
+    erase_init.Sector = Sector;
 
     HAL_FLASH_Lock();
-
+    status = HAL_FLASHEx_Erase(&erase_init, &sector_error);
+    HAL_FLASH_Lock();
     if (status != HAL_OK) {
         // print("Erase Fail!!!\r\n");  // 串口提示写入错误
         return HAL_ERROR;
@@ -128,159 +116,24 @@ HAL_StatusTypeDef EEPROM_EraseData(uint32_t start, uint32_t size) {
     return HAL_OK;
 }
 
-/*-------------------------------------------------*/
-/*函数名：内部eeprom写功能                          */
-/*参  数：Address：写入地址                        */
-/*参  数：wData：写入数据缓冲区                     */
-/*参  数：len：写入数据总长                         */
-/*返回值：无                                       */
-/*-------------------------------------------------*/
-HAL_StatusTypeDef EEPROM_WriteData(uint32_t Address, uint32_t* wData, uint32_t len) {
-    uint32_t i;
+HAL_StatusTypeDef EEPROM_ProgramWord(uint32_t Address, uint32_t Data) {
     HAL_StatusTypeDef status = HAL_OK;
-
     // 检查地址范围
-    if ((Address < DATA_EEPROM_START_ADDR) || (Address + len * 4 > DATA_EEPROM_END_ADDR)) {
+    if ((Address < DATA_EEPROM_START_ADDR) || (Address + 4 > DATA_EEPROM_END_ADDR)) {
+        // print("Error: Address out of range.\r\n");
         return HAL_ERROR;
     }
-
     HAL_FLASH_Unlock();  // 解锁Flash
-
-    // 先擦除扇区
-    status = EEPROM_EraseData(Address, len);
+    // 使用HAL_FLASH_Program函数进行编程
+    status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, Address, Data);
     if (status != HAL_OK) {
+        // print("Error: Program Fail!!!\r\n");
         return HAL_ERROR;
     }
-    // print("Write Address:%d\r\n", Address);
-    // print("Write Data:\r\n");
-
-    for (i = 0; i < len; i++)  // for循环，需要写入多少数据，就循环几次
-    {
-        // print("wData[%d]=%08x\r\n", i, wData[i]);
-
-        status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, Address + i * 4, *(wData + i));
-        if (status != HAL_OK)  // 调用写数据函数，如果返回的不是HAL_OK，表示写入出错，进入if
-        {
-            // print("Write Error!!!\r\n");  // 串口提示写入错误
-            HAL_FLASH_Lock();
-            return HAL_ERROR;
-        }
-        Address += 4;  // 地址递增4，因为一次写一个字，是4个字节
-    }
-    // print("Write Success.\r\n\r\n");
-
     HAL_FLASH_Lock();  // 上锁
-    return HAL_OK;
+    // print("Program Success.\r\n");
+    return status;
 }
-
-/*-------------------------------------------------*/
-/*函数名：内部eeprom读功能                        */
-/*参  数：Address：读取地址                        */
-/*参  数：rData：保存数据缓冲区                     */
-/*参  数：len：读取数据总长                         */
-/*返回值：无                                       */
-/*-------------------------------------------------*/
-HAL_StatusTypeDef EEPROM_ReadData(uint32_t Address, uint32_t* rData, uint32_t len) {
-    uint32_t i;
-    uint32_t* wAddr = 0;
-
-    // 检查地址范围
-    if ((Address < DATA_EEPROM_START_ADDR) || (Address + len * 4 > DATA_EEPROM_END_ADDR)) {
-        return HAL_ERROR;
-    }
-
-    wAddr = (uint32_t*)(Address);  // 转换地址，地址从0x08080000开始
-    // print("Read Address:%d\r\n", Address);
-
-    // print("Read Data:\r\n");
-    for (i = 0; i < len; i++) {  // for循环，需要读取多少数据，就循环几次
-        *rData++ = *wAddr++;     // 每次读取的数据保存到rData缓冲区
-        // print("rData[%d]=%08x\r\n",i,rData[i]);
-    }
-    // print("Read Complete.\r\n");
-    return HAL_OK;
-}
-
-/*-------------------------------------------------*/
-/*函数名：带有校验操作的内部eeprom写功能                          */
-/*参  数：Address：写入地址                        */
-/*参  数：wData：写入数据缓冲区                     */
-/*参  数：len：写入数据总长                         */
-/*返回值：无                                       */
-/*-------------------------------------------------*/
-HAL_StatusTypeDef EEPROM_WRITE_Verify_CHECK(uint32_t Address, uint32_t* wData, uint32_t len) {
-    uint32_t buff[len];
-    uint32_t i;
-    for (i = 0; i < iEEPROM_CHECK_NUM; i++) {
-        if (EEPROM_WriteData(Address, wData, len) == HAL_OK) {
-            if (EEPROM_ReadData(Address, buff, len) == HAL_OK) {
-                if (memcmp(wData, buff, len * sizeof(uint32_t)) == 0) {
-                    // print("\r\nWRITE_Verify Completing Comparative\r\n\r\n");
-                    return HAL_OK;
-                }
-            }
-        }
-    }
-    return HAL_ERROR;
-}
-
-/*-------------------------------------------------*/
-/*函数名：带有校验操作的内部eeprom读功能                        */
-/*参  数：Address：读取地址                        */
-/*参  数：rData：保存数据缓冲区                     */
-/*参  数：len：读取数据总长                         */
-/*返回值：无                                       */
-/*-------------------------------------------------*/
-HAL_StatusTypeDef EEPROM_Read_Verify_CHECK(uint32_t Address, uint32_t* rData, uint32_t len) {
-    uint32_t buff0[len];
-    uint32_t buff1[len];
-    uint8_t i, j;
-
-    //	print("len:%d\r\n", len);
-    //	print("Address:%d\r\n", Address);
-
-    for (i = 0; i < iEEPROM_CHECK_NUM; i++) {
-        // print("First  read Verify\r\n");
-        if (EEPROM_ReadData(Address, buff0, len) != HAL_OK) {
-            continue;
-        }
-        // print("Second read Verify\r\n");
-        if (EEPROM_ReadData(Address, buff1, len) != HAL_OK) {
-            continue;
-        }
-
-        if (memcmp(buff0, buff1, len * sizeof(uint32_t)) == 0) {
-            // print("Read_Verify Completing Comparative\r\n");
-            for (j = 0; j < len; j++) {
-                *rData++ = buff0[j];
-            }
-            return HAL_OK;
-        }
-    }
-    return HAL_ERROR;
-}
-
-/*-------------------------------------------------*/
-
-// FLASH_Status FLASH_EraseSector(uint32_t Sector) {
-//     // 使用已有的EEPROM_EraseData函数实现扇区擦除功能
-//     // 首先根据扇区号计算起始地址
-//
-//     uint32_t address = GET_SECTOR_FOR_EEPROM(Sector);
-//
-//     // 调用已有的EEPROM_EraseData函数，擦除1个扇区
-//     HAL_StatusTypeDef status = EEPROM_EraseData(address, 1);
-//
-//     // 转换返回值以匹配FLASH_Status
-//     switch (status) {
-//         case HAL_OK:
-//             return COMPLETE;
-//         case HAL_ERROR:
-//             return ERROR_PG;
-//         default:
-//             return ERROR_WRP;
-//     }
-// }
 
 static int write_word(config_streamer_t* c, uint32_t value) {
     if (c->err != 0) {
@@ -289,17 +142,13 @@ static int write_word(config_streamer_t* c, uint32_t value) {
 
     if (c->address % FLASH_PAGE_SIZE == 0) {
         // 使用已实现的FLASH_EraseSector函数擦除扇区
-        const FLASH_Status status = FLASH_EraseSector(getFLASHSectorForEEPROM());
-
-        if (status != COMPLETE) {
+        const HAL_StatusTypeDef status = EEPROM_EraseSector(getFLASHSectorForEEPROM());
+        if (status != HAL_OK) {
             return -1;
         }
     }
 
-    // 使用已有的EEPROM_WriteData函数进行编程
-    HAL_StatusTypeDef status = EEPROM_WriteData(c->address, &value, sizeof(value)/sizeof(uint32_t));
-
-    // 检查编程是否成功
+    const HAL_StatusTypeDef status = EEPROM_ProgramWord(c->address, value);
     if (status != HAL_OK) {
         return -2;
     }
