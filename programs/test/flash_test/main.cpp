@@ -73,12 +73,6 @@ void RM_RTOS_Default_Task(const void* args) {
     print("Saving configuration to EEPROM...\r\n");
     writeConfigToEEPROM();
 
-    if (isEEPROMContentValid()) {
-        print("Configuration saved successfully!\r\n");
-    } else {
-        print("Failed to save configuration!\r\n");
-    }
-
     // 计算注册的配置项数量和大小
     int count = 0;
     int total_size = 0;

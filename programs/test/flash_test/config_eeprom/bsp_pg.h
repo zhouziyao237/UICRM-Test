@@ -27,6 +27,16 @@
 #include "bsp_pg_ids.h"
 #include "stdio.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "crc.h"
+
+#ifdef __cplusplus
+}
+#endif
+
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2 * !!(condition)]))
 #define PG_PACKED __attribute__((packed))
 typedef uint16_t pgn_t;
