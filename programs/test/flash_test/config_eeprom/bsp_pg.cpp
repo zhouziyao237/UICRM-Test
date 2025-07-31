@@ -21,15 +21,18 @@
 //
 
 #include "bsp_pg.h"
+
 #include <string.h>
-#include "crc_check.h"
+
+#include "bsp_print.h"
+#include "crc.h"
 
 static uint16_t eepromConfigSize;
 
 // Header for the saved copy.
 typedef struct {
     uint8_t eepromConfigVersion;
-    uint8_t magic_be;           // magic number, should be 0xBE
+    uint8_t magic_be;  // magic number, should be 0xBE
 } PG_PACKED configHeader_t;
 
 // Header for each stored PG.
@@ -47,7 +50,8 @@ typedef struct {
 typedef struct {
     uint16_t terminator;
 } PG_PACKED configFooter_t;
-// checksum is appended just after footer. It is not included in footer to make checksum calculation consistent
+// checksum is appended just after footer. It is not included in footer to make checksum calculation
+// consistent
 
 // Used to check the compiler packing at build time.
 typedef struct {
@@ -55,8 +59,7 @@ typedef struct {
     uint32_t word;
 } PG_PACKED packingTest_t;
 
-const pgRegistry_t* pgFind(pgn_t pgn)
-{
+const pgRegistry_t* pgFind(pgn_t pgn) {
     if (!__pg_registry_start || !__pg_registry_end)
         return NULL;
 
@@ -68,13 +71,11 @@ const pgRegistry_t* pgFind(pgn_t pgn)
     return NULL;
 }
 
-static uint8_t *pgOffset(const pgRegistry_t* reg)
-{
+static uint8_t* pgOffset(const pgRegistry_t* reg) {
     return reg->address;
 }
 
-void pgResetInstance(const pgRegistry_t *reg, uint8_t *base)
-{
+void pgResetInstance(const pgRegistry_t* reg, uint8_t* base) {
     const uint16_t regSize = pgSize(reg);
 
     memset(base, 0, regSize);
@@ -91,14 +92,12 @@ void pgResetInstance(const pgRegistry_t *reg, uint8_t *base)
     }
 }
 
-void pgReset(const pgRegistry_t* reg)
-{
+void pgReset(const pgRegistry_t* reg) {
     pgResetInstance(reg, pgOffset(reg));
 }
 
-bool pgResetCopy(uint8_t* copy, pgn_t pgn)
-{
-    const pgRegistry_t *reg = pgFind(pgn);
+bool pgResetCopy(uint8_t* copy, pgn_t pgn) {
+    const pgRegistry_t* reg = pgFind(pgn);
     if (reg) {
         pgResetInstance(reg, copy);
         return true;
@@ -106,8 +105,7 @@ bool pgResetCopy(uint8_t* copy, pgn_t pgn)
     return false;
 }
 
-void pgLoad(const pgRegistry_t* reg, const void *from, int size, int version)
-{
+void pgLoad(const pgRegistry_t* reg, const void* from, int size, int version) {
     pgResetInstance(reg, pgOffset(reg));
     // restore only matching version, keep defaults otherwise
     if (version == pgVersion(reg)) {
@@ -116,15 +114,13 @@ void pgLoad(const pgRegistry_t* reg, const void *from, int size, int version)
     }
 }
 
-int pgStore(const pgRegistry_t* reg, void *to, int size)
-{
+int pgStore(const pgRegistry_t* reg, void* to, int size) {
     const int take = MIN(size, pgSize(reg));
     memcpy(to, pgOffset(reg), take);
     return take;
 }
 
-void pgResetAll(void)
-{
+void pgResetAll(void) {
     if (!__pg_registry_start || !__pg_registry_end)
         return;
 
@@ -137,8 +133,7 @@ void pgResetAll(void)
  * @brief Initialize the EEPROM.
  */
 
-void initEEPROM(void)
-{
+void initEEPROM(void) {
     // Verify that this architecture packs as expected.
     BUILD_BUG_ON(offsetof(packingTest_t, byte) != 0);
     BUILD_BUG_ON(offsetof(packingTest_t, word) != 1);
@@ -151,7 +146,6 @@ void initEEPROM(void)
 // Scan the EEPROM config. Returns true if the config is valid.
 bool isEEPROMContentValid(void)
 {
-    // const uint8_t *p = &__config_start;
     const uint8_t *p = __config_start;
     const configHeader_t *header = (const configHeader_t *)p;
 
@@ -163,7 +157,7 @@ bool isEEPROMContentValid(void)
     }
 
     uint16_t crc = CRC_START_VALUE;
-    crc = get_crc16_check_sum((uint8_t *)header, sizeof(*header), crc);
+    crc = crc16_ccitt_update(crc, header, sizeof(*header));
     p += sizeof(*header);
 
     for (;;) {
@@ -177,20 +171,20 @@ bool isEEPROMContentValid(void)
             || record->size < sizeof(*record)) {
             // Too big or too small.
             return false;
-        }
+            }
 
-        crc = get_crc16_check_sum(p, record->size, crc);
+        crc = crc16_ccitt_update(crc, p, record->size);
 
         p += record->size;
     }
 
     const configFooter_t *footer = (const configFooter_t *)p;
-    crc = get_crc16_check_sum((uint8_t *)footer, sizeof(*footer), crc);
+    crc = crc16_ccitt_update(crc, footer, sizeof(*footer));
     p += sizeof(*footer);
 
     // include stored CRC in the CRC calculation
     const uint16_t *storedCrc = (const uint16_t *)p;
-    crc = get_crc16_check_sum((uint8_t *)storedCrc, sizeof(*storedCrc), crc);
+    crc = crc16_ccitt_update(crc, storedCrc, sizeof(*storedCrc));
     p += sizeof(storedCrc);
 
     eepromConfigSize = p - __config_start;
@@ -199,26 +193,22 @@ bool isEEPROMContentValid(void)
     return crc == CRC_CHECK_VALUE;
 }
 
-uint16_t getEEPROMConfigSize(void)
-{
+uint16_t getEEPROMConfigSize(void) {
     return eepromConfigSize;
 }
 
 // find config record for reg + classification (profile info) in EEPROM
 // return NULL when record is not found
 // this function assumes that EEPROM content is valid
-static const configRecord_t *findEEPROM(const pgRegistry_t *reg, configRecordFlags_e classification)
-{
-    const uint8_t *p = __config_start;
-    p += sizeof(configHeader_t);             // skip header
+static const configRecord_t* findEEPROM(const pgRegistry_t* reg,
+                                        configRecordFlags_e classification) {
+    const uint8_t* p = __config_start;
+    p += sizeof(configHeader_t);  // skip header
     while (true) {
-        const configRecord_t *record = (const configRecord_t *)p;
-        if (record->size == 0
-            || p + record->size >= __config_end
-            || record->size < sizeof(*record))
+        const configRecord_t* record = (const configRecord_t*)p;
+        if (record->size == 0 || p + record->size >= __config_end || record->size < sizeof(*record))
             break;
-        if (pgN(reg) == record->pgn
-            && (record->flags & CR_CLASSIFICATION_MASK) == classification)
+        if (pgN(reg) == record->pgn && (record->flags & CR_CLASSIFICATION_MASK) == classification)
             return record;
         p += record->size;
     }
@@ -229,12 +219,12 @@ static const configRecord_t *findEEPROM(const pgRegistry_t *reg, configRecordFla
 // Initialize all PG records from EEPROM.
 // This functions processes all PGs sequentially, scanning EEPROM for each one. This is suboptimal,
 //   but each PG is loaded/initialized exactly once and in defined order.
-bool loadEEPROM(void)
-{
+bool loadEEPROM(void) {
     PG_FOREACH(reg) {
-        const configRecord_t *rec = findEEPROM(reg, CR_CLASSICATION_SYSTEM);
+        const configRecord_t* rec = findEEPROM(reg, CR_CLASSICATION_SYSTEM);
         if (rec) {
-            // config from EEPROM is available, use it to initialize PG. pgLoad will handle version mismatch
+            // config from EEPROM is available, use it to initialize PG. pgLoad will handle version
+            // mismatch
             pgLoad(reg, rec->pg, rec->size - offsetof(configRecord_t, pg), rec->version);
         } else {
             pgReset(reg);
@@ -257,7 +247,7 @@ static bool writeSettingsToEEPROM(void)
 
     config_streamer_write(&streamer, (uint8_t *)&header, sizeof(header));
     uint16_t crc = CRC_START_VALUE;
-    crc = get_crc16_check_sum(reinterpret_cast<uint8_t*>(&header), sizeof(header), crc);
+    crc = crc16_ccitt_update(crc, (uint8_t *)&header, sizeof(header));
     PG_FOREACH(reg) {
         const uint16_t regSize = pgSize(reg);
         configRecord_t record = {
@@ -269,9 +259,9 @@ static bool writeSettingsToEEPROM(void)
 
         record.flags |= CR_CLASSICATION_SYSTEM;
         config_streamer_write(&streamer, (uint8_t *)&record, sizeof(record));
-        crc = get_crc16_check_sum((uint8_t *)&record, sizeof(record), crc);
+        crc = crc16_ccitt_update(crc, (uint8_t *)&record, sizeof(record));
         config_streamer_write(&streamer, reg->address, regSize);
-        crc = get_crc16_check_sum(reg->address, regSize, crc);
+        crc = crc16_ccitt_update(crc, reg->address, regSize);
     }
 
     configFooter_t footer = {
@@ -279,7 +269,7 @@ static bool writeSettingsToEEPROM(void)
     };
 
     config_streamer_write(&streamer, (uint8_t *)&footer, sizeof(footer));
-    crc = get_crc16_check_sum((uint8_t *)&footer, sizeof(footer), crc);
+    crc = crc16_ccitt_update(crc, (uint8_t *)&footer, sizeof(footer));
 
     // include inverted CRC in big endian format in the CRC
     const uint16_t invertedBigEndianCrc = ~(((crc & 0xFF) << 8) | (crc >> 8));
@@ -292,8 +282,7 @@ static bool writeSettingsToEEPROM(void)
     return success;
 }
 
-void writeConfigToEEPROM(void)
-{
+void writeConfigToEEPROM(void) {
     bool success = false;
     // write it
     for (int attempt = 0; attempt < 3 && !success; attempt++) {
@@ -303,8 +292,11 @@ void writeConfigToEEPROM(void)
     }
 
     if (success && isEEPROMContentValid()) {
+        print("Configuration saved successfully!\r\n");
         return;
     }
+
+    print("Failed to save configuration!\r\n");
 
     // Flash write failed - just die now
     // failureMode(FAILURE_FLASH_WRITE_FAILED);

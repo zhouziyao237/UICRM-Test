@@ -32,4 +32,7 @@
 #define MotorPID_Version 1
 #define PG_MotorPID_PROFILE 1 // struct OK, CF differences
 
+#define MotorId_Version 1
+#define PG_MotorId_PROFILE 2 // struct OK, CF differences
+
 #endif //BSP_PG_IDS_H

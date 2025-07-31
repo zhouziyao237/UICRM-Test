@@ -24,20 +24,46 @@
 
 PG_REGISTER_ARRAY_WITH_RESET_FN(MotorPID_t, MAX_PROFILE_COUNT, MotorPids, PG_MotorPID_PROFILE, MotorPID_Version);
 
-void resatMotorPids(MotorPID_t *MotorPids) {
+void resatMotorPids(MotorPID_t* MotorPids) {
     RESET_CONFIG(MotorPID_t, MotorPids,
         .kp = 2500.0f,
         .ki = 3.0f,
-        .kd = 0.0f
-    );
+        .kd = 0.0f,
+        .max_out = 30000,
+        .max_iout = 10000,
+        .deadband = 0,
+        .A = 3 * PI,
+        .B = 2 * PI,
+        .output_filtering_coefficient = 0.1,
+        .derivative_filtering_coefficient = 0,
+        .mode = control::ConstrainedPID::Integral_Limit |       // 积分限幅
+                control::ConstrainedPID::OutputFilter |         // 输出滤波
+                control::ConstrainedPID::Trapezoid_Intergral |  // 梯形积分
+                control::ConstrainedPID::ChangingIntegralRate   // 变速积分
+        );
+
+    control::ConstrainedPID::PID_Init_t omega_pid_init = {
+        .kp = MotorPids->kp,
+        .ki = MotorPids->ki,
+        .kd = MotorPids->kd,
+        .max_out = MotorPids->max_out,
+        .max_iout = MotorPids->max_iout,
+        .deadband = MotorPids->deadband,  // 死区
+        .A = MotorPids->A,                // 变速积分所能达到的最大值为A+B
+        .B = MotorPids->B,                // 启动变速积分的死区
+        .output_filtering_coefficient = MotorPids->output_filtering_coefficient,  // 输出滤波系数
+        .derivative_filtering_coefficient = MotorPids->derivative_filtering_coefficient, // 微分滤波系数
+        .mode = MotorPids->mode,
+    };
+    (void)omega_pid_init;
 }
 
-void pgResetFn_MotorPids(void *MotorPids, int size) {
-    // 计算数组元素数量
+void pgResetFn_MotorPids(void* MotorPids, int size) {
+
     int count = size / sizeof(MotorPID_t);
-    // 为每个配置文件设置默认值
+
     for (int i = 0; i < count && i < MAX_PROFILE_COUNT; i++) {
-        MotorPID_t* PID = (MotorPID_t*)MotorPids;
+        MotorPID_t* PID = static_cast<MotorPID_t*>(MotorPids);
         resatMotorPids(&PID[i]);
     }
 }
@@ -65,12 +91,9 @@ void copyMotorPID(uint8_t dstIndex, uint8_t srcIndex) {
 }
 
 // 设置特定索引的MotorPID参数
-void setMotorPID(uint8_t index, float kp, float ki, float kd) {
+void setMotorPID(uint8_t index, const MotorPID_t* MotorPids) {
     if (index < MAX_PROFILE_COUNT) {
         MotorPID_t* pid = MotorPidsMutable(index);
-        pid->kp = kp;
-        pid->ki = ki;
-        pid->kd = kd;
+        *pid = *MotorPids;
     }
 }
-

@@ -23,10 +23,11 @@
 // main.cpp
 
 #include "main.h"
+
 #include "bsp_print.h"
+#include "config/config.h"
 #include "config_eeprom/bsp_eeprom.h"
 #include "config_eeprom/bsp_pg.h"
-#include "config/config.h"
 
 void RM_RTOS_Init() {
     print_use_uart(&huart8, true, 912600);
@@ -34,8 +35,8 @@ void RM_RTOS_Init() {
 
 void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
-    clear_screen();
     set_cursor(0, 0);
+    clear_screen();
     print("system OK\r\n");
 
     // 打印EEPROM配置信息
@@ -57,27 +58,25 @@ void RM_RTOS_Default_Task(const void* args) {
     for (int i = 0; i < MAX_PROFILE_COUNT; i++) {
         const MotorPID_t* pid = getMotorPID(i);
         if (pid) {
-            print("Profile %d: kp=%.2f, ki=%.2f, kd=%.2f\r\n", i, pid->kp, pid->ki, pid->kd);
+            print(
+                "Modified Profile %d:\r\nkp=%.2f, ki=%.2f, "
+                "kd=%.2f,\r\nmax_out=%.2f,\r\nmax_iout=%.2f,\r\n"
+                "output_filtering_coefficient=%.2f,\r\nderivative_filtering_coefficient=%.2f,\r\n"
+                "deadband=%.2f,\r\nA=%.2f,\r\nB=%.2f,\r\nmode=0x%x\r\n",
+                i, pid->kp, pid->ki, pid->kd, pid->max_out, pid->max_iout,
+                pid->output_filtering_coefficient, pid->derivative_filtering_coefficient,
+                pid->deadband, pid->A, pid->B, pid->mode);
         }
     }
 
     // 修改第一个配置文件的PID参数示例
     print("Modifying MotorPID profile 0...\r\n");
-    setMotorPID(0, 3000.0f, 5.0f, 10.0f);
-
-    const MotorPID_t* modified_pid = getMotorPID(0);
-    print("Modified Profile 0: kp=%.2f, ki=%.2f, kd=%.2f\r\n",
-          modified_pid->kp, modified_pid->ki, modified_pid->kd);
+    MotorPID_t MotorPids;
+    setMotorPID(0, &MotorPids);
 
     // 保存配置到EEPROM
     print("Saving configuration to EEPROM...\r\n");
     writeConfigToEEPROM();
-
-    if (isEEPROMContentValid()) {
-        print("Configuration saved successfully!\r\n");
-    } else {
-        print("Failed to save configuration!\r\n");
-    }
 
     // 计算注册的配置项数量和大小
     int count = 0;
