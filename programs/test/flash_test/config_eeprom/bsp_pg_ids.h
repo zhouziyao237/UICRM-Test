@@ -38,4 +38,7 @@
 #define CanBridge_Version 1
 #define PG_CanBridge_PROFILE 3 // struct OK, CF differences
 
+#define SuperCap_Version 1
+#define PG_SuperCap_PROFILE 4 // struct OK, CF differences
+
 #endif //BSP_PG_IDS_H

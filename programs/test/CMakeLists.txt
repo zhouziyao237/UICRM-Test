@@ -1,1 +1,2 @@
 add_subdirectory(flash_test)
+add_subdirectory(msp_test)

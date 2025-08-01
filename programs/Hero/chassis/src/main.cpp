@@ -30,7 +30,7 @@ bsp::CAN* can2 = nullptr;
 
 void RM_RTOS_Init() {
     HAL_Delay(100);
-    print_use_uart(&huart5);
+    print_use_uart(&huart6);
     can2 = new bsp::CAN(&hcan2, false);
     can1 = new bsp::CAN(&hcan1, true);
 

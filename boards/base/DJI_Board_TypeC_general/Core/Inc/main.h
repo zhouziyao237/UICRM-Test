@@ -66,16 +66,12 @@ void RM_RTOS_Default_Task(const void *argument);
 /* Private defines -----------------------------------------------------------*/
 #define USB_DP_Pin GPIO_PIN_12
 #define USB_DP_GPIO_Port GPIOA
-#define BUTTON_TRI_Pin GPIO_PIN_7
-#define BUTTON_TRI_GPIO_Port GPIOI
 #define USB_DM_Pin GPIO_PIN_11
 #define USB_DM_GPIO_Port GPIOA
 #define LASER_Pin GPIO_PIN_8
 #define LASER_GPIO_Port GPIOC
 #define IN3_Pin GPIO_PIN_6
 #define IN3_GPIO_Port GPIOC
-#define RSTN_IST8310_Pin GPIO_PIN_6
-#define RSTN_IST8310_GPIO_Port GPIOG
 #define IMU_HEATER_Pin GPIO_PIN_6
 #define IMU_HEATER_GPIO_Port GPIOF
 #define LED_R_Pin GPIO_PIN_12

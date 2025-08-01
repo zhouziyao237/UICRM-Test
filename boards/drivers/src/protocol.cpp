@@ -56,17 +56,40 @@ namespace communication {
         return true;
     }
 
+    // package_t Protocol::Transmit(int cmd_id) {
+    //     bufferTx[0] = SOF;
+    //     int DATA_LENGTH = ProcessDataTx(cmd_id, bufferTx + FRAME_HEADER_LEN + CMD_ID_LEN);
+    //     if (DATA_LENGTH < 0)
+    //         return package_t{nullptr, 0};
+    //     bufferTx[1] = (uint8_t)((uint32_t)DATA_LENGTH & 0xFF);
+    //     bufferTx[2] = (uint8_t)((uint32_t)DATA_LENGTH >> BYTE);
+    //     bufferTx[3] = (uint32_t)seq++;
+    //     AppendHeader(bufferTx, FRAME_HEADER_LEN);
+    //     bufferTx[5] = (uint8_t)((uint32_t)cmd_id & 0xFF);
+    //     bufferTx[6] = (uint8_t)((uint32_t)cmd_id >> BYTE);
+    //     AppendFrame(bufferTx, FRAME_HEADER_LEN + CMD_ID_LEN + DATA_LENGTH + FRAME_TAIL_LEN);
+    //     return package_t{bufferTx, FRAME_HEADER_LEN + CMD_ID_LEN + DATA_LENGTH + FRAME_TAIL_LEN};
+    // }
+
+    // todo:先考虑数据包的完整性
     package_t Protocol::Transmit(int cmd_id) {
+        // 先初始化包的基本结构以确保包的完整性
         bufferTx[0] = SOF;
+        bufferTx[3] = (uint32_t)seq++;
+        bufferTx[5] = (uint8_t)((uint32_t)cmd_id & 0xFF);
+        bufferTx[6] = (uint8_t)((uint32_t)cmd_id >> BYTE);
+
+        // 处理数据内容
         int DATA_LENGTH = ProcessDataTx(cmd_id, bufferTx + FRAME_HEADER_LEN + CMD_ID_LEN);
         if (DATA_LENGTH < 0)
             return package_t{nullptr, 0};
+
+        // 填充数据长度字段
         bufferTx[1] = (uint8_t)((uint32_t)DATA_LENGTH & 0xFF);
         bufferTx[2] = (uint8_t)((uint32_t)DATA_LENGTH >> BYTE);
-        bufferTx[3] = (uint32_t)seq++;
+
+        // 添加包完整性校验
         AppendHeader(bufferTx, FRAME_HEADER_LEN);
-        bufferTx[5] = (uint8_t)((uint32_t)cmd_id & 0xFF);
-        bufferTx[6] = (uint8_t)((uint32_t)cmd_id >> BYTE);
         AppendFrame(bufferTx, FRAME_HEADER_LEN + CMD_ID_LEN + DATA_LENGTH + FRAME_TAIL_LEN);
         return package_t{bufferTx, FRAME_HEADER_LEN + CMD_ID_LEN + DATA_LENGTH + FRAME_TAIL_LEN};
     }

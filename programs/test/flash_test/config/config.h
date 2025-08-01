@@ -83,14 +83,17 @@ typedef struct {
 PG_DECLARE_ARRAY(CanBridge_t, MAX_PROFILE_COUNT, CanBridges);
 
 typedef struct {
+    bsp::CAN* can = nullptr;
     bool Enable = true;
-    driver::supercap_init_t supercap_init;
+    driver::supercap_init_t supercap_init = {can, 0x02E, 0x02F, 0x030};
     float MaxVoltage = 24.0f;
     float PowerTotal = 100.0f;
     float MaxChargePower = 150.0f;
     float MaxDischargePower = 250.0f;
     float PerferBuffer = 50.0f;
 } __attribute__((packed)) SuperCap_t;
+
+PG_DECLARE_ARRAY(SuperCap_t, MAX_PROFILE_COUNT, SuperCaps);
 
 void resatMotorPID(MotorPID_t* MotorPID);
 void pgResetFn_MotorPids(void* MotorPids, int size);
@@ -112,3 +115,10 @@ void resetCanBridge(uint8_t index);
 const CanBridge_t* getCanBridge(uint8_t index);
 void copyCanBridge(uint8_t dstIndex, uint8_t srcIndex);
 void setCanBridge(uint8_t index, const CanBridge_t* CanBridges);
+
+void resetSuperCap(SuperCap_t *SuperCaps);
+void pgResetFn_SuperCaps(void* SuperCaps, int size);
+void resetSuperCap(uint8_t index);
+const SuperCap_t* getSuperCap(uint8_t index);
+void copySuperCap(uint8_t dstIndex, uint8_t srcIndex);
+void setSuperCap(uint8_t index, const SuperCap_t* SuperCaps);

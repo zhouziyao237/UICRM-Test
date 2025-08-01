@@ -64,7 +64,7 @@ _CONFIG_DATA_SIZE = 0x4000; /* 16KB configuration data size */
 /* Specify the memory areas */
 MEMORY
 {
-RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 192K
+RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
 CCMRAM (xrw)   : ORIGIN = 0x10000000, LENGTH = 64K
 FLASH (rx)     : ORIGIN = 0x08000000, LENGTH = 2032K
 EEPROM (rw)    : ORIGIN = 0x080E0000, LENGTH = 32K
