@@ -77,8 +77,10 @@ typedef struct {
     uint16_t CanBridge_CurrentPowerWrapper = 0x73;
     float Max_Speed = 2 * PI * 8;
     control::chassis_model_t Chassis_Model = control::CHASSIS_MECANUM_WHEEL;
-    control::OMNI_Wheel_setup_t OMNI_Wheel_setup_t;
+    control::OMNI_Wheel_setup_t OMNI_Wheel_setup_t = {45, 45, 45, 0.15f};
 } __attribute__((packed)) CanBridge_t;
+
+PG_DECLARE_ARRAY(CanBridge_t, MAX_PROFILE_COUNT, CanBridges);
 
 typedef struct {
     bool Enable = true;
@@ -103,3 +105,10 @@ void resetMotorId(uint8_t index);
 const MotorId_t* getMotorId(uint8_t index);
 void copyMotorId(uint8_t dstIndex, uint8_t srcIndex);
 void setMotorId(uint8_t index, const MotorId_t* MotorIds);
+
+void resetCanBridge(CanBridge_t *CanBridges);
+void pgResetFn_CanBridges(void* CanBridges, int size);
+void resetCanBridge(uint8_t index);
+const CanBridge_t* getCanBridge(uint8_t index);
+void copyCanBridge(uint8_t dstIndex, uint8_t srcIndex);
+void setCanBridge(uint8_t index, const CanBridge_t* CanBridges);

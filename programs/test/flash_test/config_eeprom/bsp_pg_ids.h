@@ -35,4 +35,7 @@
 #define MotorId_Version 1
 #define PG_MotorId_PROFILE 2 // struct OK, CF differences
 
+#define CanBridge_Version 1
+#define PG_CanBridge_PROFILE 3 // struct OK, CF differences
+
 #endif //BSP_PG_IDS_H
