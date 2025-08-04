@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-#include "crc.h"
+#include "crc_check.h"
 
 #ifdef __cplusplus
 }

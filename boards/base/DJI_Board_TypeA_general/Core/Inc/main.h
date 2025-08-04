@@ -54,6 +54,8 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
+#define DJI_Board_TypeA_general
+
 void RM_RTOS_Init(void);
 void RM_RTOS_Mutexes_Init(void);
 void RM_RTOS_Semaphores_Init(void);

@@ -27,16 +27,6 @@
 #include "chassis.h"
 #include "config_eeprom/bsp_pg.h"
 
-extern control::Chassis* chassis;
-extern communication::CanBridge* can_bridge;
-extern driver::SuperCap* super_cap;
-extern control::ConstrainedPID::PID_Init_t omega_pid_init;
-
-extern driver::MotorCANBase* fl_motor;
-extern driver::MotorCANBase* fr_motor;
-extern driver::MotorCANBase* bl_motor;
-extern driver::MotorCANBase* br_motor;
-
 typedef struct {
     float kp = 2500.0f;  /// 比例系数
     float ki = 3.0f;     /// 积分系数
@@ -59,6 +49,7 @@ typedef struct {
 PG_DECLARE_ARRAY(MotorPID_t, MAX_PROFILE_COUNT, MotorPids);
 
 typedef struct {
+    CAN_HandleTypeDef* hcan = &hcan1;
     uint16_t fl_Id = 0x202;
     uint16_t fr_Id = 0x201;
     uint16_t bl_Id = 0x203;
@@ -68,7 +59,7 @@ typedef struct {
 PG_DECLARE_ARRAY(MotorId_t, MAX_PROFILE_COUNT, MotorIds);
 
 typedef struct {
-    bsp::CAN* can = nullptr;
+    CAN_HandleTypeDef* hcan = &hcan2;
     uint16_t CanBridge_RxId = 0x52;
     uint16_t CanBridge_TxId = 0x51;
     uint16_t CanBridge_XYWrapper = 0x70;
@@ -83,9 +74,11 @@ typedef struct {
 PG_DECLARE_ARRAY(CanBridge_t, MAX_PROFILE_COUNT, CanBridges);
 
 typedef struct {
-    bsp::CAN* can = nullptr;
+    CAN_HandleTypeDef* hcan = &hcan2;
     bool Enable = true;
-    driver::supercap_init_t supercap_init = {can, 0x02E, 0x02F, 0x030};
+    uint16_t tx_id = 0x02E;
+    uint16_t tx_settings_id = 0x02F;
+    uint16_t rx_id = 0x030;
     float MaxVoltage = 24.0f;
     float PowerTotal = 100.0f;
     float MaxChargePower = 150.0f;
@@ -109,14 +102,14 @@ const MotorId_t* getMotorId(uint8_t index);
 void copyMotorId(uint8_t dstIndex, uint8_t srcIndex);
 void setMotorId(uint8_t index, const MotorId_t* MotorIds);
 
-void resetCanBridge(CanBridge_t *CanBridges);
+void resetCanBridges(CanBridge_t *CanBridges);
 void pgResetFn_CanBridges(void* CanBridges, int size);
 void resetCanBridge(uint8_t index);
 const CanBridge_t* getCanBridge(uint8_t index);
 void copyCanBridge(uint8_t dstIndex, uint8_t srcIndex);
 void setCanBridge(uint8_t index, const CanBridge_t* CanBridges);
 
-void resetSuperCap(SuperCap_t *SuperCaps);
+void resetSuperCaps(SuperCap_t *SuperCaps);
 void pgResetFn_SuperCaps(void* SuperCaps, int size);
 void resetSuperCap(uint8_t index);
 const SuperCap_t* getSuperCap(uint8_t index);

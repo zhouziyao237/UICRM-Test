@@ -21,14 +21,17 @@
 //
 
 #include "config.h"
+#include "can.h"
 
 PG_REGISTER_ARRAY_WITH_RESET_FN(SuperCap_t, MAX_PROFILE_COUNT, SuperCaps, PG_SuperCap_PROFILE, SuperCap_Version);
 
-void resetCanBridges(SuperCap_t *SuperCaps) {
+void resetSuperCaps(SuperCap_t *SuperCaps) {
     RESET_CONFIG(SuperCap_t, SuperCaps,
-        .can = nullptr,
+        .hcan = &hcan1,
         .Enable = true,
-        .supercap_init =  {nullptr, 0x02E, 0x02F, 0x030},
+        .tx_id = 0x02E,
+        .tx_settings_id = 0x02F,
+        .rx_id = 0x030,
         .MaxVoltage = 24.0f,
         .PowerTotal = 100.0f,
         .MaxChargePower = 150.0f,
@@ -39,20 +42,22 @@ void resetCanBridges(SuperCap_t *SuperCaps) {
 
 void pgResetFn_SuperCaps(void* SuperCaps, int size) {
 
-    int count = size / sizeof(CanBridge_t);
+    int count = size / sizeof(SuperCap_t);
 
     for (int i = 0; i < count && i < MAX_PROFILE_COUNT; i++) {
         SuperCap_t* SuperCap = static_cast<SuperCap_t*>(SuperCaps);
-        resetCanBridges(&SuperCap[i]);
+        resetSuperCaps(&SuperCap[i]);
     }
 }
 
+// 重置特定索引的SuperCap配置为默认值
 void resetSuperCap(uint8_t index) {
     if (index < MAX_PROFILE_COUNT) {
         PG_RESET(SuperCaps);
     }
 }
 
+// 获取特定索引的SuperCap配置
 const SuperCap_t* getSuperCap(uint8_t index) {
     if (index < MAX_PROFILE_COUNT) {
         return SuperCaps(index);
@@ -60,13 +65,15 @@ const SuperCap_t* getSuperCap(uint8_t index) {
     return nullptr;
 }
 
+// 复制SuperCap配置
 void copySuperCap(uint8_t dstIndex, uint8_t srcIndex) {
     if ((dstIndex < MAX_PROFILE_COUNT && srcIndex < MAX_PROFILE_COUNT) && dstIndex != srcIndex) {
         memcpy(SuperCapsMutable(dstIndex), SuperCapsMutable(srcIndex), sizeof(SuperCap_t));
     }
 }
 
-void setCanBridge(uint8_t index, const SuperCap_t* SuperCaps) {
+// 设置特定索引的SuperCap参数
+void setSuperCap(uint8_t index, const SuperCap_t* SuperCaps) {
     if (index < MAX_PROFILE_COUNT) {
         SuperCap_t* SuperCap = SuperCapsMutable(index);
         *SuperCap = *SuperCaps;

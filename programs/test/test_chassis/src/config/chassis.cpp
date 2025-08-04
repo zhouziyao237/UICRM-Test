@@ -27,6 +27,7 @@ PG_REGISTER_ARRAY_WITH_RESET_FN(CanBridge_t, MAX_PROFILE_COUNT, CanBridges, PG_C
 
 void resetMotorIds(MotorId_t *MotorIds) {
     RESET_CONFIG(MotorId_t, MotorIds,
+        .hcan = &hcan2,
         .fl_Id = 0x202,
         .fr_Id = 0x201,
         .bl_Id = 0x203,
@@ -36,7 +37,7 @@ void resetMotorIds(MotorId_t *MotorIds) {
 
 void resetCanBridges(CanBridge_t *CanBridges) {
     RESET_CONFIG(CanBridge_t, CanBridges,
-        .can = nullptr,
+        .hcan = &hcan1,
         .CanBridge_RxId = 0x52,
         .CanBridge_TxId = 0x51,
         .CanBridge_XYWrapper = 0x70,
