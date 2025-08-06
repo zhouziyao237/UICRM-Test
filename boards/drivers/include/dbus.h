@@ -117,6 +117,10 @@ namespace remote {
         static const int16_t ROCKER_MIN = -660;
         static const int16_t ROCKER_MAX = 660;
 
+        // 添加通道数组和数量定义
+        static const int CHANNEL_COUNT = 5;
+        int16_t channels[CHANNEL_COUNT];
+
         uint32_t timestamp;
     };
 

@@ -22,9 +22,9 @@
 
 #include "config.h"
 
-PG_REGISTER_ARRAY_WITH_RESET_FN(MotorPID_t, MAX_PROFILE_COUNT, MotorPids, PG_MotorPID_PROFILE, MotorPID_Version);
+PG_REGISTER_ARRAY_WITH_RESET_FN(MotorPID_t, MAX_PROFILE_COUNT, MotorPid, PG_MotorPID_PROFILE, MotorPID_Version);
 
-void resatMotorPids(MotorPID_t* MotorPids) {
+void resatMotorPid(MotorPID_t* MotorPids) {
     RESET_CONFIG(MotorPID_t, MotorPids,
         .kp = 2500.0f,
         .ki = 3.0f,
@@ -40,7 +40,7 @@ void resatMotorPids(MotorPID_t* MotorPids) {
                 control::ConstrainedPID::OutputFilter |         // 输出滤波
                 control::ConstrainedPID::Trapezoid_Intergral |  // 梯形积分
                 control::ConstrainedPID::ChangingIntegralRate   // 变速积分
-        );
+    );
 
     control::ConstrainedPID::PID_Init_t omega_pid_init = {
         .kp = MotorPids->kp,
@@ -58,27 +58,27 @@ void resatMotorPids(MotorPID_t* MotorPids) {
     (void)omega_pid_init;
 }
 
-void pgResetFn_MotorPids(void* MotorPids, int size) {
+void pgResetFn_MotorPid(void* MotorPids, int size) {
 
     int count = size / sizeof(MotorPID_t);
 
     for (int i = 0; i < count && i < MAX_PROFILE_COUNT; i++) {
         MotorPID_t* PID = static_cast<MotorPID_t*>(MotorPids);
-        resatMotorPids(&PID[i]);
+        resatMotorPid(&PID[i]);
     }
 }
 
 // 重置特定索引的MotorPID配置为默认值
-void resetMotorPID(uint8_t index) {
+void resetindexMotorPID(uint8_t index) {
     if (index < MAX_PROFILE_COUNT) {
-        PG_RESET(MotorPids);
+        PG_RESET(MotorPid);
     }
 }
 
 // 获取特定索引的MotorPID配置
 const MotorPID_t* getMotorPID(uint8_t index) {
     if (index < MAX_PROFILE_COUNT) {
-        return MotorPids(index);
+        return MotorPid(index);
     }
     return nullptr;
 }
@@ -86,14 +86,14 @@ const MotorPID_t* getMotorPID(uint8_t index) {
 // 复制MotorPID配置
 void copyMotorPID(uint8_t dstIndex, uint8_t srcIndex) {
     if ((dstIndex < MAX_PROFILE_COUNT && srcIndex < MAX_PROFILE_COUNT) && dstIndex != srcIndex) {
-        memcpy(MotorPidsMutable(dstIndex), MotorPidsMutable(srcIndex), sizeof(MotorPID_t));
+        memcpy(MotorPidMutable(dstIndex), MotorPidMutable(srcIndex), sizeof(MotorPID_t));
     }
 }
 
 // 设置特定索引的MotorPID参数
 void setMotorPID(uint8_t index, const MotorPID_t* MotorPids) {
     if (index < MAX_PROFILE_COUNT) {
-        MotorPID_t* pid = MotorPidsMutable(index);
+        MotorPID_t* pid = MotorPidMutable(index);
         *pid = *MotorPids;
     }
 }

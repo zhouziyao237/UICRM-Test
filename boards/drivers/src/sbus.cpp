@@ -104,6 +104,12 @@ namespace remote {
         this->ch16 = abs(this->ch16) <= SBUS_RC_ROCKER_ZERO_DRIFT ? 0 : this->ch16;
         this->flag = repr->flag;
         this->timestamp = GetLastUptime();
+
+        // 将通道值存储到数组中，方便通过索引访问
+        volatile int16_t* ch_ptr = &this->ch1;
+        for (int i = 0; i < CHANNEL_COUNT; i++) {
+            this->channels[i] = *(ch_ptr + i);
+        }
     }
 
 } /* namespace remote */

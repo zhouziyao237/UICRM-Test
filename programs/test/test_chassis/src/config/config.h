@@ -27,6 +27,20 @@
 #include "chassis.h"
 #include "config_eeprom/bsp_pg.h"
 
+enum RemoteMode {
+    RemoteModeNone = 0,
+    RemoteModeCanBridge = 1,
+    RemoteModeDbus = 2,
+    RemoteModeSbus = 3,
+};
+
+typedef struct {
+    RemoteMode Remote_mode = RemoteModeDbus;
+
+} __attribute__((packed)) ControlModel_t;
+
+PG_DECLARE_ARRAY(ControlModel_t, MAX_PROFILE_COUNT, ControlModel);
+
 typedef struct {
     float kp = 2500.0f;  /// 比例系数
     float ki = 3.0f;     /// 积分系数
@@ -34,19 +48,19 @@ typedef struct {
 
     float max_out = 30000;   /// 输出限幅
     float max_iout = 10000;  /// 积分输出限幅
-    float deadband = 0;  /// 死区
+    float deadband = 0;      /// 死区
     /// 变速积分
-    float A = 3 * PI;                                 /// 变速积分所能达到的最大值为A+B
-    float B = 2 * PI;                                 /// 启动变速积分的死区
-    float output_filtering_coefficient = 0.1;      /// 输出滤波系数
-    float derivative_filtering_coefficient = 0;  /// 微分滤波系数
+    float A = 3 * PI;                                              /// 变速积分所能达到的最大值为A+B
+    float B = 2 * PI;                                              /// 启动变速积分的死区
+    float output_filtering_coefficient = 0.1;                      /// 输出滤波系数
+    float derivative_filtering_coefficient = 0;                    /// 微分滤波系数
     uint8_t mode = control::ConstrainedPID::Integral_Limit |       // 积分限幅
-                    control::ConstrainedPID::OutputFilter |         // 输出滤波
-                    control::ConstrainedPID::Trapezoid_Intergral |  // 梯形积分
-                    control::ConstrainedPID::ChangingIntegralRate;  // 变速积分
+                   control::ConstrainedPID::OutputFilter |         // 输出滤波
+                   control::ConstrainedPID::Trapezoid_Intergral |  // 梯形积分
+                   control::ConstrainedPID::ChangingIntegralRate;  // 变速积分
 } __attribute__((packed)) MotorPID_t;
 
-PG_DECLARE_ARRAY(MotorPID_t, MAX_PROFILE_COUNT, MotorPids);
+PG_DECLARE_ARRAY(MotorPID_t, MAX_PROFILE_COUNT, MotorPid);
 
 typedef struct {
     CAN_HandleTypeDef* hcan = &hcan1;
@@ -56,7 +70,7 @@ typedef struct {
     uint16_t br_Id = 0x204;
 } __attribute__((packed)) MotorId_t;
 
-PG_DECLARE_ARRAY(MotorId_t, MAX_PROFILE_COUNT, MotorIds);
+PG_DECLARE_ARRAY(MotorId_t, MAX_PROFILE_COUNT, MotorId);
 
 typedef struct {
     CAN_HandleTypeDef* hcan = &hcan2;
@@ -71,7 +85,45 @@ typedef struct {
     control::OMNI_Wheel_setup_t OMNI_Wheel_setup_t = {45, 45, 45, 0.15f};
 } __attribute__((packed)) CanBridge_t;
 
-PG_DECLARE_ARRAY(CanBridge_t, MAX_PROFILE_COUNT, CanBridges);
+PG_DECLARE_ARRAY(CanBridge_t, MAX_PROFILE_COUNT, CanBridge);
+
+typedef struct {
+#if defined(DJI_Board_TypeA_general)
+    UART_HandleTypeDef* huart = &huart1;
+#elif defined(DJI_Board_TypeC_general)
+    UART_HandleTypeDef* huart = &huart3;
+#else
+#error "Please select a board type"
+#endif
+    bool Enable_keyboard = false;
+    int16_t XSpeedChannel = 0;
+    int16_t YSpeedChannel = 1;
+    int16_t TurnSpeedChannel = 2;
+    float Max_Speed = 2 * PI * 8;
+    control::chassis_model_t Chassis_Model = control::CHASSIS_MECANUM_WHEEL;
+    control::OMNI_Wheel_setup_t OMNI_Wheel_setup_t = {45, 45, 45, 0.15f};
+} __attribute__((packed)) RemoteDbus_t;
+
+PG_DECLARE_ARRAY(RemoteDbus_t, MAX_PROFILE_COUNT, RemoteDbus);
+
+typedef struct {
+#if defined(DJI_Board_TypeA_general)
+    UART_HandleTypeDef* huart = &huart1;
+#elif defined(DJI_Board_TypeC_general)
+    UART_HandleTypeDef* huart = &huart3;
+#else
+#error "Please select a board type"
+#endif
+    bool Enable_keyboard = false;
+    int16_t XSpeedChannel = 0;
+    int16_t YSpeedChannel = 1;
+    int16_t TurnSpeedChannel = 2;
+    float Max_Speed = 2 * PI * 8;
+    control::chassis_model_t Chassis_Model = control::CHASSIS_MECANUM_WHEEL;
+    control::OMNI_Wheel_setup_t OMNI_Wheel_setup_t = {45, 45, 45, 0.15f};
+} __attribute__((packed)) RemoteSbus_t;
+
+PG_DECLARE_ARRAY(RemoteSbus_t, MAX_PROFILE_COUNT, RemoteSbus);
 
 typedef struct {
     CAN_HandleTypeDef* hcan = &hcan2;
@@ -86,32 +138,73 @@ typedef struct {
     float PerferBuffer = 50.0f;
 } __attribute__((packed)) SuperCap_t;
 
-PG_DECLARE_ARRAY(SuperCap_t, MAX_PROFILE_COUNT, SuperCaps);
+PG_DECLARE_ARRAY(SuperCap_t, MAX_PROFILE_COUNT, SuperCap);
+
+typedef union {
+    // todo:在里面设置了CanBridge回调接收的ID不需要同步通道了
+    const RemoteDbus_t* remote_dbus;
+    const RemoteSbus_t* remote_sbus;
+} ChassisRemote_t;
+
+/* - Motor PID - */
 
 void resatMotorPID(MotorPID_t* MotorPID);
-void pgResetFn_MotorPids(void* MotorPids, int size);
-void resetMotorPID(uint8_t index);
+void pgResetFn_MotorPid(void* MotorPids, int size);
+void resetindexMotorPID(uint8_t index);
 const MotorPID_t* getMotorPID(uint8_t index);
 void copyMotorPID(uint8_t dstIndex, uint8_t srcIndex);
 void setMotorPID(uint8_t index, const MotorPID_t* MotorPids);
 
-void resetMotorIds(MotorId_t *MotorIds);
-void pgResetFn_MotorIds(void* MotorIds, int size);
-void resetMotorId(uint8_t index);
+/* - Motor ID - */
+
+void resetMotorId(MotorId_t* MotorIds);
+void pgResetFn_MotorId(void* MotorIds, int size);
+void resetindexMotorId(uint8_t index);
 const MotorId_t* getMotorId(uint8_t index);
 void copyMotorId(uint8_t dstIndex, uint8_t srcIndex);
 void setMotorId(uint8_t index, const MotorId_t* MotorIds);
 
-void resetCanBridges(CanBridge_t *CanBridges);
-void pgResetFn_CanBridges(void* CanBridges, int size);
-void resetCanBridge(uint8_t index);
+/* - Super Cap - */
+
+void resetSuperCap(SuperCap_t* SuperCaps);
+void pgResetFn_SuperCap(void* SuperCaps, int size);
+void resetindexSuperCap(uint8_t index);
+const SuperCap_t* getSuperCap(uint8_t index);
+void copySuperCap(uint8_t dstIndex, uint8_t srcIndex);
+void setSuperCap(uint8_t index, const SuperCap_t* SuperCaps);
+
+/* - Can Bridge - */
+
+void resetCanBridge(CanBridge_t* CanBridges);
+void pgResetFn_CanBridge(void* CanBridges, int size);
+void resetindexCanBridge(uint8_t index);
 const CanBridge_t* getCanBridge(uint8_t index);
 void copyCanBridge(uint8_t dstIndex, uint8_t srcIndex);
 void setCanBridge(uint8_t index, const CanBridge_t* CanBridges);
 
-void resetSuperCaps(SuperCap_t *SuperCaps);
-void pgResetFn_SuperCaps(void* SuperCaps, int size);
-void resetSuperCap(uint8_t index);
-const SuperCap_t* getSuperCap(uint8_t index);
-void copySuperCap(uint8_t dstIndex, uint8_t srcIndex);
-void setSuperCap(uint8_t index, const SuperCap_t* SuperCaps);
+/* - Remote Dbus - */
+
+void resetRemoteDbus(RemoteDbus_t* RemoteDbuses);
+void pgResetFn_RemoteDbus(void* RemoteDbuses, int size);
+void resetindexRemoteDbus(uint8_t index);
+const RemoteDbus_t* getRemoteDbus(uint8_t index);
+void copyRemoteDbus(uint8_t dstIndex, uint8_t srcIndex);
+void setRemoteDbus(uint8_t index, const RemoteDbus_t* RemoteDbuses);
+
+/* - Remote Sbus - */
+
+void resetRemoteSbus(RemoteSbus_t* RemoteSbuses);
+void pgResetFn_RemoteSbus(void* RemoteSbuses, int size);
+void resetindexRemoteSbus(uint8_t index);
+const RemoteSbus_t* getRemoteSbus(uint8_t index);
+void copyRemoteSbus(uint8_t dstIndex, uint8_t srcIndex);
+void setRemoteSbus(uint8_t index, const RemoteSbus_t* RemoteSbuses);
+
+/* - Control Model - */
+
+void resetControlModel(ControlModel_t* ControlModels);
+void pgResetFn_ControlModel(void* ControlModels, int size);
+void resetindexControlModel(uint8_t index);
+const ControlModel_t* getControlModel(uint8_t index);
+void copyControlModel(uint8_t dstIndex, uint8_t srcIndex);
+void setControlModel(uint8_t index, const ControlModel_t* ControlModels);

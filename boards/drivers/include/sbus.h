@@ -92,6 +92,10 @@ namespace remote {
 
         static const int16_t ROCKER_MIN = -1023;
         static const int16_t ROCKER_MAX = 1023;
+
+        // 添加通道数组和数量定义
+        static const int CHANNEL_COUNT = 16;
+        int16_t channels[CHANNEL_COUNT];
     };
 
 } /* namespace remote */

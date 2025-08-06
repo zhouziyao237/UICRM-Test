@@ -22,20 +22,64 @@
 
 #include "config.h"
 
-PG_REGISTER_ARRAY_WITH_RESET_FN(MotorId_t, MAX_PROFILE_COUNT, MotorIds, PG_MotorId_PROFILE, MotorId_Version);
-PG_REGISTER_ARRAY_WITH_RESET_FN(CanBridge_t, MAX_PROFILE_COUNT, CanBridges, PG_CanBridge_PROFILE, CanBridge_Version);
+PG_REGISTER_ARRAY_WITH_RESET_FN(MotorId_t, MAX_PROFILE_COUNT, MotorId, PG_MotorId_PROFILE, MotorId_Version);
+PG_REGISTER_ARRAY_WITH_RESET_FN(CanBridge_t, MAX_PROFILE_COUNT, CanBridge, PG_CanBridge_PROFILE, CanBridge_Version);
+PG_REGISTER_ARRAY_WITH_RESET_FN(RemoteDbus_t, MAX_PROFILE_COUNT, RemoteDbus, PG_RemoteDbus_PROFILE, RemoteDbus_Version);
+PG_REGISTER_ARRAY_WITH_RESET_FN(RemoteSbus_t, MAX_PROFILE_COUNT, RemoteSbus, PG_RemoteSbus_PROFILE, RemoteSbus_Version);
 
-void resetMotorIds(MotorId_t *MotorIds) {
+void resetMotorId(MotorId_t *MotorIds) {
     RESET_CONFIG(MotorId_t, MotorIds,
         .hcan = &hcan2,
         .fl_Id = 0x202,
         .fr_Id = 0x201,
         .bl_Id = 0x203,
         .br_Id = 0x204
-        );
+    );
 }
 
-void resetCanBridges(CanBridge_t *CanBridges) {
+void pgResetFn_MotorId(void* MotorIds, int size) {
+
+    int count = size / sizeof(MotorId_t);
+
+    for (int i = 0; i < count && i < MAX_PROFILE_COUNT; i++) {
+        MotorId_t* IDS = static_cast<MotorId_t*>(MotorIds);
+        resetMotorId(&IDS[i]);
+    }
+}
+
+// 重置特定索引的MotorId配置为默认值
+void resetindexMotorId(uint8_t index) {
+    if (index < MAX_PROFILE_COUNT) {
+        PG_RESET(MotorId);
+    }
+}
+
+// 获取特定索引的MotorId配置
+const MotorId_t* getMotorId(uint8_t index) {
+    if (index < MAX_PROFILE_COUNT) {
+        return MotorId(index);
+    }
+    return nullptr;
+}
+
+// 复制MotorId配置
+void copyMotorId(uint8_t dstIndex, uint8_t srcIndex) {
+    if ((dstIndex < MAX_PROFILE_COUNT && srcIndex < MAX_PROFILE_COUNT) && dstIndex != srcIndex) {
+        memcpy(MotorIdMutable(dstIndex), MotorIdMutable(srcIndex), sizeof(MotorId_t));
+    }
+}
+
+// 设置特定索引的MotorId参数
+void setMotorId(uint8_t index, const MotorId_t* MotorIds) {
+    if (index < MAX_PROFILE_COUNT) {
+        MotorId_t* Id = MotorIdMutable(index);
+        *Id = *MotorIds;
+    }
+}
+
+/*- CanBridge 配置 -*/
+
+void resetCanBridge(CanBridge_t *CanBridges) {
     RESET_CONFIG(CanBridge_t, CanBridges,
         .hcan = &hcan1,
         .CanBridge_RxId = 0x52,
@@ -47,81 +91,169 @@ void resetCanBridges(CanBridge_t *CanBridges) {
         .Max_Speed = 2 * PI * 8,
         .Chassis_Model = control::CHASSIS_MECANUM_WHEEL,
         .OMNI_Wheel_setup_t = {45, 45, 45, 0.15f}
-        );
+    );
 }
 
-void pgResetFn_MotorIds(void* MotorIds, int size) {
-
-    int count = size / sizeof(MotorId_t);
-
-    for (int i = 0; i < count && i < MAX_PROFILE_COUNT; i++) {
-        MotorId_t* IDS = static_cast<MotorId_t*>(MotorIds);
-        resetMotorIds(&IDS[i]);
-    }
-}
-
-void pgResetFn_CanBridges(void* CanBridges, int size) {
+void pgResetFn_CanBridge(void* CanBridges, int size) {
 
     int count = size / sizeof(CanBridge_t);
 
     for (int i = 0; i < count && i < MAX_PROFILE_COUNT; i++) {
         CanBridge_t* CanBridge = static_cast<CanBridge_t*>(CanBridges);
-        resetCanBridges(&CanBridge[i]);
+        resetCanBridge(&CanBridge[i]);
     }
 }
 
-// 重置特定索引的MotorId配置为默认值
-void resetMotorId(uint8_t index) {
+void resetindexCanBridge(uint8_t index) {
     if (index < MAX_PROFILE_COUNT) {
-        PG_RESET(MotorIds);
+        PG_RESET(CanBridge);
     }
-}
-
-void resetCanBridge(uint8_t index) {
-    if (index < MAX_PROFILE_COUNT) {
-        PG_RESET(CanBridges);
-    }
-}
-
-// 获取特定索引的MotorId配置
-const MotorId_t* getMotorId(uint8_t index) {
-    if (index < MAX_PROFILE_COUNT) {
-        return MotorIds(index);
-    }
-    return nullptr;
 }
 
 const CanBridge_t* getCanBridge(uint8_t index) {
     if (index < MAX_PROFILE_COUNT) {
-        return CanBridges(index);
+        return CanBridge(index);
     }
     return nullptr;
 }
 
-// 复制MotorId配置
-void copyMotorId(uint8_t dstIndex, uint8_t srcIndex) {
-    if ((dstIndex < MAX_PROFILE_COUNT && srcIndex < MAX_PROFILE_COUNT) && dstIndex != srcIndex) {
-        memcpy(MotorIdsMutable(dstIndex), MotorIdsMutable(srcIndex), sizeof(MotorId_t));
-    }
-}
-
 void copyCanBridge(uint8_t dstIndex, uint8_t srcIndex) {
     if ((dstIndex < MAX_PROFILE_COUNT && srcIndex < MAX_PROFILE_COUNT) && dstIndex != srcIndex) {
-        memcpy(CanBridgesMutable(dstIndex), CanBridgesMutable(srcIndex), sizeof(CanBridge_t));
-    }
-}
-
-// 设置特定索引的MotorId参数
-void setMotorId(uint8_t index, const MotorId_t* MotorIds) {
-    if (index < MAX_PROFILE_COUNT) {
-        MotorId_t* Id = MotorIdsMutable(index);
-        *Id = *MotorIds;
+        memcpy(CanBridgeMutable(dstIndex), CanBridgeMutable(srcIndex), sizeof(CanBridge_t));
     }
 }
 
 void setCanBridge(uint8_t index, const CanBridge_t* CanBridges) {
     if (index < MAX_PROFILE_COUNT) {
-        CanBridge_t* CanBridge = CanBridgesMutable(index);
+        CanBridge_t* CanBridge = CanBridgeMutable(index);
         *CanBridge = *CanBridges;
+    }
+}
+
+/* - RemoteDbus 配置 -*/
+
+void resetRemoteDbus(RemoteDbus_t *RemoteDbuss) {
+#if defined(DJI_Board_TypeA_general)
+    RESET_CONFIG(RemoteDbus_t, RemoteDbuss,
+        .huart = &huart1,
+        .Enable_keyboard = false,
+        .XSpeedChannel = 0,
+        .YSpeedChannel = 1,
+        .TurnSpeedChannel = 2,
+        .Max_Speed = 2 * PI * 8,
+        .Chassis_Model = control::CHASSIS_MECANUM_WHEEL,
+        .OMNI_Wheel_setup_t = {45, 45, 45, 0.15f}
+    );
+#elif defined(DJI_Board_TypeC_general)
+    RESET_CONFIG(RemoteDbus_t, RemoteDbuss,
+        .huart = &huart3,
+        .Enable_keyboard = false,
+        .XSpeedChannel = 0,
+        .YSpeedChannel = 1,
+        .TurnSpeedChannel = 2,
+        .Max_Speed = 2 * PI * 8,
+        .Chassis_Model = control::CHASSIS_MECANUM_WHEEL,
+        .OMNI_Wheel_setup_t = {45, 45, 45, 0.15f}
+    );
+#else
+    #error "Please select a board type"
+#endif
+}
+
+void pgResetFn_RemoteDbus(void* RemoteDbuss, int size) {
+    int count = size / sizeof(RemoteDbus_t);
+    for (int i = 0; i < count && i < MAX_PROFILE_COUNT; i++) {
+        RemoteDbus_t* RemoteDbus = static_cast<RemoteDbus_t*>(RemoteDbuss);
+        resetRemoteDbus(&RemoteDbus[i]);
+    }
+}
+
+void resetindexRemoteDbus(uint8_t index) {
+    if (index < MAX_PROFILE_COUNT) {
+        PG_RESET(RemoteDbus);
+    }
+}
+
+const RemoteDbus_t* getRemoteDbus(uint8_t index) {
+    if (index < MAX_PROFILE_COUNT) {
+        return RemoteDbus(index);
+    }
+    return nullptr;
+}
+
+void copyRemoteDbus(uint8_t dstIndex, uint8_t srcIndex) {
+    if ((dstIndex < MAX_PROFILE_COUNT && srcIndex < MAX_PROFILE_COUNT) && dstIndex != srcIndex) {
+        memcpy(RemoteDbusMutable(dstIndex), RemoteDbusMutable(srcIndex), sizeof(RemoteDbus_t));
+    }
+}
+
+void setRemoteDbus(uint8_t index, const RemoteDbus_t* RemoteDbuss) {
+    if (index < MAX_PROFILE_COUNT) {
+        RemoteDbus_t* RemoteDbus = RemoteDbusMutable(index);
+        *RemoteDbus = *RemoteDbuss;
+    }
+}
+
+/* - RemoteSbus 配置 -*/
+
+void resetRemoteSbus(RemoteSbus_t *RemoteSbuss) {
+#if defined(DJI_Board_TypeA_general)
+    RESET_CONFIG(RemoteSbus_t, RemoteSbuss,
+        .huart = &huart1,
+        .Enable_keyboard = false,
+        .XSpeedChannel = 0,
+        .YSpeedChannel = 1,
+        .TurnSpeedChannel = 2,
+        .Max_Speed = 2 * PI * 8,
+        .Chassis_Model = control::CHASSIS_MECANUM_WHEEL,
+        .OMNI_Wheel_setup_t = {45, 45, 45, 0.15f}
+    );
+#elif defined(DJI_Board_TypeC_general)
+    RESET_CONFIG(RemoteDbus_t, RemoteDbuss,
+        .huart = &huart3,
+        .Enable_keyboard = false,
+        .XSpeedChannel = 0,
+        .YSpeedChannel = 1,
+        .TurnSpeedChannel = 2,
+        .Max_Speed = 2 * PI * 8,
+        .Chassis_Model = control::CHASSIS_MECANUM_WHEEL,
+        .OMNI_Wheel_setup_t = {45, 45, 45, 0.15f}
+    );
+#else
+#error "Please select a board type"
+#endif
+}
+
+void pgResetFn_RemoteSbus(void* RemoteSbuss, int size) {
+    int count = size / sizeof(RemoteSbus_t);
+    for (int i = 0; i < count && i < MAX_PROFILE_COUNT; i++) {
+        RemoteSbus_t* RemoteSbus = static_cast<RemoteSbus_t*>(RemoteSbuss);
+        resetRemoteSbus(&RemoteSbus[i]);
+    }
+}
+
+void resetindexRemoteSbus(uint8_t index) {
+    if (index < MAX_PROFILE_COUNT) {
+        PG_RESET(RemoteSbus);
+    }
+}
+
+const RemoteSbus_t* getRemoteSbus(uint8_t index) {
+    if (index < MAX_PROFILE_COUNT) {
+        return RemoteSbus(index);
+    }
+    return nullptr;
+}
+
+void copyRemoteSbus(uint8_t dstIndex, uint8_t srcIndex) {
+    if ((dstIndex < MAX_PROFILE_COUNT && srcIndex < MAX_PROFILE_COUNT) && dstIndex != srcIndex) {
+        memcpy(RemoteSbusMutable(dstIndex), RemoteSbusMutable(srcIndex), sizeof(RemoteSbus_t));
+    }
+}
+
+void setRemoteSbus(uint8_t index, const RemoteSbus_t* RemoteSbuss) {
+    if (index < MAX_PROFILE_COUNT) {
+        RemoteSbus_t* RemoteSbus = RemoteSbusMutable(index);
+        *RemoteSbus = *RemoteSbuss;
     }
 }

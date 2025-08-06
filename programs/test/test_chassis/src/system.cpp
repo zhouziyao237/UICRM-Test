@@ -22,4 +22,23 @@
 
 #include "system.h"
 
+bsp::CAN* Can_Motor = nullptr;
+bsp::CAN* Can_Bridge = nullptr;
+
+remote::DBUS* dbus = nullptr;
+remote::SBUS* sbus = nullptr;
+
+control::Chassis* chassis = nullptr;
+communication::CanBridge* can_bridge = nullptr;
+driver::SuperCap* super_cap = nullptr;
+
+driver::MotorCANBase* fl_motor = nullptr;
+driver::MotorCANBase* fr_motor = nullptr;
+driver::MotorCANBase* bl_motor = nullptr;
+driver::MotorCANBase* br_motor = nullptr;
+
+driver::MotorCANBase* motors[control::FourWheel::motor_num];
+
+ChassisRemote_t chassis_remote;
+RemoteMode remote_mode = RemoteModeNone;
 system_model system_state = SYSTEM_INIT;

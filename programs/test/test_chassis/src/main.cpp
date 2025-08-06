@@ -20,18 +20,14 @@
 
 #include "main.h"
 #include "MotorCanBase.h"
-#include "bsp_can.h"
 #include "bsp_print.h"
 #include "buzzer_notes.h"
 #include "buzzer_task.h"
 #include "chassis_task.h"
 
-#include "config/config.h"
 #include "config_eeprom/bsp_eeprom.h"
 #include "config_eeprom/bsp_pg.h"
 #include "system.h"
-
-driver::MotorCANBase* motors[control::FourWheel::motor_num];
 
 void RM_RTOS_Init() {
     HAL_Delay(100);
@@ -71,7 +67,7 @@ void RM_MODEL_LODE() {
         count++;
         total_size += pgSize(reg);
         print("PG #%d: pgn=%d, size=%d bytes\r\n", count, pgN(reg), pgSize(reg));
-        osDelay(10);
+        osDelay(50);
     }
     print("Total PG count: %d\r\n", count);
     print("Total PG data size: %d bytes\r\n", total_size);
@@ -79,7 +75,8 @@ void RM_MODEL_LODE() {
 
     InitMotor(motors);
     InitMotor_PID(motors);
-    InitChassis(motors, nullptr);
+    // InitCanBridgeChassis(motors, nullptr);
+    ChassisInit(motors, nullptr, remote_mode, chassis_remote);
     return;
 }
 
@@ -90,7 +87,7 @@ void RM_RTOS_Default_Task(const void* args) {
     Buzzer_Sing(Mario);
     print("system OK\r\n");
     while (true) {
-        ChassisUpdate();
+        ChassisUpdate(remote_mode, chassis_remote);
         osDelay(10);
     }
 }

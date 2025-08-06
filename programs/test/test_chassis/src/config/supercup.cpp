@@ -23,9 +23,9 @@
 #include "config.h"
 #include "can.h"
 
-PG_REGISTER_ARRAY_WITH_RESET_FN(SuperCap_t, MAX_PROFILE_COUNT, SuperCaps, PG_SuperCap_PROFILE, SuperCap_Version);
+PG_REGISTER_ARRAY_WITH_RESET_FN(SuperCap_t, MAX_PROFILE_COUNT, SuperCap, PG_SuperCap_PROFILE, SuperCap_Version);
 
-void resetSuperCaps(SuperCap_t *SuperCaps) {
+void resetSuperCap(SuperCap_t *SuperCaps) {
     RESET_CONFIG(SuperCap_t, SuperCaps,
         .hcan = &hcan1,
         .Enable = true,
@@ -37,30 +37,30 @@ void resetSuperCaps(SuperCap_t *SuperCaps) {
         .MaxChargePower = 150.0f,
         .MaxDischargePower = 250.0f,
         .PerferBuffer = 50.0f
-        );
+    );
 }
 
-void pgResetFn_SuperCaps(void* SuperCaps, int size) {
+void pgResetFn_SuperCap(void* SuperCaps, int size) {
 
     int count = size / sizeof(SuperCap_t);
 
     for (int i = 0; i < count && i < MAX_PROFILE_COUNT; i++) {
         SuperCap_t* SuperCap = static_cast<SuperCap_t*>(SuperCaps);
-        resetSuperCaps(&SuperCap[i]);
+        resetSuperCap(&SuperCap[i]);
     }
 }
 
 // 重置特定索引的SuperCap配置为默认值
-void resetSuperCap(uint8_t index) {
+void resetindexSuperCap(uint8_t index) {
     if (index < MAX_PROFILE_COUNT) {
-        PG_RESET(SuperCaps);
+        PG_RESET(SuperCap);
     }
 }
 
 // 获取特定索引的SuperCap配置
 const SuperCap_t* getSuperCap(uint8_t index) {
     if (index < MAX_PROFILE_COUNT) {
-        return SuperCaps(index);
+        return SuperCap(index);
     }
     return nullptr;
 }
@@ -68,14 +68,14 @@ const SuperCap_t* getSuperCap(uint8_t index) {
 // 复制SuperCap配置
 void copySuperCap(uint8_t dstIndex, uint8_t srcIndex) {
     if ((dstIndex < MAX_PROFILE_COUNT && srcIndex < MAX_PROFILE_COUNT) && dstIndex != srcIndex) {
-        memcpy(SuperCapsMutable(dstIndex), SuperCapsMutable(srcIndex), sizeof(SuperCap_t));
+        memcpy(SuperCapMutable(dstIndex), SuperCapMutable(srcIndex), sizeof(SuperCap_t));
     }
 }
 
 // 设置特定索引的SuperCap参数
 void setSuperCap(uint8_t index, const SuperCap_t* SuperCaps) {
     if (index < MAX_PROFILE_COUNT) {
-        SuperCap_t* SuperCap = SuperCapsMutable(index);
+        SuperCap_t* SuperCap = SuperCapMutable(index);
         *SuperCap = *SuperCaps;
     }
 }

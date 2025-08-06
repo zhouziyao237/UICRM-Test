@@ -25,16 +25,19 @@
 
 #include "MotorCanBase.h"
 #include "chassis.h"
-#include "bsp_can.h"
-#include "system.h"
-
 #include "config/config.h"
 
+#define ratio 1.0f / 660.0f * 6 * PI
+
+void InitSuperCap();
 void InitMotor(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]);
 void InitMotor_PID(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]);
-void InitChassis(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num], void(*SuperCap(void)));
-void InitSuperCap();
-void ChassisUpdate();
+void InitCanBridgeChassis(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num], void(*SuperCap(void)));
+void InitRemoteDbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num], void(*SuperCap(void)));
+void InitRemoteSbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num], void(*SuperCap(void)));
 
+void ChassisInit(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num],
+                 void(*SuperCap(void)), RemoteMode& Remote_mode, ChassisRemote_t &ChassisRemote);
+void ChassisUpdate(RemoteMode& Remote_mode, ChassisRemote_t &ChassisRemote);
 
 #endif //CHASSIS_TASK_H

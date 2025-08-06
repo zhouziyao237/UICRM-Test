@@ -23,6 +23,30 @@
 #ifndef SYSTEM_H
 #define SYSTEM_H
 
+#include "MotorCanBase.h"
+#include "bsp_can.h"
+#include "chassis.h"
+#include "dbus.h"
+#include "sbus.h"
+#include "config/config.h"
+
+extern bsp::CAN* Can_Motor;
+extern bsp::CAN* Can_Bridge;
+
+extern remote::DBUS* dbus;
+extern remote::SBUS* sbus;
+
+extern control::Chassis* chassis;
+extern communication::CanBridge* can_bridge;
+extern driver::SuperCap* super_cap;
+
+extern driver::MotorCANBase* fl_motor;
+extern driver::MotorCANBase* fr_motor;
+extern driver::MotorCANBase* bl_motor;
+extern driver::MotorCANBase* br_motor;
+
+extern driver::MotorCANBase* motors[control::FourWheel::motor_num];
+
 enum system_model{
     SYSTEM_INIT = 0,
     SYSTEM_READCONFIG = 1,
@@ -33,5 +57,7 @@ enum system_model{
     SYSTEM_ERRORCONTROL = 6
 };
 extern system_model system_state;
+extern RemoteMode remote_mode;
+extern ChassisRemote_t chassis_remote;
 
 #endif //SYSTEM_H

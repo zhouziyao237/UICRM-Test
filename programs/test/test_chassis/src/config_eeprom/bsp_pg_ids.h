@@ -29,20 +29,32 @@
 #define MAX_PROFILE_COUNT 2
 #endif
 
+#define ControlModel_Version 1
+#define ControlModel_PROFILE_COUNT 0
+#define PG_ControlModel_PROFILE 1
+
 #define MotorPID_Version 1
 #define MotorPID_PROFILE_COUNT 0
-#define PG_MotorPID_PROFILE 1 // struct OK, CF differences
+#define PG_MotorPID_PROFILE 2 // struct OK, CF differences
 
 #define MotorId_Version 1
 #define MotorId_PROFILE_COUNT 0
-#define PG_MotorId_PROFILE 2 // struct OK, CF differences
+#define PG_MotorId_PROFILE 3 // struct OK, CF differences
 
 #define CanBridge_Version 1
 #define CanBridge_PROFILE_COUNT 0
-#define PG_CanBridge_PROFILE 3 // struct OK, CF differences
+#define PG_CanBridge_PROFILE 4 // struct OK, CF differences
+
+#define RemoteDbus_Version 1
+#define RemoteDbus_PROFILE_COUNT 0
+#define PG_RemoteDbus_PROFILE 5 // struct OK, CF differences
+
+#define RemoteSbus_Version 1
+#define RemoteSbus_PROFILE_COUNT 0
+#define PG_RemoteSbus_PROFILE 6 // struct OK, CF differences
 
 #define SuperCap_Version 1
 #define SuperCap_PROFILE_COUNT 0
-#define PG_SuperCap_PROFILE 4 // struct OK, CF differences
+#define PG_SuperCap_PROFILE 7 // struct OK, CF differences
 
 #endif //BSP_PG_IDS_H

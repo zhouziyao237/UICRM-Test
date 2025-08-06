@@ -80,6 +80,15 @@ namespace remote {
         memcpy(&this->keyboard, &repr->keyboard, sizeof(keyboard_t));
 
         this->timestamp = GetLastUptime();
+
+        memcpy(&this->mouse, &repr->mouse, sizeof(mouse_t));
+        memcpy(&this->keyboard, &repr->keyboard, sizeof(keyboard_t));
+
+        // 将通道值存储到数组中，方便通过索引访问
+        volatile int16_t* ch_ptr = &this->ch0;
+        for (int i = 0; i < CHANNEL_COUNT; i++) {
+            this->channels[i] = *(ch_ptr + i);
+        }
     }
 
 } /* namespace remote */
