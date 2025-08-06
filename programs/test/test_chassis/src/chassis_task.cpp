@@ -25,12 +25,12 @@
 #include "bsp_can.h"
 #include "system.h"
 
-void InitSuperCap() {
+void InitSuperCap(bsp::CAN* supercap_can) {
     if (const SuperCap_t* SuperCap = getSuperCap(SuperCap_PROFILE_COUNT)) {
         if (!SuperCap->Enable) {
             return;
         }
-        driver::supercap_init_t supercap_init = {.can = new bsp::CAN(SuperCap->hcan, false),
+        driver::supercap_init_t supercap_init = {.can = supercap_can,
                                                  .tx_id = SuperCap->tx_id,
                                                  .tx_settings_id = SuperCap->tx_settings_id,
                                                  .rx_id = SuperCap->rx_id};
@@ -52,7 +52,7 @@ void InitSuperCap() {
 
 void InitMotor(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]) {
     if (const MotorId_t* motorIds = getMotorId(MotorId_PROFILE_COUNT)) {
-        Can_Motor = new bsp::CAN(motorIds->hcan, true);
+        Can_Motor = new bsp::CAN(motorIds->hcan, motorIds->is_master);
         fl_motor = new driver::Motor3508(Can_Motor, motorIds->fl_Id);
         fr_motor = new driver::Motor3508(Can_Motor, motorIds->fr_Id);
         bl_motor = new driver::Motor3508(Can_Motor, motorIds->bl_Id);
@@ -69,19 +69,20 @@ void InitMotor(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]) {
 
 void InitMotor_PID(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]) {
     if (const MotorPID_t* pid_params = getMotorPID(MotorPID_PROFILE_COUNT)) {
-        // 使用显式转换而不是reinterpret_cast来避免对齐警告
-        control::ConstrainedPID::PID_Init_t pid_init;
-        pid_init.kp = pid_params->kp;
-        pid_init.ki = pid_params->ki;
-        pid_init.kd = pid_params->kd;
-        pid_init.max_out = pid_params->max_out;
-        pid_init.max_iout = pid_params->max_iout;
-        pid_init.deadband = pid_params->deadband;
-        pid_init.A = pid_params->A;
-        pid_init.B = pid_params->B;
-        pid_init.output_filtering_coefficient = pid_params->output_filtering_coefficient;
-        pid_init.derivative_filtering_coefficient = pid_params->derivative_filtering_coefficient;
-        pid_init.mode = pid_params->mode;
+
+        control::ConstrainedPID::PID_Init_t pid_init = {
+            .kp = pid_params->kp,
+            .ki = pid_params->ki,
+            .kd = pid_params->kd,
+            .max_out = pid_params->max_out,
+            .max_iout = pid_params->max_iout,
+            .deadband = pid_params->deadband,  // 死区
+            .A = pid_params->A,                // 变速积分所能达到的最大值为A+B
+            .B = pid_params->B,                // 启动变速积分的死区
+            .output_filtering_coefficient = pid_params->output_filtering_coefficient,  // 输出滤波系数
+            .derivative_filtering_coefficient = pid_params->derivative_filtering_coefficient, // 微分滤波系数
+            .mode = pid_params->mode,
+        };
 
         constexpr int motor_count = control::FourWheel::motor_num;
         // 使用循环统一配置所有电机
@@ -101,7 +102,7 @@ void InitMotor_PID(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]
 void InitCanBridgeChassis(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num],
                           void(*SuperCap(void))) {
     if (const CanBridge_t* CanBridge = getCanBridge(CanBridge_PROFILE_COUNT)) {
-        Can_Bridge = new bsp::CAN(CanBridge->hcan, false);
+        Can_Bridge = new bsp::CAN(CanBridge->hcan, CanBridge->is_master);
         can_bridge = new communication::CanBridge(Can_Bridge, CanBridge->CanBridge_RxId);
 
         motor[control::FourWheel::front_left] = fl_motor;
@@ -259,16 +260,19 @@ void ChassisUpdate(RemoteMode& Remote_mode, ChassisRemote_t& ChassisRemote) {
     switch (Remote_mode) {
         case RemoteModeDbus: {
             const RemoteDbus_t* remote_dbus = ChassisRemote.remote_dbus;
-            chassis->SetSpeed(dbus->channels[remote_dbus->XSpeedChannel],
-                              dbus->channels[remote_dbus->YSpeedChannel],
-                              dbus->channels[remote_dbus->TurnSpeedChannel]);
-
+            chassis->SetSpeed(dbus->channels[remote_dbus->XSpeedChannel] * ratio,
+                              dbus->channels[remote_dbus->YSpeedChannel] * ratio,
+                              dbus->channels[remote_dbus->TurnSpeedChannel] * ratio);
+            chassis->SetPower(false, 30, 20, 60);
+            chassis->Update();
         } break;
         case RemoteModeSbus: {
             const RemoteSbus_t* remote_sbus = ChassisRemote.remote_sbus;
-            chassis->SetSpeed(sbus->channels[remote_sbus->XSpeedChannel],
-                              sbus->channels[remote_sbus->YSpeedChannel],
-                              sbus->channels[remote_sbus->TurnSpeedChannel]);
+            chassis->SetSpeed(sbus->channels[remote_sbus->XSpeedChannel] * ratio,
+                              sbus->channels[remote_sbus->YSpeedChannel] * ratio,
+                              sbus->channels[remote_sbus->TurnSpeedChannel] * ratio);
+            chassis->SetPower(false, 30, 20, 60);
+            chassis->Update();
         } break;
         case RemoteModeCanBridge:
             chassis->Update();

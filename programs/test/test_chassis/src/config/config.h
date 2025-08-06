@@ -63,7 +63,8 @@ typedef struct {
 PG_DECLARE_ARRAY(MotorPID_t, MAX_PROFILE_COUNT, MotorPid);
 
 typedef struct {
-    CAN_HandleTypeDef* hcan = &hcan1;
+    CAN_HandleTypeDef* hcan = &hcan2;
+    bool is_master = false;
     uint16_t fl_Id = 0x202;
     uint16_t fr_Id = 0x201;
     uint16_t bl_Id = 0x203;
@@ -73,14 +74,15 @@ typedef struct {
 PG_DECLARE_ARRAY(MotorId_t, MAX_PROFILE_COUNT, MotorId);
 
 typedef struct {
-    CAN_HandleTypeDef* hcan = &hcan2;
+    CAN_HandleTypeDef* hcan = &hcan1;
+    bool is_master = true;
     uint16_t CanBridge_RxId = 0x52;
     uint16_t CanBridge_TxId = 0x51;
     uint16_t CanBridge_XYWrapper = 0x70;
     uint16_t CanBridge_TurnWrapper = 0x71;
     uint16_t CanBridge_PowerLimitWrapper = 0x72;
     uint16_t CanBridge_CurrentPowerWrapper = 0x73;
-    float Max_Speed = 2 * PI * 8;
+    float Max_Speed = 2 * PI * 7;
     control::chassis_model_t Chassis_Model = control::CHASSIS_MECANUM_WHEEL;
     control::OMNI_Wheel_setup_t OMNI_Wheel_setup_t = {45, 45, 45, 0.15f};
 } __attribute__((packed)) CanBridge_t;
@@ -96,10 +98,10 @@ typedef struct {
 #error "Please select a board type"
 #endif
     bool Enable_keyboard = false;
-    int16_t XSpeedChannel = 0;
-    int16_t YSpeedChannel = 1;
+    int16_t XSpeedChannel = 1;
+    int16_t YSpeedChannel = 0;
     int16_t TurnSpeedChannel = 2;
-    float Max_Speed = 2 * PI * 8;
+    float Max_Speed = 2 * PI * 7;
     control::chassis_model_t Chassis_Model = control::CHASSIS_MECANUM_WHEEL;
     control::OMNI_Wheel_setup_t OMNI_Wheel_setup_t = {45, 45, 45, 0.15f};
 } __attribute__((packed)) RemoteDbus_t;
@@ -115,10 +117,10 @@ typedef struct {
 #error "Please select a board type"
 #endif
     bool Enable_keyboard = false;
-    int16_t XSpeedChannel = 0;
-    int16_t YSpeedChannel = 1;
+    int16_t XSpeedChannel = 1;
+    int16_t YSpeedChannel = 0;
     int16_t TurnSpeedChannel = 2;
-    float Max_Speed = 2 * PI * 8;
+    float Max_Speed = 2 * PI * 7;
     control::chassis_model_t Chassis_Model = control::CHASSIS_MECANUM_WHEEL;
     control::OMNI_Wheel_setup_t OMNI_Wheel_setup_t = {45, 45, 45, 0.15f};
 } __attribute__((packed)) RemoteSbus_t;

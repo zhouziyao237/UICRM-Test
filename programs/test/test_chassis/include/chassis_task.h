@@ -29,7 +29,7 @@
 
 #define ratio 1.0f / 660.0f * 6 * PI
 
-void InitSuperCap();
+void InitSuperCap(bsp::CAN* supercap_can);
 void InitMotor(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]);
 void InitMotor_PID(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]);
 void InitCanBridgeChassis(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num], void(*SuperCap(void)));

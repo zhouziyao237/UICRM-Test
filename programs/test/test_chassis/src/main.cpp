@@ -39,8 +39,8 @@ void RM_RTOS_Init() {
 
 void RM_MODEL_LODE() {
 
-    set_cursor(0, 0);
     clear_screen();
+    set_cursor(0, 0);
     system_state= SYSTEM_INIT;
         // 打印EEPROM配置信息
     print("EEPROM start: 0x%08lX\r\n", (uint32_t)__config_start);
@@ -87,6 +87,15 @@ void RM_RTOS_Default_Task(const void* args) {
     Buzzer_Sing(Mario);
     print("system OK\r\n");
     while (true) {
+        clear_screen();
+        set_cursor(0, 0);
+        print(
+            "CH0: %-4d CH1: %-4d CH2: %-4d CH3: %-4d \r\nSWL: %d SWR: %d "
+            "TWL: %d "
+            "@ %d "
+            "ms\r\n",
+            dbus->ch0, dbus->ch1, dbus->ch2, dbus->ch3, dbus->swl, dbus->swr, dbus->ch4,
+            dbus->timestamp);
         ChassisUpdate(remote_mode, chassis_remote);
         osDelay(10);
     }

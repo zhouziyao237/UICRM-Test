@@ -406,7 +406,8 @@ namespace driver {
         post_output_callback_instance_ = instance;
     }
 
-    Motor3508::Motor3508(CAN* can, uint16_t rx_id) : MotorCANBase(can, rx_id) {
+    Motor3508::Motor3508(CAN* can, uint16_t rx_id, uint16_t tx_id)
+        : MotorCANBase(can, rx_id, tx_id){
         can->RegisterRxCallback(rx_id, can_motor_callback, this);
     }
 
@@ -502,7 +503,7 @@ namespace driver {
         input_speed_filter_ = ratio;
     }
 
-    Motor2006::Motor2006(CAN* can, uint16_t rx_id) : MotorCANBase(can, rx_id) {
+    Motor2006::Motor2006(CAN* can, uint16_t rx_id, uint16_t tx_id) : MotorCANBase(can, rx_id, tx_id) {
         can->RegisterRxCallback(rx_id, can_motor_callback, this);
     }
 

@@ -149,9 +149,8 @@ namespace control {
                 break;
             }
             case CHASSIS_OMNI_WHEEL2: {
-                float scale = 1;
                 float move_sum = fabs(x_speed) + fabs(y_speed) + fabs(turn_speed);
-                scale = move_sum > max_motor_speed_ ? max_motor_speed_ / move_sum : 1.0f;
+                float scale = move_sum > max_motor_speed_ ? max_motor_speed_ / move_sum : 1.0f;
 
                 speeds_[FourWheel::front_left] =
                     scale * (-x_speed * cos(OMNI_Wheel_set_up.Wheel_angle_a) + y_speed * sin(OMNI_Wheel_set_up.Wheel_angle_b) + OMNI_Wheel_set_up.chassis_radius *turn_speed);  // 1

@@ -41,21 +41,6 @@ void resatMotorPid(MotorPID_t* MotorPids) {
                 control::ConstrainedPID::Trapezoid_Intergral |  // 梯形积分
                 control::ConstrainedPID::ChangingIntegralRate   // 变速积分
     );
-
-    control::ConstrainedPID::PID_Init_t omega_pid_init = {
-        .kp = MotorPids->kp,
-        .ki = MotorPids->ki,
-        .kd = MotorPids->kd,
-        .max_out = MotorPids->max_out,
-        .max_iout = MotorPids->max_iout,
-        .deadband = MotorPids->deadband,  // 死区
-        .A = MotorPids->A,                // 变速积分所能达到的最大值为A+B
-        .B = MotorPids->B,                // 启动变速积分的死区
-        .output_filtering_coefficient = MotorPids->output_filtering_coefficient,  // 输出滤波系数
-        .derivative_filtering_coefficient = MotorPids->derivative_filtering_coefficient, // 微分滤波系数
-        .mode = MotorPids->mode,
-    };
-    (void)omega_pid_init;
 }
 
 void pgResetFn_MotorPid(void* MotorPids, int size) {

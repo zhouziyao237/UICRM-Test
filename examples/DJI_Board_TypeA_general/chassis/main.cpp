@@ -36,8 +36,8 @@ remote::DBUS* dbus = nullptr;
 
 void RM_RTOS_Init() {
     HAL_Delay(200);
-    print_use_uart(&huart8);
-    can = new bsp::CAN(&hcan1, true);
+    print_use_uart(&huart8, true, 915200);
+    can = new bsp::CAN(&hcan2, false);
     fl_motor = new driver::Motor3508(can, 0x202);
     fr_motor = new driver::Motor3508(can, 0x201);
     bl_motor = new driver::Motor3508(can, 0x203);
@@ -97,6 +97,14 @@ void RM_RTOS_Default_Task(const void* args) {
     osDelay(500);  // DBUS initialization needs time
 
     while (true) {
+        clear_screen();
+        print(
+            "CH0: %-4d CH1: %-4d CH2: %-4d CH3: %-4d \r\nSWL: %d SWR: %d "
+            "TWL: %d "
+            "@ %d "
+            "ms\r\n",
+            dbus->ch0, dbus->ch1, dbus->ch2, dbus->ch3, dbus->swl, dbus->swr, dbus->ch4,
+            dbus->timestamp);
         const float ratio = 1.0f / 660.0f * 6 * PI;
         chassis->SetSpeed(dbus->ch0 * ratio, dbus->ch1 * ratio, dbus->ch2 * ratio);
 
