@@ -21,7 +21,6 @@
 //
 
 #include "chassis_task.h"
-
 #include "bsp_can.h"
 #include "system.h"
 

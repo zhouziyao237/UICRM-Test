@@ -21,6 +21,7 @@
 //
 
 #include "config.h"
+#include "config_function.h"
 
 PG_REGISTER_ARRAY_WITH_RESET_FN(MotorId_t, MAX_PROFILE_COUNT, MotorId, PG_MotorId_PROFILE, MotorId_Version);
 PG_REGISTER_ARRAY_WITH_RESET_FN(CanBridge_t, MAX_PROFILE_COUNT, CanBridge, PG_CanBridge_PROFILE, CanBridge_Version);

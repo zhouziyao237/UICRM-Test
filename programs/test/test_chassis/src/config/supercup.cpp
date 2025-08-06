@@ -22,6 +22,7 @@
 
 #include "config.h"
 #include "can.h"
+#include "config_function.h"
 
 PG_REGISTER_ARRAY_WITH_RESET_FN(SuperCap_t, MAX_PROFILE_COUNT, SuperCap, PG_SuperCap_PROFILE, SuperCap_Version);
 

@@ -21,6 +21,7 @@
 //
 
 #include "config.h"
+#include "config_function.h"
 
 // 使用正确的宏注册ControlModel数组
 PG_REGISTER_ARRAY_WITH_RESET_FN(ControlModel_t, MAX_PROFILE_COUNT, ControlModel, PG_ControlModel_PROFILE, ControlModel_Version);
