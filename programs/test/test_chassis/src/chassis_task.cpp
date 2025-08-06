@@ -21,12 +21,13 @@
 //
 
 #include "chassis_task.h"
-
+#include "config/config.h"
+#include "config/config_function.h"
 #include "bsp_can.h"
 #include "system.h"
 
 void InitSuperCap(bsp::CAN* supercap_can) {
-    if (const SuperCap_t* SuperCap = getSuperCap(SuperCap_PROFILE_COUNT)) {
+    if (const SuperCap_t* SuperCap = getSuperCap(SYS_PROFLIE_CONFIG->SuperCap_PROFILE)) {
         if (!SuperCap->Enable) {
             return;
         }
@@ -45,13 +46,13 @@ void InitSuperCap(bsp::CAN* supercap_can) {
         super_cap->SetMaxDischargePower(SuperCap->MaxDischargePower);
         super_cap->SetPerferBuffer(SuperCap->PerferBuffer);
     } else {
-        resetindexSuperCap(SuperCap_PROFILE_COUNT);
-        system_state = SYSTEM_ERRORCONTROL;
+        resetindexSuperCap(SYS_PROFLIE_CONFIG->SuperCap_PROFILE);
+        sys_state = SYSTEM_ERRORCONTROL;
     }
 }
 
 void InitMotor(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]) {
-    if (const MotorId_t* motorIds = getMotorId(MotorId_PROFILE_COUNT)) {
+    if (const MotorId_t* motorIds = getMotorId(SYS_PROFLIE_CONFIG->MotorId_PROFILE)) {
         Can_Motor = new bsp::CAN(motorIds->hcan, motorIds->is_master);
         fl_motor = new driver::Motor3508(Can_Motor, motorIds->fl_Id);
         fr_motor = new driver::Motor3508(Can_Motor, motorIds->fr_Id);
@@ -60,15 +61,15 @@ void InitMotor(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]) {
         driver::MotorCANBase* temp_motors[] = {fl_motor, fr_motor, bl_motor, br_motor};
         std::copy(temp_motors, temp_motors + 4, motor);
     } else {
-        resetindexMotorId(MotorId_PROFILE_COUNT);
-        system_state = SYSTEM_ERRORCONTROL;
+        resetindexMotorId(SYS_PROFLIE_CONFIG->MotorId_PROFILE);
+        sys_state = SYSTEM_ERRORCONTROL;
         return;
     }
     return;
 }
 
 void InitMotor_PID(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]) {
-    if (const MotorPID_t* pid_params = getMotorPID(MotorPID_PROFILE_COUNT)) {
+    if (const MotorPID_t* pid_params = getMotorPID(SYS_PROFLIE_CONFIG->MotorPID_PROFILE)) {
 
         control::ConstrainedPID::PID_Init_t pid_init = {
             .kp = pid_params->kp,
@@ -84,16 +85,15 @@ void InitMotor_PID(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]
             .mode = pid_params->mode,
         };
 
-        constexpr int motor_count = control::FourWheel::motor_num;
         // 使用循环统一配置所有电机
-        for (int i = 0; i < motor_count; i++) {
+        for (int i = 0; i < control::FourWheel::motor_num; i++) {
             motor[i]->ReInitPID(pid_init, driver::MotorCANBase::ANGLE_LOOP_CONTROL);
             motor[i]->SetMode(driver::MotorCANBase::ANGLE_LOOP_CONTROL);
             motor[i]->SetTransmissionRatio(19);
         }
     } else {
-        resetindexMotorPID(MotorPID_PROFILE_COUNT);
-        system_state = SYSTEM_ERRORCONTROL;
+        resetindexMotorPID(SYS_PROFLIE_CONFIG->MotorPID_PROFILE);
+        sys_state = SYSTEM_ERRORCONTROL;
     }
 }
 
@@ -101,7 +101,7 @@ void InitMotor_PID(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]
 
 void InitCanBridgeChassis(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num],
                           void(*SuperCap(void))) {
-    if (const CanBridge_t* CanBridge = getCanBridge(CanBridge_PROFILE_COUNT)) {
+    if (const CanBridge_t* CanBridge = getCanBridge(SYS_PROFLIE_CONFIG->CanBridge_PROFILE)) {
         Can_Bridge = new bsp::CAN(CanBridge->hcan, CanBridge->is_master);
         can_bridge = new communication::CanBridge(Can_Bridge, CanBridge->CanBridge_RxId);
 
@@ -117,7 +117,7 @@ void InitCanBridgeChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mot
 
         if (SuperCap != nullptr) {
             SuperCap();
-            if (system_state == SYSTEM_ERRORCONTROL) {
+            if (sys_state == SYSTEM_ERRORCONTROL) {
                 return;
             }
             chassis_data.has_super_capacitor = true;
@@ -138,8 +138,8 @@ void InitCanBridgeChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mot
         can_bridge->RegisterRxCallback(CanBridge->CanBridge_CurrentPowerWrapper,
                                        chassis->CanBridgeUpdateEventCurrentPowerWrapper, chassis);
     } else {
-        resetindexCanBridge(CanBridge_PROFILE_COUNT);
-        system_state = SYSTEM_ERRORCONTROL;
+        resetindexCanBridge(SYS_PROFLIE_CONFIG->CanBridge_PROFILE);
+        sys_state = SYSTEM_ERRORCONTROL;
     }
 }
 
@@ -147,7 +147,7 @@ void InitCanBridgeChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mot
 
 void InitRemoteDbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num],
                            void(*SuperCap(void))) {
-    if (const RemoteDbus_t* RemoteDbus = getRemoteDbus(RemoteDbus_PROFILE_COUNT)) {
+    if (const RemoteDbus_t* RemoteDbus = getRemoteDbus(SYS_PROFLIE_CONFIG->RemoteDbus_PROFILE)) {
         motor[control::FourWheel::front_left] = fl_motor;
         motor[control::FourWheel::front_right] = fr_motor;
         motor[control::FourWheel::back_left] = bl_motor;
@@ -160,7 +160,7 @@ void InitRemoteDbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mo
 
         if (SuperCap != nullptr) {
             SuperCap();
-            if (system_state == SYSTEM_ERRORCONTROL) {
+            if (sys_state == SYSTEM_ERRORCONTROL) {
                 return;
             }
             chassis_data.has_super_capacitor = true;
@@ -174,8 +174,8 @@ void InitRemoteDbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mo
         chassis->SetMaxMotorSpeed(RemoteDbus->Max_Speed);
 
     } else {
-        resetindexCanBridge(CanBridge_PROFILE_COUNT);
-        system_state = SYSTEM_ERRORCONTROL;
+        resetindexCanBridge(SYS_PROFLIE_CONFIG->CanBridge_PROFILE);
+        sys_state = SYSTEM_ERRORCONTROL;
     }
 }
 
@@ -183,7 +183,7 @@ void InitRemoteDbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mo
 
 void InitRemoteSbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num],
                            void(*SuperCap(void))) {
-    if (const RemoteSbus_t* RemoteSbus = getRemoteSbus(RemoteSbus_PROFILE_COUNT)) {
+    if (const RemoteSbus_t* RemoteSbus = getRemoteSbus(SYS_PROFLIE_CONFIG->RemoteSbus_PROFILE)) {
         motor[control::FourWheel::front_left] = fl_motor;
         motor[control::FourWheel::front_right] = fr_motor;
         motor[control::FourWheel::back_left] = bl_motor;
@@ -196,7 +196,7 @@ void InitRemoteSbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mo
 
         if (SuperCap != nullptr) {
             SuperCap();
-            if (system_state == SYSTEM_ERRORCONTROL) {
+            if (sys_state == SYSTEM_ERRORCONTROL) {
                 return;
             }
             chassis_data.has_super_capacitor = true;
@@ -210,8 +210,8 @@ void InitRemoteSbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mo
         chassis->SetMaxMotorSpeed(RemoteSbus->Max_Speed);
 
     } else {
-        resetindexCanBridge(CanBridge_PROFILE_COUNT);
-        system_state = SYSTEM_ERRORCONTROL;
+        resetindexCanBridge(SYS_PROFLIE_CONFIG->CanBridge_PROFILE);
+        sys_state = SYSTEM_ERRORCONTROL;
     }
 }
 
@@ -219,46 +219,46 @@ void InitRemoteSbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mo
 
 // 在 chassis_task.cpp 中的 ChassisInit 函数中
 void ChassisInit(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num],
-                 void(*SuperCap(void)), RemoteMode& Remote_mode, ChassisRemote_t& ChassisRemote) {
-    if (const ControlModel_t* ControlModel = getControlModel(ControlModel_PROFILE_COUNT)) {
-        Remote_mode = ControlModel->Remote_mode;
-        switch (ControlModel->Remote_mode) {
-            case RemoteModeDbus:
-                if (const RemoteDbus_t* RemoteDbus = getRemoteDbus(RemoteDbus_PROFILE_COUNT)) {
+                 void(*SuperCap(void)), ChassisControlMode_t& ChassisControlMode, ChassisRemote_t& ChassisRemote) {
+    if (const ControlModel_t* ControlModel = getControlModel(SYS_PROFLIE_CONFIG->ControlModel_PROFILE)) {
+        ChassisControlMode = ControlModel->ChassisControlMode;
+        switch (ChassisControlMode) {
+            case ModeDbus:
+                if (const RemoteDbus_t* RemoteDbus = getRemoteDbus(SYS_PROFLIE_CONFIG->RemoteDbus_PROFILE)) {
                     ChassisRemote.remote_dbus = RemoteDbus;
                     InitRemoteDbusChassis(motor, SuperCap);
                 } else {
-                    resetindexRemoteDbus(RemoteDbus_PROFILE_COUNT);
-                    system_state = SYSTEM_ERRORCONTROL;
+                    resetindexRemoteDbus(SYS_PROFLIE_CONFIG->RemoteDbus_PROFILE);
+                    sys_state = SYSTEM_ERRORCONTROL;
                 }
                 break;
-            case RemoteModeSbus:
-                if (const RemoteSbus_t* RemoteSbus = getRemoteSbus(RemoteSbus_PROFILE_COUNT)) {
+            case ModeSbus:
+                if (const RemoteSbus_t* RemoteSbus = getRemoteSbus(SYS_PROFLIE_CONFIG->RemoteSbus_PROFILE)) {
                     ChassisRemote.remote_sbus = RemoteSbus;
                     InitRemoteSbusChassis(motor, SuperCap);
                 } else {
-                    resetindexRemoteSbus(RemoteSbus_PROFILE_COUNT);
-                    system_state = SYSTEM_ERRORCONTROL;
+                    resetindexRemoteSbus(SYS_PROFLIE_CONFIG->RemoteSbus_PROFILE);
+                    sys_state = SYSTEM_ERRORCONTROL;
                 }
                 break;
-            case RemoteModeCanBridge:
+            case ModeCanBridge:
                 // todo:在里面设置了CanBridge回调接收的ID不需要同步通道了
                 InitCanBridgeChassis(motor, SuperCap);
                 break;
-            case RemoteModeNone:
+            case ModeNone:
                 break;
             default:
                 break;
         }
     } else {
-        resetindexControlModel(ControlModel_PROFILE_COUNT);
-        system_state = SYSTEM_ERRORCONTROL;
+        resetindexControlModel(SYS_PROFLIE_CONFIG->ControlModel_PROFILE);
+        sys_state = SYSTEM_ERRORCONTROL;
     }
 }
 
-void ChassisUpdate(RemoteMode& Remote_mode, ChassisRemote_t& ChassisRemote) {
-    switch (Remote_mode) {
-        case RemoteModeDbus: {
+void ChassisUpdate(ChassisControlMode_t& ChassisControlMode, ChassisRemote_t& ChassisRemote) {
+    switch (ChassisControlMode) {
+        case ModeDbus: {
             const RemoteDbus_t* remote_dbus = ChassisRemote.remote_dbus;
             chassis->SetSpeed(dbus->channels[remote_dbus->XSpeedChannel] * ratio,
                               dbus->channels[remote_dbus->YSpeedChannel] * ratio,
@@ -266,7 +266,7 @@ void ChassisUpdate(RemoteMode& Remote_mode, ChassisRemote_t& ChassisRemote) {
             chassis->SetPower(false, 30, 20, 60);
             chassis->Update();
         } break;
-        case RemoteModeSbus: {
+        case ModeSbus: {
             const RemoteSbus_t* remote_sbus = ChassisRemote.remote_sbus;
             chassis->SetSpeed(sbus->channels[remote_sbus->XSpeedChannel] * ratio,
                               sbus->channels[remote_sbus->YSpeedChannel] * ratio,
@@ -274,10 +274,10 @@ void ChassisUpdate(RemoteMode& Remote_mode, ChassisRemote_t& ChassisRemote) {
             chassis->SetPower(false, 30, 20, 60);
             chassis->Update();
         } break;
-        case RemoteModeCanBridge:
+        case ModeCanBridge:
             chassis->Update();
             break;
-        case RemoteModeNone:
+        case ModeNone:
             break;
         default:
             // 处理未预期的枚举值

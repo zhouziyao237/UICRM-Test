@@ -115,7 +115,7 @@ void uiTask(void* arg) {
     float relative_angle = 0;
     float pitch_angle = 0;
     float power_percent = 1;
-    RemoteMode last_mode = REMOTE_MODE_KILL;
+    remoteMode last_mode = REMOTE_MODE_KILL;
     ShootFricMode last_fric_mode = SHOOT_FRIC_MODE_STOP;
     BoolEdgeDetector* boostEdgeDetector = new BoolEdgeDetector(false);
     BoolEdgeDetector* turboShootDetector = new BoolEdgeDetector(false);

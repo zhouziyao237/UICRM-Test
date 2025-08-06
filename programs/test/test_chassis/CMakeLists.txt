@@ -11,7 +11,7 @@ uicrm_add_arm_executable(${PROJECT_NAME}_typeC
         src/buzzer_task.cpp
         src/chassis_task.cpp
         src/system.cpp
-        INCLUDES include src/.)
+        INCLUDES ./include ./src/.)
 
 uicrm_add_arm_executable(${PROJECT_NAME}_typeA
         TARGET DJI_Board_TypeA_general
@@ -21,4 +21,4 @@ uicrm_add_arm_executable(${PROJECT_NAME}_typeA
         src/buzzer_task.cpp
         src/chassis_task.cpp
         src/system.cpp
-        INCLUDES include src/.)
+        INCLUDES ./include ./src/.)

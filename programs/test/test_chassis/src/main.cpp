@@ -41,19 +41,20 @@ void RM_MODEL_LODE() {
 
     clear_screen();
     set_cursor(0, 0);
-    system_state= SYSTEM_INIT;
-        // 打印EEPROM配置信息
+
+    sys_init();
+    // 打印EEPROM配置信息
     print("EEPROM start: 0x%08lX\r\n", (uint32_t)__config_start);
     print("EEPROM end: 0x%08lX\r\n", (uint32_t)__config_end);
     print("EEPROM size: %lu bytes\r\n", (uint32_t)(__config_end - __config_start));
 
     // 加载EEPROM中的配置
     if (isEEPROMContentValid()) {
-        system_state= SYSTEM_READCONFIG;
+        sys_state= SYSTEM_READCONFIG;
         print("EEPROM content is valid, loading configuration...\r\n");
         loadEEPROM();
     } else {
-        system_state= SYSTEM_RESETCONFIG;
+        sys_state= SYSTEM_RESETCONFIG;
         print("EEPROM content is invalid, resetting to defaults...\r\n");
         pgResetAll();
         writeConfigToEEPROM();
@@ -75,8 +76,7 @@ void RM_MODEL_LODE() {
 
     InitMotor(motors);
     InitMotor_PID(motors);
-    // InitCanBridgeChassis(motors, nullptr);
-    ChassisInit(motors, nullptr, remote_mode, chassis_remote);
+    ChassisInit(motors, nullptr, Chissis_ControlMode, chassis_remote);
     return;
 }
 
@@ -96,7 +96,7 @@ void RM_RTOS_Default_Task(const void* args) {
             "ms\r\n",
             dbus->ch0, dbus->ch1, dbus->ch2, dbus->ch3, dbus->swl, dbus->swr, dbus->ch4,
             dbus->timestamp);
-        ChassisUpdate(remote_mode, chassis_remote);
+        ChassisUpdate(Chissis_ControlMode, chassis_remote);
         osDelay(10);
     }
 }

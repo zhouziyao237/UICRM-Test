@@ -26,6 +26,7 @@
 #include "MotorCanBase.h"
 #include "chassis.h"
 #include "config/config.h"
+#include "system.h"
 
 #define ratio 1.0f / 660.0f * 6 * PI
 
@@ -37,7 +38,7 @@ void InitRemoteDbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mo
 void InitRemoteSbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num], void(*SuperCap(void)));
 
 void ChassisInit(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num],
-                 void(*SuperCap(void)), RemoteMode& Remote_mode, ChassisRemote_t &ChassisRemote);
-void ChassisUpdate(RemoteMode& Remote_mode, ChassisRemote_t &ChassisRemote);
+                 void(*SuperCap(void)), ChassisControlMode_t& ChassisControlMode, ChassisRemote_t &ChassisRemote);
+void ChassisUpdate(ChassisControlMode_t& ChassisControlMode, ChassisRemote_t &ChassisRemote);
 
 #endif //CHASSIS_TASK_H

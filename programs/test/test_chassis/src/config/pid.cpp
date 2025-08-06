@@ -21,6 +21,7 @@
 //
 
 #include "config.h"
+#include "config_function.h"
 
 PG_REGISTER_ARRAY_WITH_RESET_FN(MotorPID_t, MAX_PROFILE_COUNT, MotorPid, PG_MotorPID_PROFILE, MotorPID_Version);
 

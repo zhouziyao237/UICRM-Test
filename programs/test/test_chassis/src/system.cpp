@@ -21,6 +21,8 @@
 //
 
 #include "system.h"
+#include "config/config.h"
+#include "config/config_function.h"
 
 bsp::CAN* Can_Motor = nullptr;
 bsp::CAN* Can_Bridge = nullptr;
@@ -40,5 +42,17 @@ driver::MotorCANBase* br_motor = nullptr;
 driver::MotorCANBase* motors[control::FourWheel::motor_num];
 
 ChassisRemote_t chassis_remote;
-RemoteMode remote_mode = RemoteModeNone;
-system_model system_state = SYSTEM_INIT;
+ChassisControlMode_t Chissis_ControlMode = ModeNone;
+system_model sys_state = SYSTEM_INIT;
+PROFILE_CONFIG_t* SYS_PROFLIE_CONFIG = nullptr;
+
+void sys_init() {
+    SYS_PROFLIE_CONFIG = const_cast<PROFILE_CONFIG_t*>(getPROFILECONFIG(PROFILE_CONFIG_PROFILE_COUNT));
+    if (SYS_PROFLIE_CONFIG) {
+        print("profile config OK\r\n");
+        sys_state= SYSTEM_INIT;
+    } else {
+        resetindexPROFILECONFIG(PROFILE_CONFIG_PROFILE_COUNT);
+        sys_state = SYSTEM_ERRORCONTROL;
+    }
+}

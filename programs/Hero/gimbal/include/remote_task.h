@@ -32,7 +32,7 @@ extern bool turbo_shoot;
  */
 void init_dbus();
 
-enum RemoteMode {
+enum remoteMode {
     REMOTE_MODE_PREPARE = -2,
     REMOTE_MODE_KILL = -1,
     REMOTE_MODE_STOP = 0,
@@ -40,7 +40,7 @@ enum RemoteMode {
     REMOTE_MODE_SPIN = 2,
     REMOTE_MODE_ADVANCED = 3
 };
-extern RemoteMode remote_mode;
+extern remoteMode remote_mode;
 enum ShootFricMode {
     SHOOT_FRIC_MODE_DISABLE = -1,
     SHOOT_FRIC_MODE_STOP = 0,

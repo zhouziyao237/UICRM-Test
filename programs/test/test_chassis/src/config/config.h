@@ -27,19 +27,31 @@
 #include "chassis.h"
 #include "config_eeprom/bsp_pg.h"
 
-enum RemoteMode {
-    RemoteModeNone = 0,
-    RemoteModeCanBridge = 1,
-    RemoteModeDbus = 2,
-    RemoteModeSbus = 3,
+enum ChassisControlMode_t {
+    ModeNone = 0,
+    ModeCanBridge = 1,
+    ModeDbus = 2,
+    ModeSbus = 3,
 };
 
 typedef struct {
-    RemoteMode Remote_mode = RemoteModeDbus;
+    ChassisControlMode_t ChassisControlMode = ModeDbus;
 
 } __attribute__((packed)) ControlModel_t;
 
 PG_DECLARE_ARRAY(ControlModel_t, MAX_PROFILE_COUNT, ControlModel);
+
+typedef struct {
+    uint8_t ControlModel_PROFILE = ControlModel_PROFILE_COUNT;
+    uint8_t MotorPID_PROFILE = MotorPID_PROFILE_COUNT;
+    uint8_t MotorId_PROFILE = MotorId_PROFILE_COUNT;
+    uint8_t CanBridge_PROFILE = CanBridge_PROFILE_COUNT;
+    uint8_t RemoteDbus_PROFILE = RemoteDbus_PROFILE_COUNT;
+    uint8_t RemoteSbus_PROFILE = RemoteSbus_PROFILE_COUNT;
+    uint8_t SuperCap_PROFILE = SuperCap_PROFILE_COUNT;
+} __attribute__((packed)) PROFILE_CONFIG_t;
+
+PG_DECLARE_ARRAY(PROFILE_CONFIG_t, PROFILE_CONFIG_MAX_PROFILE_COUNT, PROFILECONFIG);
 
 typedef struct {
     float kp = 2500.0f;  /// 比例系数
@@ -147,66 +159,3 @@ typedef union {
     const RemoteDbus_t* remote_dbus;
     const RemoteSbus_t* remote_sbus;
 } ChassisRemote_t;
-
-/* - Motor PID - */
-
-void resatMotorPID(MotorPID_t* MotorPID);
-void pgResetFn_MotorPid(void* MotorPids, int size);
-void resetindexMotorPID(uint8_t index);
-const MotorPID_t* getMotorPID(uint8_t index);
-void copyMotorPID(uint8_t dstIndex, uint8_t srcIndex);
-void setMotorPID(uint8_t index, const MotorPID_t* MotorPids);
-
-/* - Motor ID - */
-
-void resetMotorId(MotorId_t* MotorIds);
-void pgResetFn_MotorId(void* MotorIds, int size);
-void resetindexMotorId(uint8_t index);
-const MotorId_t* getMotorId(uint8_t index);
-void copyMotorId(uint8_t dstIndex, uint8_t srcIndex);
-void setMotorId(uint8_t index, const MotorId_t* MotorIds);
-
-/* - Super Cap - */
-
-void resetSuperCap(SuperCap_t* SuperCaps);
-void pgResetFn_SuperCap(void* SuperCaps, int size);
-void resetindexSuperCap(uint8_t index);
-const SuperCap_t* getSuperCap(uint8_t index);
-void copySuperCap(uint8_t dstIndex, uint8_t srcIndex);
-void setSuperCap(uint8_t index, const SuperCap_t* SuperCaps);
-
-/* - Can Bridge - */
-
-void resetCanBridge(CanBridge_t* CanBridges);
-void pgResetFn_CanBridge(void* CanBridges, int size);
-void resetindexCanBridge(uint8_t index);
-const CanBridge_t* getCanBridge(uint8_t index);
-void copyCanBridge(uint8_t dstIndex, uint8_t srcIndex);
-void setCanBridge(uint8_t index, const CanBridge_t* CanBridges);
-
-/* - Remote Dbus - */
-
-void resetRemoteDbus(RemoteDbus_t* RemoteDbuses);
-void pgResetFn_RemoteDbus(void* RemoteDbuses, int size);
-void resetindexRemoteDbus(uint8_t index);
-const RemoteDbus_t* getRemoteDbus(uint8_t index);
-void copyRemoteDbus(uint8_t dstIndex, uint8_t srcIndex);
-void setRemoteDbus(uint8_t index, const RemoteDbus_t* RemoteDbuses);
-
-/* - Remote Sbus - */
-
-void resetRemoteSbus(RemoteSbus_t* RemoteSbuses);
-void pgResetFn_RemoteSbus(void* RemoteSbuses, int size);
-void resetindexRemoteSbus(uint8_t index);
-const RemoteSbus_t* getRemoteSbus(uint8_t index);
-void copyRemoteSbus(uint8_t dstIndex, uint8_t srcIndex);
-void setRemoteSbus(uint8_t index, const RemoteSbus_t* RemoteSbuses);
-
-/* - Control Model - */
-
-void resetControlModel(ControlModel_t* ControlModels);
-void pgResetFn_ControlModel(void* ControlModels, int size);
-void resetindexControlModel(uint8_t index);
-const ControlModel_t* getControlModel(uint8_t index);
-void copyControlModel(uint8_t dstIndex, uint8_t srcIndex);
-void setControlModel(uint8_t index, const ControlModel_t* ControlModels);

@@ -25,9 +25,9 @@
 #include "imu_task.h"
 
 remote::DBUS* dbus = nullptr;
-RemoteMode remote_mode = REMOTE_MODE_FOLLOW;
-RemoteMode last_remote_mode = REMOTE_MODE_FOLLOW;
-RemoteMode available_remote_mode[] = {REMOTE_MODE_FOLLOW, REMOTE_MODE_SPIN, REMOTE_MODE_ADVANCED};
+remoteMode remote_mode = REMOTE_MODE_FOLLOW;
+remoteMode last_remote_mode = REMOTE_MODE_FOLLOW;
+remoteMode available_remote_mode[] = {REMOTE_MODE_FOLLOW, REMOTE_MODE_SPIN, REMOTE_MODE_ADVANCED};
 const int8_t remote_mode_max = 2;
 const int8_t remote_mode_min = 1;
 ShootFricMode shoot_flywheel_mode = SHOOT_FRIC_MODE_STOP;
@@ -148,9 +148,9 @@ void remoteTask(void* arg) {
         }
         if (mode_switch) {
             mode_switch = false;
-            RemoteMode next_mode = (RemoteMode)(remote_mode + 1);
+            remoteMode next_mode = (remoteMode)(remote_mode + 1);
             if ((int8_t)next_mode > (int8_t)remote_mode_max) {
-                next_mode = (RemoteMode)remote_mode_min;
+                next_mode = (remoteMode)remote_mode_min;
             }
             remote_mode = next_mode;
         }

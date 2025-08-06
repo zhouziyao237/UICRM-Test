@@ -21,11 +21,14 @@
 //
 
 #include "config.h"
+#include "config_function.h"
 
 PG_REGISTER_ARRAY_WITH_RESET_FN(MotorId_t, MAX_PROFILE_COUNT, MotorId, PG_MotorId_PROFILE, MotorId_Version);
 PG_REGISTER_ARRAY_WITH_RESET_FN(CanBridge_t, MAX_PROFILE_COUNT, CanBridge, PG_CanBridge_PROFILE, CanBridge_Version);
 PG_REGISTER_ARRAY_WITH_RESET_FN(RemoteDbus_t, MAX_PROFILE_COUNT, RemoteDbus, PG_RemoteDbus_PROFILE, RemoteDbus_Version);
 PG_REGISTER_ARRAY_WITH_RESET_FN(RemoteSbus_t, MAX_PROFILE_COUNT, RemoteSbus, PG_RemoteSbus_PROFILE, RemoteSbus_Version);
+
+/* - MotorId 配置 -*/
 
 void resetMotorId(MotorId_t *MotorIds) {
     RESET_CONFIG(MotorId_t, MotorIds,

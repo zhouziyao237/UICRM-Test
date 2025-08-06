@@ -56,8 +56,11 @@ enum system_model{
     SYSTEM_SAVECONFIG = 5,
     SYSTEM_ERRORCONTROL = 6
 };
-extern system_model system_state;
-extern RemoteMode remote_mode;
+extern system_model sys_state;
+extern ChassisControlMode_t Chissis_ControlMode;
 extern ChassisRemote_t chassis_remote;
+extern PROFILE_CONFIG_t* SYS_PROFLIE_CONFIG;
+
+void sys_init();
 
 #endif //SYSTEM_H
