@@ -25,7 +25,7 @@
 
 #include "MotorCanBase.h"
 #include "chassis.h"
-#include "config/config.h"
+#include "module_config/config.h"
 #include "system.h"
 
 #define ratio 1.0f / 660.0f * 6 * PI

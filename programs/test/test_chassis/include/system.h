@@ -27,8 +27,8 @@
 #include "bsp_can.h"
 #include "chassis.h"
 #include "dbus.h"
+#include "module_config/config.h"
 #include "sbus.h"
-#include "config/config.h"
 
 extern bsp::CAN* Can_Motor;
 extern bsp::CAN* Can_Bridge;

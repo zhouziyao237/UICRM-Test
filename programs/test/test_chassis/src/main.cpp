@@ -19,14 +19,14 @@
  ###########################################################*/
 
 #include "main.h"
+
 #include "MotorCanBase.h"
+#include "bsp_pg/bsp_eeprom.h"
+#include "bsp_pg/bsp_pg.h"
 #include "bsp_print.h"
 #include "buzzer_notes.h"
 #include "buzzer_task.h"
 #include "chassis_task.h"
-
-#include "config_eeprom/bsp_eeprom.h"
-#include "config_eeprom/bsp_pg.h"
 #include "system.h"
 
 void RM_RTOS_Init() {

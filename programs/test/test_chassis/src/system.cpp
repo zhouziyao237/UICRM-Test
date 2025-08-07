@@ -21,8 +21,9 @@
 //
 
 #include "system.h"
-#include "config/config.h"
-#include "config/config_function.h"
+
+#include "module_config/config.h"
+#include "module_config/config_function.h"
 
 bsp::CAN* Can_Motor = nullptr;
 bsp::CAN* Can_Bridge = nullptr;

@@ -21,9 +21,10 @@
 //
 
 #include "chassis_task.h"
-#include "config/config.h"
-#include "config/config_function.h"
+
 #include "bsp_can.h"
+#include "module_config/config.h"
+#include "module_config/config_function.h"
 #include "system.h"
 
 void InitSuperCap(bsp::CAN* supercap_can) {
