@@ -25,33 +25,31 @@
 #include "cmsis_os.h"
 #include "printf.h"
 
-#define MAX_PRINT_LEN 1024
-#define RX_SIGNAL (1 << 0)
+void Serial::InitMainUart(UART_HandleTypeDef* huart, bool dma, uint32_t baudrate) {
+    if (Main_uart)
+        delete Main_uart;
 
-#ifndef NO_USB
-static bsp::VirtualUSB* Main_usb = NULL;
-#endif
-
-static char tx_buffer[MAX_PRINT_LEN];
-
-extern int rx_lenght = 0;
-extern char rx_buffer[MAX_PRINT_LEN];
-
-void InitMainUart(UART_HandleTypeDef* huart, bool dma, uint32_t baudrate) {
     Main_uart = new bsp::UART(huart);
     if (baudrate != huart->Init.BaudRate)
         Main_uart->SetBaudrate(baudrate);
     Main_uart->SetupTx(MAX_PRINT_LEN * 2, dma);
     Main_uart->SetupRx(MAX_PRINT_LEN * 2, dma);
-}
-
-void InitMainUsb(void) {
 #ifndef NO_USB
-    Main_usb = new bsp::VirtualUSB();
+    Main_usb = nullptr;
 #endif
 }
 
-uint32_t dump_write(const void* data, uint8_t length) {
+#ifndef NO_USB
+void Serial::InitMainUsb(void) {
+    if (!Main_usb)
+        Main_usb = new bsp::VirtualUSB();
+    Main_usb->SetupTx(MAX_PRINT_LEN * 2);  // burst transfer size up to 2x max buffer size
+    Main_usb->SetupRx(MAX_PRINT_LEN * 2);
+    Main_uart = nullptr;
+}
+#endif
+
+uint32_t Serial::dump_write(const void* data, uint8_t length) {
     if (Main_uart)
         return Main_uart->Write((uint8_t*)data, length);
 #ifndef NO_USB
@@ -62,7 +60,7 @@ uint32_t dump_write(const void* data, uint8_t length) {
         return 0;
 }
 
-uint32_t dump_read(uint8_t** data) {
+uint32_t Serial::dump_read(uint8_t** data) {
     if (Main_uart)
         return Main_uart->Read(data);
 #ifndef NO_USB
@@ -73,7 +71,7 @@ uint32_t dump_read(uint8_t** data) {
         return 0;
 }
 
-uint32_t print(const char* format, ...) {
+uint32_t Serial::print(const char* format, ...) {
 #ifdef NDEBUG
     UNUSED(format);
     UNUSED(print_buffer);
@@ -90,11 +88,11 @@ uint32_t print(const char* format, ...) {
 #endif  // #ifdef NDEBUG
 }
 
-uint32_t read(uint8_t** data) {
+uint32_t Serial::read(uint8_t** data) {
     return dump_read(data);
 }
 
-void ReadUARTTask(void* arg) {
+void Serial::ReadUARTTask(void* arg) {
     UNUSED(arg);
     uint8_t* data;
 
@@ -104,13 +102,14 @@ void ReadUARTTask(void* arg) {
             rx_lenght = Main_uart->Read(&data);
             if (rx_lenght > 0 && rx_lenght <= MAX_PRINT_LEN) {
                 memcpy(rx_buffer, data, rx_lenght);
+                data = nullptr;
             }
         }
     }
 }
 
 #ifndef NO_USB
-void ReadUSBTask(void* arg) {
+void Serial::ReadUSBTask(void* arg) {
     UNUSED(arg);
     uint8_t* data;
 
@@ -120,6 +119,7 @@ void ReadUSBTask(void* arg) {
             rx_lenght = Main_usb->Read(&data);
             if (rx_lenght > 0 && rx_lenght <= MAX_PRINT_LEN) {
                 memcpy(rx_buffer, data, rx_lenght);
+                data = nullptr;
             }
         }
     }

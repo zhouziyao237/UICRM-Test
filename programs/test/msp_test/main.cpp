@@ -21,5 +21,25 @@
 //
 
 #include "main.h"
+#include "cmsis_os.h"
 #include "bsp_serial.h"
 
+Serial main_serial;
+
+void RM_RTOS_Init() {
+    main_serial.InitMainUart(&huart8, true, 912600);
+    main_serial.print("uart test\n");
+}
+
+void RM_RTOS_Default_Task(const void* args) {
+    UNUSED(args);
+    uint8_t* data = nullptr;
+    while (true) {
+        uint32_t len = main_serial.read(&data);
+        if (len > 0) {
+            main_serial.print("%s", data);
+            data = nullptr;  // 清空数据指针，表示已处理完该数据
+        }
+        osDelay(1000);
+    }
+}
