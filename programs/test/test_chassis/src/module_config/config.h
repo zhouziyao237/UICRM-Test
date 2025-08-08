@@ -42,6 +42,7 @@ typedef struct {
 PG_DECLARE_ARRAY(ControlModel_t, MAX_PROFILE_COUNT, ControlModel);
 
 typedef struct {
+    char sys_version[50] = SYS_VERSION;
     uint8_t ControlModel_PROFILE = ControlModel_PROFILE_COUNT;
     uint8_t MotorPID_PROFILE = MotorPID_PROFILE_COUNT;
     uint8_t MotorId_PROFILE = MotorId_PROFILE_COUNT;
@@ -49,9 +50,9 @@ typedef struct {
     uint8_t RemoteDbus_PROFILE = RemoteDbus_PROFILE_COUNT;
     uint8_t RemoteSbus_PROFILE = RemoteSbus_PROFILE_COUNT;
     uint8_t SuperCap_PROFILE = SuperCap_PROFILE_COUNT;
-} __attribute__((packed)) PROFILE_CONFIG_t;
+} __attribute__((packed)) SYS_CONFIG_t;
 
-PG_DECLARE_ARRAY(PROFILE_CONFIG_t, PROFILE_CONFIG_MAX_PROFILE_COUNT, PROFILECONFIG);
+PG_DECLARE_ARRAY(SYS_CONFIG_t, SYSTEM_CONFIG_MAX_PROFILE_COUNT, SYSCONFIG);
 
 typedef struct {
     float kp = 2500.0f;  /// 比例系数

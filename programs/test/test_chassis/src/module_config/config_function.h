@@ -27,12 +27,12 @@
 
 /* - PROFILE_CONFIG 配置 - */
 
-void reestPROFILECONFIG(PROFILE_CONFIG_t* PROFILECONFIGS);
-void pgResetFn_PROFILECONFIG(void* PROFILECONFIGS, int size);
-void resetindexPROFILECONFIG(uint8_t index);
-const PROFILE_CONFIG_t* getPROFILECONFIG(uint8_t index);
-void copyPROFILECONFIG(uint8_t dstIndex, uint8_t srcIndex);
-void setPROFILECONFIG(uint8_t index, const PROFILE_CONFIG_t* PROFILECONFIGS);
+void reestSYSCONFIG(SYS_CONFIG_t* SYSCONFIGS);
+void pgResetFn_SYSCONFIG(void* SYSCONFIGS, int size);
+void resetindexSYSCONFIG(uint8_t index);
+const SYS_CONFIG_t* getSYSCONFIG(uint8_t index);
+void copySYSCONFIG(uint8_t dstIndex, uint8_t srcIndex);
+void setSYSCONFIG(uint8_t index, const SYS_CONFIG_t* SYSCONFIGS);
 
 /* - Motor PID - */
 

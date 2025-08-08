@@ -45,15 +45,16 @@ driver::MotorCANBase* motors[control::FourWheel::motor_num];
 ChassisRemote_t chassis_remote;
 ChassisControlMode_t Chissis_ControlMode = ModeNone;
 system_model sys_state = SYSTEM_INIT;
-PROFILE_CONFIG_t* SYS_PROFLIE_CONFIG = nullptr;
+SYS_CONFIG_t* SYS_PROFLIE_CONFIG = nullptr;
 
 void sys_init() {
-    SYS_PROFLIE_CONFIG = const_cast<PROFILE_CONFIG_t*>(getPROFILECONFIG(PROFILE_CONFIG_PROFILE_COUNT));
+    SYS_PROFLIE_CONFIG = const_cast<SYS_CONFIG_t*>(getSYSCONFIG(PROFILE_CONFIG_PROFILE_COUNT));
     if (SYS_PROFLIE_CONFIG) {
-        print("profile config OK\r\n");
+        print("System Version %s\r\n", SYS_PROFLIE_CONFIG->sys_version);
+        print("Profile Config OK\r\n");
         sys_state= SYSTEM_INIT;
     } else {
-        resetindexPROFILECONFIG(PROFILE_CONFIG_PROFILE_COUNT);
+        resetindexSYSCONFIG(PROFILE_CONFIG_PROFILE_COUNT);
         sys_state = SYSTEM_ERRORCONTROL;
     }
 }

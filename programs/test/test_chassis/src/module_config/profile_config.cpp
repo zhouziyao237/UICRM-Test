@@ -23,12 +23,12 @@
 #include "config.h"
 #include "config_function.h"
 
-PG_REGISTER_ARRAY_WITH_RESET_FN(PROFILE_CONFIG_t, PROFILE_CONFIG_MAX_PROFILE_COUNT, PROFILECONFIG, PG_PROFILE_CONFIG_PROFILE, PROFILE_CONFIG_Version);
+PG_REGISTER_ARRAY_WITH_RESET_FN(SYS_CONFIG_t, SYSTEM_CONFIG_MAX_PROFILE_COUNT, SYSCONFIG, PG_PROFILE_CONFIG_PROFILE, PROFILE_CONFIG_Version);
 
 /* - PROFILE_CONFIG 配置 - */
 
-void reestPROFILECONFIG(PROFILE_CONFIG_t* PROFILECONFIGS) {
-    RESET_CONFIG(PROFILE_CONFIG_t, PROFILECONFIGS,
+void reestSYSCONFIG(SYS_CONFIG_t* SYSCONFIGS) {
+    RESET_CONFIG(SYS_CONFIG_t, SYSCONFIGS,
         .ControlModel_PROFILE = 0,
         .MotorPID_PROFILE = 0,
         .MotorId_PROFILE = 0,
@@ -39,38 +39,38 @@ void reestPROFILECONFIG(PROFILE_CONFIG_t* PROFILECONFIGS) {
     );
 }
 
-void pgResetFn_PROFILECONFIG(void* PROFILECONFIGS, int size) {
+void pgResetFn_SYSCONFIG(void* SYSCONFIGS, int size) {
 
-    int count = size / sizeof(PROFILE_CONFIG_t);
+    int count = size / sizeof(SYS_CONFIG_t);
 
-    for (int i = 0; i < count && i < PROFILE_CONFIG_MAX_PROFILE_COUNT; i++) {
-        PROFILE_CONFIG_t* CONFIG = static_cast<PROFILE_CONFIG_t*>(PROFILECONFIGS);
-        reestPROFILECONFIG(&CONFIG[i]);
+    for (int i = 0; i < count && i < SYSTEM_CONFIG_MAX_PROFILE_COUNT; i++) {
+        SYS_CONFIG_t* sysconfig = static_cast<SYS_CONFIG_t*>(SYSCONFIGS);
+        reestSYSCONFIG(&sysconfig[i]);
     }
 }
 
-void resetindexPROFILECONFIG(uint8_t index) {
-    if (index < PROFILE_CONFIG_MAX_PROFILE_COUNT) {
-        PG_RESET(PROFILECONFIG);
+void resetindexSYSCONFIG(uint8_t index) {
+    if (index < SYSTEM_CONFIG_MAX_PROFILE_COUNT) {
+        PG_RESET(SYSCONFIG);
     }
 }
 
-const PROFILE_CONFIG_t* getPROFILECONFIG(uint8_t index) {
-    if (index < PROFILE_CONFIG_MAX_PROFILE_COUNT) {
-        return PROFILECONFIG(index);
+const SYS_CONFIG_t* getSYSCONFIG(uint8_t index) {
+    if (index < SYSTEM_CONFIG_MAX_PROFILE_COUNT) {
+        return SYSCONFIG(index);
     }
     return nullptr;
 }
 
-void copyPROFILECONFIG(uint8_t dstIndex, uint8_t srcIndex) {
-    if ((dstIndex < MAX_PROFILE_COUNT && srcIndex < PROFILE_CONFIG_MAX_PROFILE_COUNT)) {
-        memcpy(PROFILECONFIGMutable(dstIndex), PROFILECONFIG(srcIndex), sizeof(PROFILE_CONFIG_t));
+void copySYSCONFIG(uint8_t dstIndex, uint8_t srcIndex) {
+    if ((dstIndex < MAX_PROFILE_COUNT && srcIndex < SYSTEM_CONFIG_MAX_PROFILE_COUNT)) {
+        memcpy(SYSCONFIGMutable(dstIndex), SYSCONFIG(srcIndex), sizeof(SYS_CONFIG_t));
     }
 }
 
-void setPROFILECONFIG(uint8_t index, const PROFILE_CONFIG_t* PROFILECONFIGS) {
-    if (index < PROFILE_CONFIG_MAX_PROFILE_COUNT) {
-        PROFILE_CONFIG_t* CONFIG = PROFILECONFIGMutable(index);
-        *CONFIG = *PROFILECONFIGS;
+void setSYSCONFIG(uint8_t index, const SYS_CONFIG_t* sys_config) {
+    if (index < SYSTEM_CONFIG_MAX_PROFILE_COUNT) {
+        SYS_CONFIG_t* CONFIG = SYSCONFIGMutable(index);
+        *CONFIG = *sys_config;
     }
 }

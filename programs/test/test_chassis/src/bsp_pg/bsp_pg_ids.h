@@ -29,9 +29,12 @@
 #define MAX_PROFILE_COUNT 2
 #endif
 
+/* - system config - */
+#define SYS_VERSION "1.0.0"
+#define SYSTEM_CONFIG_MAX_PROFILE_COUNT 1
+
 /* - ProfileConfig - */
 #define PROFILE_CONFIG_Version 1
-#define PROFILE_CONFIG_MAX_PROFILE_COUNT 1
 #define PROFILE_CONFIG_PROFILE_COUNT 0
 #define PG_PROFILE_CONFIG_PROFILE 1
 
