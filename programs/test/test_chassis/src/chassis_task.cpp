@@ -28,41 +28,43 @@
 #include "system.h"
 
 void InitSuperCap(bsp::CAN* supercap_can) {
-    if (const SuperCap_t* SuperCap = getSuperCap(SYS_PROFLIE_CONFIG->SuperCap_PROFILE)) {
-        if (!SuperCap->Enable) {
+    SuperCap_CONFIG_DATA = const_cast<SuperCap_t*>(getSuperCap(SYS_PROFLIE_CONFIG_DATA->SuperCap_PROFILE));
+    if (SuperCap_CONFIG_DATA) {
+        if (!SuperCap_CONFIG_DATA->Enable) {
             return;
         }
         driver::supercap_init_t supercap_init = {.can = supercap_can,
-                                                 .tx_id = SuperCap->tx_id,
-                                                 .tx_settings_id = SuperCap->tx_settings_id,
-                                                 .rx_id = SuperCap->rx_id};
+                                                 .tx_id = SuperCap_CONFIG_DATA->tx_id,
+                                                 .tx_settings_id = SuperCap_CONFIG_DATA->tx_settings_id,
+                                                 .rx_id = SuperCap_CONFIG_DATA->rx_id};
         super_cap = new driver::SuperCap(supercap_init);
         super_cap->Disable();
         super_cap->TransmitSettings();
         super_cap->Enable();
         super_cap->TransmitSettings();
-        super_cap->SetMaxVoltage(SuperCap->MaxVoltage);
-        super_cap->SetPowerTotal(SuperCap->PowerTotal);
-        super_cap->SetMaxChargePower(SuperCap->MaxChargePower);
-        super_cap->SetMaxDischargePower(SuperCap->MaxDischargePower);
-        super_cap->SetPerferBuffer(SuperCap->PerferBuffer);
+        super_cap->SetMaxVoltage(SuperCap_CONFIG_DATA->MaxVoltage);
+        super_cap->SetPowerTotal(SuperCap_CONFIG_DATA->PowerTotal);
+        super_cap->SetMaxChargePower(SuperCap_CONFIG_DATA->MaxChargePower);
+        super_cap->SetMaxDischargePower(SuperCap_CONFIG_DATA->MaxDischargePower);
+        super_cap->SetPerferBuffer(SuperCap_CONFIG_DATA->PerferBuffer);
     } else {
-        resetindexSuperCap(SYS_PROFLIE_CONFIG->SuperCap_PROFILE);
+        resetindexSuperCap(SYS_PROFLIE_CONFIG_DATA->SuperCap_PROFILE);
         sys_state = SYSTEM_ERRORCONTROL;
     }
 }
 
 void InitMotor(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]) {
-    if (const MotorId_t* motorIds = getMotorId(SYS_PROFLIE_CONFIG->MotorId_PROFILE)) {
-        Can_Motor = new bsp::CAN(motorIds->hcan, motorIds->is_master);
-        fl_motor = new driver::Motor3508(Can_Motor, motorIds->fl_Id);
-        fr_motor = new driver::Motor3508(Can_Motor, motorIds->fr_Id);
-        bl_motor = new driver::Motor3508(Can_Motor, motorIds->bl_Id);
-        br_motor = new driver::Motor3508(Can_Motor, motorIds->br_Id);
+    MotorId_CONFIG_DATA = const_cast<MotorId_t*>(getMotorId(SYS_PROFLIE_CONFIG_DATA->MotorId_PROFILE));
+    if (MotorId_CONFIG_DATA) {
+        Can_Motor = new bsp::CAN(MotorId_CONFIG_DATA->hcan, MotorId_CONFIG_DATA->is_master);
+        fl_motor = new driver::Motor3508(Can_Motor, MotorId_CONFIG_DATA->fl_Id);
+        fr_motor = new driver::Motor3508(Can_Motor, MotorId_CONFIG_DATA->fr_Id);
+        bl_motor = new driver::Motor3508(Can_Motor, MotorId_CONFIG_DATA->bl_Id);
+        br_motor = new driver::Motor3508(Can_Motor, MotorId_CONFIG_DATA->br_Id);
         driver::MotorCANBase* temp_motors[] = {fl_motor, fr_motor, bl_motor, br_motor};
         std::copy(temp_motors, temp_motors + 4, motor);
     } else {
-        resetindexMotorId(SYS_PROFLIE_CONFIG->MotorId_PROFILE);
+        resetindexMotorId(SYS_PROFLIE_CONFIG_DATA->MotorId_PROFILE);
         sys_state = SYSTEM_ERRORCONTROL;
         return;
     }
@@ -70,20 +72,21 @@ void InitMotor(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]) {
 }
 
 void InitMotor_PID(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]) {
-    if (const MotorPID_t* pid_params = getMotorPID(SYS_PROFLIE_CONFIG->MotorPID_PROFILE)) {
+    MotorPID_t* pid_params_CONFIG_DATA = const_cast<MotorPID_t*>(getMotorPID(SYS_PROFLIE_CONFIG_DATA->MotorPID_PROFILE));
+    if (pid_params_CONFIG_DATA) {
 
         control::ConstrainedPID::PID_Init_t pid_init = {
-            .kp = pid_params->kp,
-            .ki = pid_params->ki,
-            .kd = pid_params->kd,
-            .max_out = pid_params->max_out,
-            .max_iout = pid_params->max_iout,
-            .deadband = pid_params->deadband,  // 死区
-            .A = pid_params->A,                // 变速积分所能达到的最大值为A+B
-            .B = pid_params->B,                // 启动变速积分的死区
-            .output_filtering_coefficient = pid_params->output_filtering_coefficient,  // 输出滤波系数
-            .derivative_filtering_coefficient = pid_params->derivative_filtering_coefficient, // 微分滤波系数
-            .mode = pid_params->mode,
+            .kp = pid_params_CONFIG_DATA->kp,
+            .ki = pid_params_CONFIG_DATA->ki,
+            .kd = pid_params_CONFIG_DATA->kd,
+            .max_out = pid_params_CONFIG_DATA->max_out,
+            .max_iout = pid_params_CONFIG_DATA->max_iout,
+            .deadband = pid_params_CONFIG_DATA->deadband,  // 死区
+            .A = pid_params_CONFIG_DATA->A,                // 变速积分所能达到的最大值为A+B
+            .B = pid_params_CONFIG_DATA->B,                // 启动变速积分的死区
+            .output_filtering_coefficient = pid_params_CONFIG_DATA->output_filtering_coefficient,  // 输出滤波系数
+            .derivative_filtering_coefficient = pid_params_CONFIG_DATA->derivative_filtering_coefficient, // 微分滤波系数
+            .mode = pid_params_CONFIG_DATA->mode,
         };
 
         // 使用循环统一配置所有电机
@@ -93,7 +96,7 @@ void InitMotor_PID(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]
             motor[i]->SetTransmissionRatio(19);
         }
     } else {
-        resetindexMotorPID(SYS_PROFLIE_CONFIG->MotorPID_PROFILE);
+        resetindexMotorPID(SYS_PROFLIE_CONFIG_DATA->MotorPID_PROFILE);
         sys_state = SYSTEM_ERRORCONTROL;
     }
 }
@@ -102,9 +105,10 @@ void InitMotor_PID(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num]
 
 void InitCanBridgeChassis(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num],
                           void(*SuperCap(void))) {
-    if (const CanBridge_t* CanBridge = getCanBridge(SYS_PROFLIE_CONFIG->CanBridge_PROFILE)) {
-        Can_Bridge = new bsp::CAN(CanBridge->hcan, CanBridge->is_master);
-        can_bridge = new communication::CanBridge(Can_Bridge, CanBridge->CanBridge_RxId);
+    CanBridge_t* CanBridge_CONFIG_DATA = const_cast<CanBridge_t*>(getCanBridge(SYS_PROFLIE_CONFIG_DATA->CanBridge_PROFILE));
+    if (CanBridge_CONFIG_DATA) {
+        Can_Bridge = new bsp::CAN(CanBridge_CONFIG_DATA->hcan, CanBridge_CONFIG_DATA->is_master);
+        can_bridge = new communication::CanBridge(Can_Bridge, CanBridge_CONFIG_DATA->CanBridge_RxId);
 
         motor[control::FourWheel::front_left] = fl_motor;
         motor[control::FourWheel::front_right] = fr_motor;
@@ -113,8 +117,8 @@ void InitCanBridgeChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mot
 
         control::chassis_t chassis_data;
         chassis_data.motors = motor;
-        chassis_data.model = CanBridge->Chassis_Model;
-        chassis_data.omni_wheel_setup = CanBridge->OMNI_Wheel_setup_t;
+        chassis_data.model = CanBridge_CONFIG_DATA->Chassis_Model;
+        chassis_data.omni_wheel_setup = CanBridge_CONFIG_DATA->OMNI_Wheel_setup_t;
 
         if (SuperCap != nullptr) {
             SuperCap();
@@ -128,18 +132,18 @@ void InitCanBridgeChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mot
         }
 
         chassis = new control::Chassis(chassis_data);
-        chassis->SetMaxMotorSpeed(CanBridge->Max_Speed);
-        chassis->CanBridgeSetTxId(CanBridge->CanBridge_TxId);
-        can_bridge->RegisterRxCallback(CanBridge->CanBridge_XYWrapper,
+        chassis->SetMaxMotorSpeed(CanBridge_CONFIG_DATA->Max_Speed);
+        chassis->CanBridgeSetTxId(CanBridge_CONFIG_DATA->CanBridge_TxId);
+        can_bridge->RegisterRxCallback(CanBridge_CONFIG_DATA->CanBridge_XYWrapper,
                                        chassis->CanBridgeUpdateEventXYWrapper, chassis);
-        can_bridge->RegisterRxCallback(CanBridge->CanBridge_TurnWrapper,
+        can_bridge->RegisterRxCallback(CanBridge_CONFIG_DATA->CanBridge_TurnWrapper,
                                        chassis->CanBridgeUpdateEventTurnWrapper, chassis);
-        can_bridge->RegisterRxCallback(CanBridge->CanBridge_PowerLimitWrapper,
+        can_bridge->RegisterRxCallback(CanBridge_CONFIG_DATA->CanBridge_PowerLimitWrapper,
                                        chassis->CanBridgeUpdateEventPowerLimitWrapper, chassis);
-        can_bridge->RegisterRxCallback(CanBridge->CanBridge_CurrentPowerWrapper,
+        can_bridge->RegisterRxCallback(CanBridge_CONFIG_DATA->CanBridge_CurrentPowerWrapper,
                                        chassis->CanBridgeUpdateEventCurrentPowerWrapper, chassis);
     } else {
-        resetindexCanBridge(SYS_PROFLIE_CONFIG->CanBridge_PROFILE);
+        resetindexCanBridge(SYS_PROFLIE_CONFIG_DATA->CanBridge_PROFILE);
         sys_state = SYSTEM_ERRORCONTROL;
     }
 }
@@ -148,7 +152,8 @@ void InitCanBridgeChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mot
 
 void InitRemoteDbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num],
                            void(*SuperCap(void))) {
-    if (const RemoteDbus_t* RemoteDbus = getRemoteDbus(SYS_PROFLIE_CONFIG->RemoteDbus_PROFILE)) {
+    RemoteDbus_t* RemoteDbus_CONFIG_DATA = const_cast<RemoteDbus_t*>(getRemoteDbus(SYS_PROFLIE_CONFIG_DATA->RemoteDbus_PROFILE));
+    if (RemoteDbus_CONFIG_DATA) {
         motor[control::FourWheel::front_left] = fl_motor;
         motor[control::FourWheel::front_right] = fr_motor;
         motor[control::FourWheel::back_left] = bl_motor;
@@ -156,8 +161,8 @@ void InitRemoteDbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mo
 
         control::chassis_t chassis_data;
         chassis_data.motors = motor;
-        chassis_data.model = RemoteDbus->Chassis_Model;
-        chassis_data.omni_wheel_setup = RemoteDbus->OMNI_Wheel_setup_t;
+        chassis_data.model = RemoteDbus_CONFIG_DATA->Chassis_Model;
+        chassis_data.omni_wheel_setup = RemoteDbus_CONFIG_DATA->OMNI_Wheel_setup_t;
 
         if (SuperCap != nullptr) {
             SuperCap();
@@ -170,12 +175,12 @@ void InitRemoteDbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mo
             chassis_data.has_super_capacitor = false;
         }
 
-        dbus = new remote::DBUS(RemoteDbus->huart);
+        dbus = new remote::DBUS(RemoteDbus_CONFIG_DATA->huart);
         chassis = new control::Chassis(chassis_data);
-        chassis->SetMaxMotorSpeed(RemoteDbus->Max_Speed);
+        chassis->SetMaxMotorSpeed(RemoteDbus_CONFIG_DATA->Max_Speed);
 
     } else {
-        resetindexCanBridge(SYS_PROFLIE_CONFIG->CanBridge_PROFILE);
+        resetindexCanBridge(SYS_PROFLIE_CONFIG_DATA->CanBridge_PROFILE);
         sys_state = SYSTEM_ERRORCONTROL;
     }
 }
@@ -184,7 +189,8 @@ void InitRemoteDbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mo
 
 void InitRemoteSbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num],
                            void(*SuperCap(void))) {
-    if (const RemoteSbus_t* RemoteSbus = getRemoteSbus(SYS_PROFLIE_CONFIG->RemoteSbus_PROFILE)) {
+    RemoteSbus_t* RemoteSbus_CONFIG_DATA = const_cast<RemoteSbus_t*>(getRemoteSbus(SYS_PROFLIE_CONFIG_DATA->RemoteSbus_PROFILE));
+    if (RemoteSbus_CONFIG_DATA) {
         motor[control::FourWheel::front_left] = fl_motor;
         motor[control::FourWheel::front_right] = fr_motor;
         motor[control::FourWheel::back_left] = bl_motor;
@@ -192,8 +198,8 @@ void InitRemoteSbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mo
 
         control::chassis_t chassis_data;
         chassis_data.motors = motor;
-        chassis_data.model = RemoteSbus->Chassis_Model;
-        chassis_data.omni_wheel_setup = RemoteSbus->OMNI_Wheel_setup_t;
+        chassis_data.model = RemoteSbus_CONFIG_DATA->Chassis_Model;
+        chassis_data.omni_wheel_setup = RemoteSbus_CONFIG_DATA->OMNI_Wheel_setup_t;
 
         if (SuperCap != nullptr) {
             SuperCap();
@@ -206,12 +212,12 @@ void InitRemoteSbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mo
             chassis_data.has_super_capacitor = false;
         }
 
-        sbus = new remote::SBUS(RemoteSbus->huart);
+        sbus = new remote::SBUS(RemoteSbus_CONFIG_DATA->huart);
         chassis = new control::Chassis(chassis_data);
-        chassis->SetMaxMotorSpeed(RemoteSbus->Max_Speed);
+        chassis->SetMaxMotorSpeed(RemoteSbus_CONFIG_DATA->Max_Speed);
 
     } else {
-        resetindexCanBridge(SYS_PROFLIE_CONFIG->CanBridge_PROFILE);
+        resetindexCanBridge(SYS_PROFLIE_CONFIG_DATA->CanBridge_PROFILE);
         sys_state = SYSTEM_ERRORCONTROL;
     }
 }
@@ -221,24 +227,25 @@ void InitRemoteSbusChassis(driver::MotorCANBase* (&motor)[control::FourWheel::mo
 // 在 chassis_task.cpp 中的 ChassisInit 函数中
 void ChassisInit(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num],
                  void(*SuperCap(void)), ChassisControlMode_t& ChassisControlMode, ChassisRemote_t& ChassisRemote) {
-    if (const ControlModel_t* ControlModel = getControlModel(SYS_PROFLIE_CONFIG->ControlModel_PROFILE)) {
-        ChassisControlMode = ControlModel->ChassisControlMode;
+    ControlModel_t* ControlModel_CONFIG_DATA = const_cast<ControlModel_t*>(getControlModel(SYS_PROFLIE_CONFIG_DATA->ControlModel_PROFILE));
+    if (ControlModel_CONFIG_DATA) {
+        ChassisControlMode = ControlModel_CONFIG_DATA->ChassisControlMode;
         switch (ChassisControlMode) {
             case ModeDbus:
-                if (const RemoteDbus_t* RemoteDbus = getRemoteDbus(SYS_PROFLIE_CONFIG->RemoteDbus_PROFILE)) {
+                if (const RemoteDbus_t* RemoteDbus = getRemoteDbus(SYS_PROFLIE_CONFIG_DATA->RemoteDbus_PROFILE)) {
                     ChassisRemote.remote_dbus = RemoteDbus;
                     InitRemoteDbusChassis(motor, SuperCap);
                 } else {
-                    resetindexRemoteDbus(SYS_PROFLIE_CONFIG->RemoteDbus_PROFILE);
+                    resetindexRemoteDbus(SYS_PROFLIE_CONFIG_DATA->RemoteDbus_PROFILE);
                     sys_state = SYSTEM_ERRORCONTROL;
                 }
                 break;
             case ModeSbus:
-                if (const RemoteSbus_t* RemoteSbus = getRemoteSbus(SYS_PROFLIE_CONFIG->RemoteSbus_PROFILE)) {
+                if (const RemoteSbus_t* RemoteSbus = getRemoteSbus(SYS_PROFLIE_CONFIG_DATA->RemoteSbus_PROFILE)) {
                     ChassisRemote.remote_sbus = RemoteSbus;
                     InitRemoteSbusChassis(motor, SuperCap);
                 } else {
-                    resetindexRemoteSbus(SYS_PROFLIE_CONFIG->RemoteSbus_PROFILE);
+                    resetindexRemoteSbus(SYS_PROFLIE_CONFIG_DATA->RemoteSbus_PROFILE);
                     sys_state = SYSTEM_ERRORCONTROL;
                 }
                 break;
@@ -252,7 +259,7 @@ void ChassisInit(driver::MotorCANBase* (&motor)[control::FourWheel::motor_num],
                 break;
         }
     } else {
-        resetindexControlModel(SYS_PROFLIE_CONFIG->ControlModel_PROFILE);
+        resetindexControlModel(SYS_PROFLIE_CONFIG_DATA->ControlModel_PROFILE);
         sys_state = SYSTEM_ERRORCONTROL;
     }
 }

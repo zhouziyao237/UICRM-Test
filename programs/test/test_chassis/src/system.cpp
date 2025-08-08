@@ -45,12 +45,20 @@ driver::MotorCANBase* motors[control::FourWheel::motor_num];
 ChassisRemote_t chassis_remote;
 ChassisControlMode_t Chissis_ControlMode = ModeNone;
 system_model sys_state = SYSTEM_INIT;
-SYS_CONFIG_t* SYS_PROFLIE_CONFIG = nullptr;
+
+SYS_CONFIG_t* SYS_PROFLIE_CONFIG_DATA = nullptr;
+MotorId_t* MotorId_CONFIG_DATA = nullptr;
+SuperCap_t* SuperCap_CONFIG_DATA = nullptr;
+MotorPID_t* pid_params_CONFIG_DATA = nullptr;
+CanBridge_t* CanBridge_CONFIG_DATA = nullptr;
+RemoteDbus_t* RemoteDbus_CONFIG_DATA = nullptr;
+RemoteSbus_t* RemoteSbus_CONFIG_DATA = nullptr;
+ControlModel_t* ControlModel_CONFIG_DATA = nullptr;
 
 void sys_init() {
-    SYS_PROFLIE_CONFIG = const_cast<SYS_CONFIG_t*>(getSYSCONFIG(PROFILE_CONFIG_PROFILE_COUNT));
-    if (SYS_PROFLIE_CONFIG) {
-        print("System Version %s\r\n", SYS_PROFLIE_CONFIG->sys_version);
+    SYS_PROFLIE_CONFIG_DATA = const_cast<SYS_CONFIG_t*>(getSYSCONFIG(PROFILE_CONFIG_PROFILE_COUNT));
+    if (SYS_PROFLIE_CONFIG_DATA) {
+        print("System Version %s\r\n", SYS_PROFLIE_CONFIG_DATA->sys_version);
         print("Profile Config OK\r\n");
         sys_state= SYSTEM_INIT;
     } else {

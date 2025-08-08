@@ -59,7 +59,15 @@ enum system_model{
 extern system_model sys_state;
 extern ChassisControlMode_t Chissis_ControlMode;
 extern ChassisRemote_t chassis_remote;
-extern SYS_CONFIG_t* SYS_PROFLIE_CONFIG;
+
+extern SYS_CONFIG_t* SYS_PROFLIE_CONFIG_DATA;
+extern MotorId_t* MotorId_CONFIG_DATA;
+extern SuperCap_t* SuperCap_CONFIG_DATA;
+extern MotorPID_t* MotorPID_CONFIG_DATA;
+extern CanBridge_t* CanBridge_CONFIG_DATA;
+extern RemoteDbus_t* RemoteDbus_CONFIG_DATA;
+extern RemoteSbus_t* RemoteSbus_CONFIG_DATA;
+extern ControlModel_t* ControlModel_CONFIG_DATA;
 
 void sys_init();
 

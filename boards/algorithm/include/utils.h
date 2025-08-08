@@ -20,6 +20,9 @@
 
 #pragma once
 #include "main.h"
+#include <math.h>
+
+#define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 
 /**
  * @brief 将一个值限制在一个范围内
