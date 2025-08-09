@@ -3,15 +3,13 @@
 
 #include "main.h"
 #include "stdint.h"
-
+#include <cstring>
 
 extern "C" {
 #include "config/msp_protocol.h"
 #include "config/msp_protocol_v2_common.h"
 #include "config/msp_protocol_v2_betaflight.h"
 }
-
-namespace Espfc {
 
 namespace Msp {
 
@@ -71,93 +69,40 @@ class MspMessage
     uint8_t checksum2;
     uint8_t buffer[MSP_BUF_SIZE];
 
-    int remain()
-    {
-      return received - read;
-    }
+    int remain();
 
-    void advance(size_t size)
-    {
-      read += size;
-    }
+    void advance(size_t size);
 
-    uint8_t readU8()
-    {
-      return buffer[read++];
-    }
+    uint8_t readU8();
 
-    uint16_t readU16()
-    {
-      uint16_t ret;
-      ret = readU8();
-      ret |= readU8() << 8;
-      return ret;
-    }
+    uint16_t readU16();
 
-    uint32_t readU32()
-    {
-      uint32_t ret;
-      ret = readU8();
-      ret |= readU8() <<  8;
-      ret |= readU8() << 16;
-      ret |= readU8() << 24;
-      return ret;
-    }
+    uint32_t readU32();
 };
 
-//class MspResponse
-//{
-//  public:
-//    MspResponse(): len(0) {}
-//    MspVersion version;
-//    uint16_t cmd;
-//    int8_t  result;
-//    uint8_t direction;
-//    uint16_t len;
-//    uint8_t data[MSP_BUF_SIZE];
-//
-//    void writeData(const char * v, int size)
-//    {
-//      while(size-- > 0) writeU8(*v++);
-//    }
-//
-//    void writeString(const char * v)
-//    {
-//      while(*v) writeU8(*v++);
-//    }
-//
-//    void writeString(const __FlashStringHelper *ifsh)
-//    {
-//      PGM_P p = reinterpret_cast<PGM_P>(ifsh);
-//      while(true)
-//      {
-//        uint8_t c = pgm_read_byte(p++);
-//        if (c == 0) break;
-//        writeU8(c);
-//      }
-//    }
-//
-//    void writeU8(uint8_t v)
-//    {
-//      data[len++] = v;
-//    }
-//
-//    void writeU16(uint16_t v)
-//    {
-//      writeU8(v >> 0);
-//      writeU8(v >> 8);
-//    }
-//
-//    void writeU32(uint32_t v)
-//    {
-//      writeU8(v >> 0);
-//      writeU8(v >> 8);
-//      writeU8(v >> 16);
-//      writeU8(v >> 24);
-//    }
-//};
+class MspResponse
+{
+  public:
+    MspResponse(): len(0) {}
+    MspVersion version;
+    uint16_t cmd;
+    int8_t  result;
+    uint8_t direction;
+    uint16_t len;
+    uint8_t data[MSP_BUF_SIZE];
 
-}
+    void writeData(const char * v, int size);
+
+    void writeString(const char * v);
+
+    // void writeString(const char *ifsh);
+
+    void writeU8(uint8_t v);
+
+    void writeU16(uint16_t v);
+
+    void writeU32(uint32_t v);
+};
 
 }
 

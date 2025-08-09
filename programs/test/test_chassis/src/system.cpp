@@ -65,4 +65,38 @@ void sys_init() {
         resetindexSYSCONFIG(PROFILE_CONFIG_PROFILE_COUNT);
         sys_state = SYSTEM_ERRORCONTROL;
     }
+    LoadFlashConfig();
+}
+
+void LoadFlashConfig() {
+    // 打印EEPROM配置信息
+    print("EEPROM start: 0x%08lX\r\n", (uint32_t)__config_start);
+    print("EEPROM end: 0x%08lX\r\n", (uint32_t)__config_end);
+    print("EEPROM size: %lu bytes\r\n", (uint32_t)(__config_end - __config_start));
+
+    // 加载EEPROM中的配置
+    if (isEEPROMContentValid()) {
+        sys_state= SYSTEM_READCONFIG;
+        print("EEPROM content is valid, loading configuration...\r\n");
+        loadEEPROM();
+    } else {
+        sys_state= SYSTEM_RESETCONFIG;
+        print("EEPROM content is invalid, resetting to defaults...\r\n");
+        pgResetAll();
+        writeConfigToEEPROM();
+        print("Configuration reset complete.\r\n");
+    }
+
+    // 计算注册的配置项数量和大小
+    int count = 0;
+    int total_size = 0;
+    PG_FOREACH(reg) {
+        count++;
+        total_size += pgSize(reg);
+        print("PG #%d: pgn=%d, size=%d bytes\r\n", count, pgN(reg), pgSize(reg));
+        osDelay(50);
+    }
+    print("Total PG count: %d\r\n", count);
+    print("Total PG data size: %d bytes\r\n", total_size);
+    print("EEPROM used: %d bytes\r\n", getEEPROMConfigSize());
 }

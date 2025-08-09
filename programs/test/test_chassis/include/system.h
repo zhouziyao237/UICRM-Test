@@ -70,5 +70,6 @@ extern RemoteSbus_t* RemoteSbus_CONFIG_DATA;
 extern ControlModel_t* ControlModel_CONFIG_DATA;
 
 void sys_init();
+void LoadFlashConfig();
 
 #endif //SYSTEM_H

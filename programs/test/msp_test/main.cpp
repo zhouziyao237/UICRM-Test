@@ -24,7 +24,7 @@
 #include "cmsis_os.h"
 #include "bsp_serial.h"
 
-Serial main_serial;
+Device::Serial main_serial;
 
 void RM_RTOS_Init() {
     main_serial.InitMainUart(&huart8, true, 912600);

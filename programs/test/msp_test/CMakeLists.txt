@@ -1,9 +1,15 @@
 project(msp_test ASM C CXX)
 
-# 使用 file(GLOB) 来收集源文件
-file(GLOB SOURCES "./cli/*.cpp" "./msp/*.cpp" "*.cpp")
+# 收集所有源文件
+file(GLOB_RECURSE SOURCES
+    "*.cpp"
+    "cli/*.cpp"
+    "msp/*cpp"
+    "serial/*.cpp"
+    "Model/*.cpp"
+)
 
 uicrm_add_arm_executable(${PROJECT_NAME}
         TARGET DJI_Board_TypeA_general
         SOURCES ${SOURCES}
-        INCLUDES serial/*.h msp/*.h msp/config/*.h .)
+        INCLUDES . cli msp msp/config Model serial)
