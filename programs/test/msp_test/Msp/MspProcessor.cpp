@@ -1,3 +1,23 @@
+//
+// This program is free software: you can redistribute it
+// and/or modify it under the terms of the GNU General
+// Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// This program is distributed in the hope that it will be
+// useful, but WITHOUT ANY WARRANTY; without even
+// the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE.  See the GNU General
+// Public License for more details.
+//
+// You should have received a copy of the GNU General
+// Public License along with this program.  If not, see
+// <https://www.gnu.org/licenses/>.
+
+//
+// Created by Administrator on 2025/8/9.
+//
 
 #include "MspProcessor.h"
 
@@ -6,11 +26,12 @@
 #include "bsp_serial.h"
 #include "config/msp_protocol.h"
 #include "crc_check.h"
+#include "platform.h"
 #include "utils.h"
 
 // #include "Model/Model.h"
 // #include "Hardware.h"
-// #include "platform.h"
+
 namespace RMFC {
     namespace Msp {
         bool MspProcessor::process(char c, MspMessage& msg, MspResponse& res, Serial& s) {
@@ -47,23 +68,23 @@ namespace RMFC {
                     break;
 
                 case MSP_FC_VARIANT:
-                    // r.writeData(flightControllerIdentifier, FLIGHT_CONTROLLER_IDENTIFIER_LENGTH);
+                    r.writeData(flightControllerIdentifier, FLIGHT_CONTROLLER_IDENTIFIER_LENGTH);
                     break;
 
                 case MSP_FC_VERSION:
-                    // r.writeU8(FC_VERSION_MAJOR);
-                    // r.writeU8(FC_VERSION_MINOR);
-                    // r.writeU8(FC_VERSION_PATCH_LEVEL);
+                    r.writeU8(FC_VERSION_MAJOR);
+                    r.writeU8(FC_VERSION_MINOR);
+                    r.writeU8(FC_VERSION_PATCH_LEVEL);
                     break;
 
                 case MSP_BOARD_INFO:
-                    // r.writeData(boardIdentifier, BOARD_IDENTIFIER_LENGTH);
+                    r.writeData(boardIdentifier, BOARD_IDENTIFIER_LENGTH);
                     r.writeU16(
                         0);  // No other build targets currently have hardware revision detection.
-                    r.writeU8(0);  // 0 == FC
-                    r.writeU8(0);  // target capabilities
-                    //          r.writeU8(strlen(targetName));  // target name
-                    //          r.writeData(targetName, strlen(targetName));
+                    r.writeU8(0);                   // 0 == FC
+                    r.writeU8(0);                   // target capabilities
+                    r.writeU8(strlen(targetName));  // target name
+                    r.writeData(targetName, strlen(targetName));
                     r.writeU8(0);  // board name
                     r.writeU8(0);  // manufacturer name
                     for (size_t i = 0; i < 32; i++)
@@ -91,9 +112,9 @@ namespace RMFC {
                     break;
 
                 case MSP_BUILD_INFO:
-                    // r.writeData(buildDate, BUILD_DATE_LENGTH);
-                    // r.writeData(buildTime, BUILD_TIME_LENGTH);
-                    // r.writeData(shortGitRevision, GIT_SHORT_REVISION_LENGTH);
+                    r.writeData(buildDate, BUILD_DATE_LENGTH);
+                    r.writeData(buildTime, BUILD_TIME_LENGTH);
+                    r.writeData(shortGitRevision, GIT_SHORT_REVISION_LENGTH);
                     break;
 
                 case MSP_UID:

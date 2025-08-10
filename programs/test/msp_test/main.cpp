@@ -32,7 +32,7 @@ RMFC::Msp::MspMessage mspRequest;
 RMFC::Msp::MspResponse mspResponse;
 
 void RM_RTOS_Init() {
-    // main_serial.InitMainUart(&huart8, true, 912600);
+    // main_serial.InitMainUart(&huart8, true, 115200);
     main_serial.InitMainUsb();
     main_serial.print("uart test\n");
 }

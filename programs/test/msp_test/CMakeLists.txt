@@ -10,4 +10,4 @@ file(GLOB_RECURSE SOURCES
 uicrm_add_arm_executable(${PROJECT_NAME}
         TARGET DJI_Board_TypeA_general
         SOURCES ${SOURCES}
-        INCLUDES . msp msp/config serial)
+        INCLUDES . msp msp/config Model serial)
