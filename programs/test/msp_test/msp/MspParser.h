@@ -4,15 +4,15 @@
 #include "Msp.h"
 #include "crc_check.h"
 
-namespace Msp {
+namespace RMFC {
+    namespace Msp {
+        class MspParser {
+          public:
+            MspParser() { }
 
-    class MspParser {
-      public:
-        MspParser() {}
-
-        void parse(char c, MspMessage& msg);
-    };
-
-}  // namespace Msp
+            void parse(char c, MspMessage& msg);
+        };
+    }  // namespace Msp
+}  // namespace Espfc
 
 #endif

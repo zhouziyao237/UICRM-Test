@@ -21,13 +21,19 @@
 //
 
 #include "main.h"
-#include "cmsis_os.h"
-#include "bsp_serial.h"
 
-Device::Serial main_serial;
+#include "MspProcessor.h"
+#include "bsp_serial.h"
+#include "cmsis_os.h"
+
+Serial main_serial;
+RMFC::Msp::MspProcessor _msp;
+RMFC::Msp::MspMessage mspRequest;
+RMFC::Msp::MspResponse mspResponse;
 
 void RM_RTOS_Init() {
-    main_serial.InitMainUart(&huart8, true, 912600);
+    // main_serial.InitMainUart(&huart8, true, 912600);
+    main_serial.InitMainUsb();
     main_serial.print("uart test\n");
 }
 
@@ -37,9 +43,11 @@ void RM_RTOS_Default_Task(const void* args) {
     while (true) {
         uint32_t len = main_serial.read(&data);
         if (len > 0) {
-            main_serial.print("%s", data);
-            data = nullptr;  // 清空数据指针，表示已处理完该数据
+            char* c = (char*)data;
+            for (uint32_t i = 0; i < len; i++) {
+                _msp.process(*c, mspRequest, mspResponse, main_serial);
+                c++;
+            }
         }
-        osDelay(1000);
     }
 }

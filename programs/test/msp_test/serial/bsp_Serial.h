@@ -28,84 +28,99 @@
 #define MAX_PRINT_LEN 1024
 #define RX_SIGNAL (1 << 0)
 
-namespace Device {
-    class Serial {
-      public:
-        /**
-         * @brief 初始化主UART接口
-         * @param huart UART句柄指针
-         * @param dma 是否使用DMA传输
-         * @param baudrate 波特率设置
-         */
-        void InitMainUart(UART_HandleTypeDef* huart, bool dma, uint32_t baudrate,
-                          uint32_t data_bits = -1, uint32_t stop_bits = -1, uint32_t parity = -1);
+class Serial {
+  public:
+    /**
+     * @brief 初始化主UART接口
+     * @param huart UART句柄指针
+     * @param dma 是否使用DMA传输
+     * @param baudrate 波特率设置
+     */
+    void InitMainUart(UART_HandleTypeDef* huart, bool dma, uint32_t baudrate);
 
 #ifndef NO_USB
-        /**
-         * @brief 初始化主USB接口
-         */
-        void InitMainUsb(void);
+    /**
+     * @brief 初始化主USB接口
+     */
+    void InitMainUsb(void);
 #endif
 
-        /**
-         * @brief 底层数据发送函数
-         * @param data 要发送的数据指针
-         * @param length 数据长度
-         * @return 实际发送的字节数
-         */
-        uint32_t write(const void* data, uint8_t length);
+    /**
+     * @brief 初始化主UART接口
+     * @param huart UART句柄指针
+     * @param dma 是否使用DMA传输
+     * @param baudrate 波特率设置
+     * @param data_bits 数据位设置
+     * @param stop_bits 停止位设置
+     * @param parity 校验位设置
+     */
+    void beginUART(UART_HandleTypeDef* huart, bool dma, uint32_t baudrate,
+                   uint32_t data_bits = UINT32_MAX, uint32_t stop_bits = UINT32_MAX,
+                   uint32_t parity = UINT32_MAX);
 
-        /**
-         * @brief 底层数据读取函数
-         * @param data 指向接收数据缓冲区的指针
-         * @return 实际读取的字节数
-         */
-        uint32_t read(uint8_t** data);
+    /**
+     * @brief 初始化主USB接口
+     */
+    void beginUSB(void);
 
-        /**
-         * @brief 格式化打印输出函数
-         * @param format 格式化字符串
-         * @param ... 可变参数列表
-         * @return 输出的字符数
-         */
-        uint32_t print(const char* format, ...);
+    /**
+     * @brief 底层数据发送函数
+     * @param data 要发送的数据指针
+     * @param length 数据长度
+     * @return 实际发送的字节数
+     */
+    uint32_t write(const void* data, uint8_t length);
 
-        /**
-         * @brief 带换行符的格式化打印输出函数
-         * @param format 格式化字符串
-         * @param ... 可变参数列表
-         * @return 输出的字符数
-         */
-        uint32_t println(const char* format, ...);
+    /**
+     * @brief 底层数据读取函数
+     * @param data 指向接收数据缓冲区的指针
+     * @return 实际读取的字节数
+     */
+    uint32_t read(uint8_t** data);
 
-        /**
-         * @brief 读取数据函数
-         * @param data 指向接收数据缓冲区的指针
-         * @return 实际读取的字节数
-         */
-        uint32_t readMany(uint8_t** data);
+    /**
+     * @brief 格式化打印输出函数
+     * @param format 格式化字符串
+     * @param ... 可变参数列表
+     * @return 输出的字符数
+     */
+    uint32_t print(const char* format, ...);
 
-        /**
-         * @brief UART接收数据处理任务
-         * @param arg 任务参数
-         */
-        void ReadUARTTask(void* arg);
+    /**
+     * @brief 带换行符的格式化打印输出函数
+     * @param format 格式化字符串
+     * @param ... 可变参数列表
+     * @return 输出的字符数
+     */
+    uint32_t println(const char* format, ...);
+
+    /**
+     * @brief 读取数据函数
+     * @param data 指向接收数据缓冲区的指针
+     * @return 实际读取的字节数
+     */
+    uint32_t readMany(uint8_t** data);
+
+    /**
+     * @brief UART接收数据处理任务
+     * @param arg 任务参数
+     */
+    void ReadUARTTask(void* arg);
 
 #ifndef NO_USB
-        /**
-         * @brief USB接收数据处理任务
-         * @param arg 任务参数
-         */
-        void ReadUSBTask(void* arg);
+    /**
+     * @brief USB接收数据处理任务
+     * @param arg 任务参数
+     */
+    void ReadUSBTask(void* arg);
 #endif
 
-      private:
-        bsp::UART* Main_uart = nullptr;
+  private:
+    bsp::UART* Main_uart = nullptr;
 #ifndef NO_USB
-        bsp::VirtualUSB* Main_usb = nullptr;
+    bsp::VirtualUSB* Main_usb = nullptr;
 #endif
-        int rx_lenght = 0;
-        char tx_buffer[MAX_PRINT_LEN];
-        char rx_buffer[MAX_PRINT_LEN];
-    };
-}  // namespace Device
+    int rx_lenght = 0;
+    char tx_buffer[MAX_PRINT_LEN];
+    char rx_buffer[MAX_PRINT_LEN];
+};

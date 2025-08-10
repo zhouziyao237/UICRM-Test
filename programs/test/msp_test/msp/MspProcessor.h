@@ -6,40 +6,39 @@
 #include "MspProcessor.h"
 #include "bsp_serial.h"
 // #include "Model/Model.h"
-//#include "Hardware.h"
-//#include "platform.h"
+// #include "Hardware.h"
+// #include "platform.h"
 
-namespace Msp {
+namespace RMFC {
+    namespace Msp {
+        class MspProcessor {
+          public:
+            // MspProcessor(Model& model): _model(model) {}
 
-class MspProcessor
-{
-  public:
-    // MspProcessor(Model& model): _model(model) {}
+            bool process(char c, MspMessage& msg, MspResponse& res, Serial& s);
 
-    bool process(char c, MspMessage& msg, MspResponse& res, Device::SerialDevice& s);
+            void processCommand(MspMessage& m, MspResponse& r);
 
-    void processCommand(MspMessage& m, MspResponse& r);
+            void sendResponse(MspResponse& r, Serial& s);
 
-    void sendResponse(MspResponse& r, Device::SerialDevice& s);
+            void sendResponseV1(MspResponse& r, Serial& s);
 
-    void sendResponseV1(MspResponse& r, Device::SerialDevice& s);
+            void sendResponseV2(MspResponse& r, Serial& s);
 
-    void sendResponseV2(MspResponse& r, Device::SerialDevice& s);
+            void postCommand();
 
-    void postCommand();
+            bool debugSkip(uint8_t cmd);
 
-    bool debugSkip(uint8_t cmd);
+            void debugMessage(const MspMessage& m, Serial* s);
 
-    void debugMessage(const MspMessage& m);
+            void debugResponse(const MspResponse& r, Serial* s);
 
-    void debugResponse(const MspResponse& r);
-
-  private:
-    // Model& _model;
-    MspParser _parser;
-    bool _reboot;
-};
-
-}
+          private:
+            // Model& _model;
+            MspParser _parser;
+            bool _reboot;
+        };
+    }  // namespace Msp
+}  // namespace Espfc
 
 #endif
