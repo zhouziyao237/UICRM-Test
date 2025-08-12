@@ -37,7 +37,7 @@ struct serialPortVTable {
     void (*serialWrite)(serialPort_t* instance, uint8_t ch);
     uint32_t (*serialTotalRxWaiting)(const serialPort_t* instance);
     uint32_t (*serialTotalTxFree)(const serialPort_t* instance);
-    uint8_t (*serialRead)(serialPort_t* instance);
+    uint32_t (*serialRead)(serialPort_t* instance, uint8_t** data);
     void (*serialSetBaudRate)(serialPort_t* instance, uint32_t baudRate);
     bool (*isSerialTransmitBufferEmpty)(const serialPort_t* instance);
     void (*setMode)(serialPort_t* instance, portMode_e mode);
@@ -49,18 +49,12 @@ struct serialPortVTable {
 // 串口结构体
 typedef struct serialPort_s {
     const struct serialPortVTable* vTable;
-
     uint8_t identifier;
     portMode_e mode;
     portOptions_e options;
-
     uint32_t baudRate;
-
-    // 接收回调函数指针
     void (*rxCallback)(serialPort_t* instance, uint8_t ch);
     void* rxCallbackData;
-
-    // 私有数据指针，用于存储底层实现相关数据
     void* privateData;
 } serialPort_t;
 
@@ -69,7 +63,7 @@ void serialWrite(serialPort_t* instance, uint8_t ch);
 void serialWriteBuf(serialPort_t* instance, const uint8_t* data, int length);
 uint32_t serialRxBytesWaiting(const serialPort_t* instance);
 uint32_t serialTxBytesFree(const serialPort_t* instance);
-uint8_t serialRead(serialPort_t* instance);
+uint32_t serialRead(serialPort_t* instance, uint8_t** data);
 void serialSetBaudRate(serialPort_t* instance, uint32_t baudRate);
 bool isSerialTransmitBufferEmpty(const serialPort_t* instance);
 void serialSetMode(serialPort_t* instance, portMode_e mode);

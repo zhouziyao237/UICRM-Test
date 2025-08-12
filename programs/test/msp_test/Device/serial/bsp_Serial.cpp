@@ -60,13 +60,12 @@ static uint32_t uartSerialTotalTxFree(const serialPort_t* instance) {
     return 1024;
 }
 
-static uint8_t uartSerialRead(serialPort_t* instance) {
+static uint32_t uartSerialRead(serialPort_t* instance, uint8_t** data) {
     uartPrivateData_t* privateData = (uartPrivateData_t*)instance->privateData;
     if (privateData && privateData->uart_instance) {
-        uint8_t* data;
-        int32_t len = privateData->uart_instance->Read(&data);
+        uint32_t len = privateData->uart_instance->Read(data);
         if (len > 0) {
-            return data[0];
+            return len;
         }
     }
     return 0;
@@ -124,13 +123,12 @@ static uint32_t usbSerialTotalTxFree(const serialPort_t* instance) {
     return 1024;
 }
 
-static uint8_t usbSerialRead(serialPort_t* instance) {
+static uint32_t usbSerialRead(serialPort_t* instance, uint8_t** data) {
     usbPrivateData_t* privateData = (usbPrivateData_t*)instance->privateData;
     if (privateData && privateData->usb_instance) {
-        uint8_t* data;
-        uint32_t len = privateData->usb_instance->Read(&data);
+        uint32_t len = privateData->usb_instance->Read(data);
         if (len > 0) {
-            return data[0];
+            return len;
         }
     }
     return 0;
@@ -222,9 +220,9 @@ uint32_t serialTxBytesFree(const serialPort_t* instance) {
     return 0;
 }
 
-uint8_t serialRead(serialPort_t* instance) {
+uint32_t serialRead(serialPort_t* instance, uint8_t** data) {
     if (instance && instance->vTable && instance->vTable->serialRead) {
-        return instance->vTable->serialRead(instance);
+        return instance->vTable->serialRead(instance, data);
     }
     return 0;
 }

@@ -38,14 +38,15 @@ void RM_RTOS_Init() {
 
 void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
+    uint8_t* data = nullptr;
     while (true) {
-        if (main_serial) {
-            serialPrint(main_serial, "uart test\n");
-        }
-        // 检查是否有数据可读
-        if (serialRxBytesWaiting(main_serial) > 0) {
-            uint8_t ch = serialRead(main_serial);
-            _msp.process(ch, mspRequest, mspResponse, *main_serial);
+        uint32_t len = serialRead(main_serial, &data);
+        if (len > 0) {
+            char* c = (char*)data;
+            for (uint32_t i = 0; i < len; i++) {
+                _msp.process(*c, mspRequest, mspResponse, *main_serial);
+                c++;
+            }
         }
     }
 }
