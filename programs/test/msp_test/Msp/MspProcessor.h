@@ -25,7 +25,7 @@
 #include "Msp.h"
 #include "MspParser.h"
 #include "MspProcessor.h"
-#include "bsp_serial.h"
+#include "Device/serial/bsp_serial.h"
 // #include "Model/Model.h"
 // #include "Hardware.h"
 // #include "platform.h"
@@ -36,23 +36,23 @@ namespace RMFC {
           public:
             // MspProcessor(Model& model): _model(model) {}
 
-            bool process(char c, MspMessage& msg, MspResponse& res, Serial& s);
+            bool process(char c, MspMessage& msg, MspResponse& res, serialPort_t& s);
 
             void processCommand(MspMessage& m, MspResponse& r);
 
-            void sendResponse(MspResponse& r, Serial& s);
+            void sendResponse(MspResponse& r, serialPort_t& s);
 
-            void sendResponseV1(MspResponse& r, Serial& s);
+            void sendResponseV1(MspResponse& r, serialPort_t& s);
 
-            void sendResponseV2(MspResponse& r, Serial& s);
+            void sendResponseV2(MspResponse& r, serialPort_t& s);
 
             void postCommand();
 
             bool debugSkip(uint8_t cmd);
 
-            void debugMessage(const MspMessage& m, Serial* s);
+            void debugMessage(const MspMessage& m);
 
-            void debugResponse(const MspResponse& r, Serial* s);
+            void debugResponse(const MspResponse& r);
 
           private:
             // Model& _model;

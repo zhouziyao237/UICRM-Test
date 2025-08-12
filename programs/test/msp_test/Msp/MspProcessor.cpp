@@ -28,17 +28,21 @@
 #include "crc_check.h"
 #include "platform.h"
 #include "utils.h"
+#include "Device/serial/bsp_Serial.h"
+#include "Device/serial/DeviceSerial.h"
 
 // #include "Model/Model.h"
 // #include "Hardware.h"
 
 namespace RMFC {
     namespace Msp {
-        bool MspProcessor::process(char c, MspMessage& msg, MspResponse& res, Serial& s) {
+        bool MspProcessor::process(char c, MspMessage& msg, MspResponse& res, serialPort_t& s) {
             _parser.parse(c, msg);
 
             if (msg.state == MSP_STATE_RECEIVED) {
-                // debugMessage(msg, &s);
+            #ifdef DEBUG_MSP
+                debugMessage(msg, &s);
+            #endif
                 switch (msg.dir) {
                     case MSP_TYPE_CMD:
                         processCommand(msg, res);
@@ -1364,8 +1368,8 @@ namespace RMFC {
             }
         }
 
-        void MspProcessor::sendResponse(MspResponse& r, Serial& s) {
-            debugResponse(r, &s);
+        void MspProcessor::sendResponse(MspResponse& r, serialPort_t& s) {
+            // debugResponse(r);
             switch (r.version) {
                 case MSP_V1:
                     sendResponseV1(r, s);
@@ -1377,7 +1381,7 @@ namespace RMFC {
             postCommand();
         }
 
-        void MspProcessor::sendResponseV1(MspResponse& r, Serial& s) {
+        void MspProcessor::sendResponseV1(MspResponse& r, serialPort_t& s) {
             // TODO: optimize to write at once
             uint8_t hdr[5] = {'$', 'M', '>'};
             if (r.result == -1) {
@@ -1386,15 +1390,15 @@ namespace RMFC {
             hdr[3] = r.len;
             hdr[4] = r.cmd;
             uint8_t checksum = crc8_xor_update(0, &hdr[3], 2);
-            s.write(hdr, 5);
+            serialWriteBuf(&s, hdr, 5);
             if (r.len > 0) {
-                s.write(r.data, r.len);
+                serialWriteBuf(&s, r.data, r.len);
                 checksum = crc8_xor_update(checksum, r.data, r.len);
             }
-            s.write(&checksum, sizeof(checksum));
+            serialWriteBuf(&s, &checksum, sizeof(checksum));
         }
 
-        void MspProcessor::sendResponseV2(MspResponse& r, Serial& s) {
+        void MspProcessor::sendResponseV2(MspResponse& r, serialPort_t& s) {
             uint8_t hdr[8] = {'$', 'X', '>', 0};
             if (r.result == -1) {
                 hdr[2] = '!';  // error ??
@@ -1404,12 +1408,12 @@ namespace RMFC {
             hdr[6] = r.len & 0xff;
             hdr[7] = (r.len >> 8) & 0xff;
             uint8_t checksum = crc8_dvb_s2_update(0, &hdr[3], 5);
-            s.write(hdr, 8);
+            serialWriteBuf(&s, hdr, 8);
             if (r.len > 0) {
-                s.write(r.data, r.len);
+                serialWriteBuf(&s, r.data, r.len);
                 checksum = crc8_dvb_s2_update(checksum, r.data, r.len);
             }
-            s.write(&checksum, sizeof(checksum));
+            serialWriteBuf(&s, &checksum, sizeof(checksum));
         }
 
         void MspProcessor::postCommand() {
@@ -1451,36 +1455,36 @@ namespace RMFC {
             return false;
         }
 
-        void MspProcessor::debugMessage(const MspMessage& m, Serial* s) {
-            if (debugSkip(m.cmd))
-                return;
-            // Device::SerialDevice * s = _model.getSerialStream(SERIAL_FUNCTION_TELEMETRY_HOTT);
-            if (!s)
-                return;
-
-            s->print("%c ", m.dir == MSP_TYPE_REPLY ? '>' : '<');
-            s->print("%d ", m.cmd);
-            s->print("%d ", m.expected);
-            for (size_t i = 0; i < m.expected; i++) {
-                s->print("%d ", m.buffer[i]);
-            }
-            s->print("\r\n");
-        }
-
-        void MspProcessor::debugResponse(const MspResponse& r, Serial* s) {
-            if (debugSkip(r.cmd))
-                return;
-            // Device::SerialDevice* s = _model.getSerialStream(SERIAL_FUNCTION_TELEMETRY_HOTT);
-            if (!s)
-                return;
-
-            s->print("%c ", r.result == 1 ? '>' : (r.result == -1 ? '!' : '@'));
-            s->print("%d ", r.cmd);
-            s->print("%d ", r.len);
-            for (size_t i = 0; i < r.len; i++) {
-                s->print("%d ", r.data[i]);
-            }
-            s->print("\r\n");
-        }
+        // void MspProcessor::debugMessage(const MspMessage& m) {
+        //     if (debugSkip(m.cmd))
+        //         return;
+        //     serialPort_t* s = getSerialStream(FUNCTION_DEBUG);
+        //     if (!&s)
+        //         return;
+        //
+        //     serialPrintlnFormatted(s, "%c ", m.dir == MSP_TYPE_REPLY ? '>' : '<');
+        //     serialPrintlnFormatted(s, "%d ", m.cmd);
+        //     serialPrintlnFormatted(s, "%d ", m.expected);
+        //     for (size_t i = 0; i < m.expected; i++) {
+        //         serialPrintlnFormatted(s, "%d ", m.buffer[i]);
+        //     }
+        //     serialPrintlnFormatted(s, "\r\n");
+        // }
+        //
+        // void MspProcessor::debugResponse(const MspResponse& r) {
+        //     if (debugSkip(r.cmd))
+        //         return;
+        //     serialPort_t* s = getSerialStream(FUNCTION_DEBUG);
+        //     if (!&s)
+        //         return;
+        //
+        //     serialPrintFormatted(s, "%c ", r.result == 1 ? '>' : (r.result == -1 ? '!' : '@'));
+        //     serialPrintFormatted(s, "%d ", r.cmd);
+        //     serialPrintFormatted(s, "%d ", r.len);
+        //     for (size_t i = 0; i < r.len; i++) {
+        //         serialPrintFormatted(s, "%d ", r.data[i]);
+        //     }
+        //     serialPrintFormatted(s, "\r\n");
+        // }
     };  // namespace Msp
 };  // namespace RMFC

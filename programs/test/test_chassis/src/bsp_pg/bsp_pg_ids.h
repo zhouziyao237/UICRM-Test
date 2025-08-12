@@ -73,4 +73,8 @@
 #define SuperCap_PROFILE_COUNT 0
 #define PG_SuperCap_PROFILE 8 // struct OK, CF differences
 
+/* - FEATURE - */
+
+#define PG_FEATURE_CONFIG 19 // just has enabledFeatures
+
 #endif //BSP_PG_IDS_H

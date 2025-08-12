@@ -21,33 +21,31 @@
 //
 
 #include "main.h"
-
+#include "Device/serial/DeviceSerial.h"
+#include "Device/serial/bsp_Serial.h"
 #include "MspProcessor.h"
 #include "bsp_serial.h"
-#include "cmsis_os.h"
 
-Serial main_serial;
+serialPort_t* main_serial;
 RMFC::Msp::MspProcessor _msp;
 RMFC::Msp::MspMessage mspRequest;
 RMFC::Msp::MspResponse mspResponse;
 
 void RM_RTOS_Init() {
-    // main_serial.InitMainUart(&huart8, true, 115200);
-    main_serial.InitMainUsb();
-    main_serial.print("uart test\n");
+    // 使用新的Cleanflight风格串口接口打开USB串口
+    main_serial = newSerialPortUSB();
 }
 
 void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
-    uint8_t* data = nullptr;
     while (true) {
-        uint32_t len = main_serial.read(&data);
-        if (len > 0) {
-            char* c = (char*)data;
-            for (uint32_t i = 0; i < len; i++) {
-                _msp.process(*c, mspRequest, mspResponse, main_serial);
-                c++;
-            }
+        if (main_serial) {
+            serialPrint(main_serial, "uart test\n");
+        }
+        // 检查是否有数据可读
+        if (serialRxBytesWaiting(main_serial) > 0) {
+            uint8_t ch = serialRead(main_serial);
+            _msp.process(ch, mspRequest, mspResponse, *main_serial);
         }
     }
 }
