@@ -19,32 +19,38 @@
 // Created by Administrator on 2025/8/9.
 //
 
-#ifndef _ESPFC_MSP_PROCESSOR_H_
-#define _ESPFC_MSP_PROCESSOR_H_
+#ifndef _MSP_PROCESSOR_H_
+#define _MSP_PROCESSOR_H_
 
+#include "Device/bsp_serial/bsp_serial.h"
 #include "Msp.h"
 #include "MspParser.h"
 #include "MspProcessor.h"
-#include "Device/serial/bsp_serial.h"
+
 // #include "Model/Model.h"
 // #include "Hardware.h"
 // #include "platform.h"
 
 namespace RMFC {
-    namespace Msp {
+    namespace MSP {
         class MspProcessor {
           public:
             // MspProcessor(Model& model): _model(model) {}
+            void InitMSP(serialPort_t* Debug);
 
-            bool process(char c, MspMessage& msg, MspResponse& res, serialPort_t& s);
+            bool process(char data, MspMessage& msg, MspResponse& res, serialPort_t* SerialMSP);
+            // msp post process function, used for gracefully handling reboots, etc.
 
-            void processCommand(MspMessage& m, MspResponse& r);
+            typedef void (*mspPostProcessFnPtr)(struct serialPort_s* port);
 
-            void sendResponse(MspResponse& r, serialPort_t& s);
+            void processCommand(MspMessage& m, MspResponse& r,
+                                mspPostProcessFnPtr* mspPostProcessFn);
 
-            void sendResponseV1(MspResponse& r, serialPort_t& s);
+            void sendResponse(serialPort_t* SerialMSP, MspResponse& r);
 
-            void sendResponseV2(MspResponse& r, serialPort_t& s);
+            void sendResponseV1(serialPort_t* SerialMSP, MspResponse& r);
+
+            void sendResponseV2(serialPort_t* SerialMSP, MspResponse& r);
 
             void postCommand();
 
@@ -56,10 +62,10 @@ namespace RMFC {
 
           private:
             // Model& _model;
+            serialPort_t* SerialDebug;
             MspParser _parser;
-            bool _reboot;
         };
-    }  // namespace Msp
-}  // namespace Espfc
+    }  // namespace MSP
+}  // namespace RMFC
 
 #endif

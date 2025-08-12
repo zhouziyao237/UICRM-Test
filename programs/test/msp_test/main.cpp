@@ -21,30 +21,31 @@
 //
 
 #include "main.h"
-#include "Device/serial/DeviceSerial.h"
-#include "Device/serial/bsp_Serial.h"
+
+#include "Device/bsp_serial/DeviceSerial.h"
+#include "Device/bsp_serial/bsp_Serial.h"
 #include "MspProcessor.h"
 #include "bsp_serial.h"
 
-serialPort_t* main_serial;
-RMFC::Msp::MspProcessor _msp;
-RMFC::Msp::MspMessage mspRequest;
-RMFC::Msp::MspResponse mspResponse;
+serialPort_t* serialmsp;
+RMFC::MSP::MspProcessor _msp;
+RMFC::MSP::MspMessage mspRequest;
+RMFC::MSP::MspResponse mspResponse;
 
 void RM_RTOS_Init() {
     // 使用新的Cleanflight风格串口接口打开USB串口
-    main_serial = newSerialPortUSB();
+    serialmsp = newSerialPortUSB();
 }
 
 void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
     uint8_t* data = nullptr;
     while (true) {
-        uint32_t len = serialRead(main_serial, &data);
+        uint32_t len = serialRead(serialmsp, &data);
         if (len > 0) {
             char* c = (char*)data;
             for (uint32_t i = 0; i < len; i++) {
-                _msp.process(*c, mspRequest, mspResponse, *main_serial);
+                _msp.process(*c, mspRequest, mspResponse, serialmsp);
                 c++;
             }
         }

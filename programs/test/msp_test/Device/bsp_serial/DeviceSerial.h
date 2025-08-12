@@ -24,13 +24,18 @@
 #define DEVICESERIAL_H
 
 #include "Target.h"
+#include "bsp_pg/bsp_pg.h"
+#include "bsp_serial.h"
 #include "bsp_uart.h"
 #include "bsp_usb.h"
-#include "bsp_serial.h"
 
 #define SERIAL_PORT_IDENTIFIER_TO_INDEX(x) \
     (((x) <= SERIAL_PORT_USART8) ? (x) : (RESOURCE_SOFT_OFFSET + ((x) - SERIAL_PORT_SOFTSERIAL1)))
 #define SERIAL_PORT_IDENTIFIER_TO_UARTDEV(x) ((x) - SERIAL_PORT_USART1 + UARTDEV_1)
+#define BIT(x) (1 << (x))
+#define BITCOUNT(x) (((BX_(x) + (BX_(x) >> 4)) & 0x0F0F0F0F) % 255)
+#define BX_(x) \
+    ((x) - (((x) >> 1) & 0x77777777) - (((x) >> 2) & 0x33333333) - (((x) >> 3) & 0x11111111))
 
 namespace RMFC {
     typedef enum {
@@ -82,6 +87,7 @@ namespace RMFC {
 
     // serial port identifiers are now fixed, these values are used by MSP commands.
     typedef enum {
+        SERIAL_PORT_ALL = -2,
         SERIAL_PORT_NONE = -1,
         SERIAL_PORT_USART1 = 0,
         SERIAL_PORT_USART2,
@@ -105,11 +111,74 @@ namespace RMFC {
         serialPortIdentifier_e identifier;
     } serialPortUsage_t;
 
+    serialPort_t* findSharedSerialPort(uint16_t functionMask,
+                                       serialPortFunction_e sharedWithFunction);
+    serialPort_t* findNextSharedSerialPort(uint16_t functionMask,
+                                           serialPortFunction_e sharedWithFunction);
+
+    //
+    // configuration
+    //
+    typedef void serialConsumer(uint8_t);
+
+    typedef struct serialPortConfig_s {
+        uint16_t functionMask;
+        serialPortIdentifier_e identifier;
+        uint8_t msp_baudrateIndex;
+        uint8_t navigation_baudrateIndex;
+        uint8_t blackbox_baudrateIndex;
+        uint8_t telemetry_baudrateIndex;  // not used for all telemetry systems, e.g. HoTT only
+                                          // works at 19200.
+    } serialPortConfig_t;
+
+    typedef struct serialConfig_s {
+        serialPortConfig_t portConfigs[SERIAL_PORT_COUNT];
+        uint16_t serial_update_rate_hz;
+        uint8_t reboot_character;  // which byte is used to reboot. Default 'R', could be changed
+                                   // carefully to something else.
+    } serialConfig_t;
+
+    PG_DECLARE(serialConfig_t, serialConfig);
+
+    //
+    // configuration
+    //
+
+    void pgResetFn_serialConfig(serialConfig_t* serialConfig,
+                                int size);  //!!TODO remove need for this
+
+    void serialInit(bool softserialEnabled, serialPortIdentifier_e serialPortToDisable);
+    void serialRemovePort(serialPortIdentifier_e identifier);
+    uint8_t serialGetAvailablePortCount(void);
+    bool serialIsPortAvailable(serialPortIdentifier_e identifier);
+    bool isSerialConfigValid(const serialConfig_t* serialConfig);
+    serialPortConfig_t* serialFindPortConfiguration(serialPortIdentifier_e identifier);
+    bool doesConfigurationUsePort(serialPortIdentifier_e portIdentifier);
+    serialPortConfig_t* findSerialPortConfig(serialPortFunction_e function);
+    serialPortConfig_t* findNextSerialPortConfig(serialPortFunction_e function);
+    portSharing_e determinePortSharing(const serialPortConfig_t* portConfig,
+                                       serialPortFunction_e function);
+    bool isSerialPortShared(const serialPortConfig_t* portConfig, uint16_t functionMask,
+                            serialPortFunction_e sharedWithFunction);
+
+    serialPortUsage_t* findSerialPortUsageByIdentifier(serialPortIdentifier_e identifier);
+    int findSerialPortIndexByIdentifier(serialPortIdentifier_e identifier);
+
+    //
+    // runtime
+    //
+    serialPort_t* openSerialPort(serialPortIdentifier_e identifier, serialPortFunction_e function,
+                                 serialReceiveCallbackPtr rxCallback, void* rxCallbackData,
+                                 uint32_t baudrate, portMode_e mode, portOptions_e options);
+    void closeSerialPort(serialPort_t* serialPort);
+    void waitForSerialPortToFinishTransmitting(serialPort_t* serialPort);
     baudRate_e lookupBaudRateIndex(uint32_t baudRate);
-    serialPortUsage_t *findSerialPortUsageByIdentifier(const serialPortIdentifier_e identifier);
-    serialPortUsage_t *findSerialPortUsageByPort(const serialPort_t *serialPort);
-    serialPortUsage_t *findSerialPortUsageByFunction(const serialPortFunction_e function);
-    void serialInit(serialPortIdentifier_e serialPortToDisable);
+
+    //
+    // msp/cli/bootloader
+    //
+    void serialPassthrough(serialPort_t* left, serialPort_t* right, serialConsumer* leftC,
+                           serialConsumer* rightC);
 
 }  // namespace RMFC
 #endif  // DEVICESERIAL_H

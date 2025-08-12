@@ -19,8 +19,8 @@
 // Created by Administrator on 2025/8/9.
 //
 
-#ifndef _ESPFC_MSP_MSP_H_
-#define _ESPFC_MSP_MSP_H_
+#ifndef _MSP_H_
+#define _MSP_H_
 
 #include <cstring>
 
@@ -34,7 +34,7 @@ extern "C" {
 }
 
 namespace RMFC {
-    namespace Msp {
+    namespace MSP {
         static const size_t MSP_BUF_SIZE = 192;
 
         enum MspState {
@@ -69,13 +69,21 @@ namespace RMFC {
             uint16_t size;
         } __attribute__((packed));
 
+        typedef enum {
+            MSP_PENDING_NONE,
+            MSP_PENDING_BOOTLOADER_ROM,
+            MSP_PENDING_CLI,
+            MSP_PENDING_BOOTLOADER_FLASH,
+        } mspPendingSystemRequest_e;
+
         class MspMessage {
           public:
-            MspMessage() : state(MSP_STATE_IDLE), expected(0), received(0), read(0) {
+            MspMessage() : c_state(MSP_STATE_IDLE), expected(0), received(0), read(0) {
             }
-            MspState state;
+            MspState c_state;
             MspType dir;
             MspVersion version;
+            mspPendingSystemRequest_e pendingRequest;
             uint8_t flags;
             uint16_t cmd;
             uint16_t expected;
@@ -120,6 +128,6 @@ namespace RMFC {
             void writeU32(uint32_t v);
         };
     }  // namespace Msp
-}  // namespace Espfc
+}  // namespace RMFC
 
 #endif

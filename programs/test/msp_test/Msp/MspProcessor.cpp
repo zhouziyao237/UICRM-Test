@@ -21,46 +21,67 @@
 
 #include "MspProcessor.h"
 
+#include "Device/bsp_serial/DeviceSerial.h"
+#include "Device/bsp_serial/bsp_Serial.h"
 #include "Msp.h"
 #include "MspParser.h"
 #include "bsp_serial.h"
 #include "config/msp_protocol.h"
 #include "crc_check.h"
 #include "platform.h"
+#include "system.h"
 #include "utils.h"
-#include "Device/serial/bsp_Serial.h"
-#include "Device/serial/DeviceSerial.h"
 
 // #include "Model/Model.h"
 // #include "Hardware.h"
 
 namespace RMFC {
-    namespace Msp {
-        bool MspProcessor::process(char c, MspMessage& msg, MspResponse& res, serialPort_t& s) {
-            _parser.parse(c, msg);
+    namespace MSP {
 
-            if (msg.state == MSP_STATE_RECEIVED) {
-            #ifdef DEBUG_MSP
-                debugMessage(msg, &s);
-            #endif
+        void MspProcessor::InitMSP(serialPort_t* Debug) {
+#if defined(DEBUG_MSP)
+            SerialDebug = Debug;
+#else
+            UNUSED(Debug);
+#endif
+        }
+
+        static void mspRebootFn(serialPort_t* serialPort) {
+            UNUSED(serialPort);
+
+            systemReset();
+            // control should never return here.
+            while (true)
+                ;
+        }
+
+        bool MspProcessor::process(char data, MspMessage& msg, MspResponse& res,
+                                   serialPort_t* SerialMSP) {
+            _parser.parse(data, msg);
+
+            if (msg.c_state == MSP_STATE_RECEIVED) {
+#ifdef DEBUG_MSP
+                debugMessage(msg);
+#endif
                 switch (msg.dir) {
                     case MSP_TYPE_CMD:
-                        processCommand(msg, res);
-                        sendResponse(res, s);
+                        processCommand(msg, res, nullptr);
+                        sendResponse(SerialMSP, res);
                         msg = MspMessage();
                         res = MspResponse();
                         break;
                     case MSP_TYPE_REPLY:
-                        // processCommand(msg, s);
+                        // processCommand(msg);
                         break;
                 }
                 return true;
             }
 
-            return msg.state != MSP_STATE_IDLE;
+            return msg.c_state != MSP_STATE_IDLE;
         }
 
-        void MspProcessor::processCommand(MspMessage& m, MspResponse& r) {
+        void MspProcessor::processCommand(MspMessage& m, MspResponse& r,
+                                          mspPostProcessFnPtr* mspPostProcessFn) {
             r.cmd = m.cmd;
             r.version = m.version;
             r.result = 1;
@@ -95,14 +116,14 @@ namespace RMFC {
                         r.writeU8(0);  // signature
                     r.writeU8(255);    // mcu id: unknown
                     // 1.42
-                    r.writeU8(2);  // configuration state: configured
+                    r.writeU8(2);  // configuration c_state: configured
                     // 1.43
-                    // r.writeU16(_model.state.gyroPresent ? _model.state.gyroTimer.rate : 0);  //
-                    // sample rate
+                    // r.writeU16(_model.c_state.gyroPresent ? _model.c_state.gyroTimer.rate : 0);
+                    // // sample rate
                     // {
                     //   uint32_t problems = 0;
-                    //   if(_model.state.accelBias.x == 0 && _model.state.accelBias.y == 0 &&
-                    //   _model.state.accelBias.z == 0) {
+                    //   if(_model.c_state.accelBias.x == 0 && _model.c_state.accelBias.y == 0 &&
+                    //   _model.c_state.accelBias.z == 0) {
                     //     problems |= 1 << 0; // acc calibration required
                     //   }
                     //   if(_model.config.output.protocol == ESC_PROTOCOL_DISABLED) {
@@ -130,9 +151,9 @@ namespace RMFC {
                 case MSP_STATUS_EX:
 
                 case MSP_STATUS:
-                    // r.writeU16(_model.state.loopTimer.delta);
-                    // r.writeU16(_model.state.stats.loopTime());
-                    // r.writeU16(_model.state.i2cErrorCount); // i2c error count
+                    // r.writeU16(_model.c_state.loopTimer.delta);
+                    // r.writeU16(_model.c_state.stats.loopTime());
+                    // r.writeU16(_model.c_state.i2cErrorCount); // i2c error count
                     //         acc,     baro,    mag,     gps,     sonar,   gyro
                     // r.writeU16(_model.accelActive() | _model.baroActive() << 1 |
                     // _model.magActive()
@@ -142,15 +163,15 @@ namespace RMFC {
                     // _model.magActive()
                     // << 2 | 1 << 3 | 0 << 4 | _model.gyroActive() << 5);
 
-                    // r.writeU32(_model.state.modeMask); // flight mode flags
+                    // r.writeU32(_model.c_state.modeMask); // flight mode flags
 
                     r.writeU8(0);  // pid profile
-                    // r.writeU16(lrintf(_model.state.stats.getCpuLoad()));
+                    // r.writeU16(lrintf(_model.c_state.stats.getCpuLoad()));
                     if (m.cmd == MSP_STATUS_EX) {
                         r.writeU8(1);  // max profile count
                         r.writeU8(0);  // current rate profile index
                     } else {           // MSP_STATUS
-                        // r.writeU16(_model.state.gyroTimer.interval); // gyro cycle time
+                        // r.writeU16(_model.c_state.gyroTimer.interval); // gyro cycle time
                         r.writeU16(0);
                     }
 
@@ -159,7 +180,7 @@ namespace RMFC {
 
                     // Write arming disable flags
                     //          r.writeU8(ARMING_DISABLED_FLAGS_COUNT);  // 1 byte, flag count
-                    // r.writeU32(_model.state.armingDisabledFlags);  // 4 bytes, flags
+                    // r.writeU32(_model.c_state.armingDisabledFlags);  // 4 bytes, flags
                     r.writeU8(0);  // reboot required
                     break;
 
@@ -231,11 +252,11 @@ namespace RMFC {
                     break;
 
                 case MSP_ANALOG:
-                    // r.writeU8(toVbatVoltageLegacy(_model.state.battery.voltage));  // voltage in
-                    // 0.1V r.writeU16(0); // mah drawn r.writeU16(_model.getRssi()); // rssi
-                    // r.writeU16(toIbatCurrent(_model.state.battery.current));  // amperage in
-                    // 0.01A r.writeU16(toVbatVoltage(_model.state.battery.voltage));  // voltage in
-                    // 0.01V r.writeU16(toVbatVoltage(101));  // voltage in 0.01V
+                    // r.writeU8(toVbatVoltageLegacy(_model.c_state.battery.voltage));  // voltage
+                    // in 0.1V r.writeU16(0); // mah drawn r.writeU16(_model.getRssi()); // rssi
+                    // r.writeU16(toIbatCurrent(_model.c_state.battery.current));  // amperage in
+                    // 0.01A r.writeU16(toVbatVoltage(_model.c_state.battery.voltage));  // voltage
+                    // in 0.01V r.writeU16(toVbatVoltage(101));  // voltage in 0.01V
                     break;
 
                 case MSP_FEATURE_CONFIG:
@@ -278,26 +299,26 @@ namespace RMFC {
 
                 case MSP_BATTERY_STATE:
                     // battery characteristics
-                    // r.writeU8(_model.state.battery.cells); // cell count, 0 indicates battery not
-                    // detected.
+                    // r.writeU8(_model.c_state.battery.cells); // cell count, 0 indicates battery
+                    // not detected.
                     r.writeU16(0);  // capacity in mAh
 
-                    // battery state
-                    // r.writeU8(toVbatVoltageLegacy(_model.state.battery.voltage)); // in 0.1V
+                    // battery c_state
+                    // r.writeU8(toVbatVoltageLegacy(_model.c_state.battery.voltage)); // in 0.1V
                     // steps
                     r.writeU16(0);  // milliamp hours drawn from battery
-                    // r.writeU16(toIbatCurrent(_model.state.battery.current)); // send current in
+                    // r.writeU16(toIbatCurrent(_model.c_state.battery.current)); // send current in
                     // 0.01 A steps, range is -320A to 320A
 
                     // battery alerts
                     r.writeU8(0);
-                    // r.writeU16(toVbatVoltage(_model.state.battery.voltage)); // in 0.01 steps
+                    // r.writeU16(toVbatVoltage(_model.c_state.battery.voltage)); // in 0.01 steps
                     break;
 
                 case MSP_VOLTAGE_METERS:
                     for (int i = 0; i < 1; i++) {
                         r.writeU8(i + 10);  // meter id (10-19 vbat adc)
-                        // r.writeU8(toVbatVoltageLegacy(_model.state.battery.voltage));  // meter
+                        // r.writeU8(toVbatVoltageLegacy(_model.c_state.battery.voltage));  // meter
                         // value
                     }
                     break;
@@ -306,8 +327,8 @@ namespace RMFC {
                     for (int i = 0; i < 1; i++) {
                         r.writeU8(i + 10);  // meter id (10-19 ibat adc)
                         r.writeU16(0);      // mah drawn
-                        // r.writeU16(constrain(toIbatCurrent(_model.state.battery.current) * 10, 0,
-                        // 0xffff));  // meter value
+                        // r.writeU16(constrain(toIbatCurrent(_model.c_state.battery.current) * 10,
+                        // 0, 0xffff));  // meter value
                     }
                     break;
 
@@ -398,7 +419,7 @@ namespace RMFC {
                     // r.writeU8(_model.config.gyroAlign); // acc align, Starting with 4.0 gyro and
                     // acc alignment are the same r.writeU8(_model.config.magAlign);  // mag align
                     // //1.41+
-                    // r.writeU8(_model.state.gyroPresent ? 1 : 0); // gyro detection mask
+                    // r.writeU8(_model.c_state.gyroPresent ? 1 : 0); // gyro detection mask
                     // GYRO_1_MASK r.writeU8(0); // gyro_to_use r.writeU8(_model.config.gyroAlign);
                     // // gyro 1 r.writeU8(0); // gyro 2
                     break;
@@ -549,14 +570,14 @@ namespace RMFC {
                     // r.writeU16(lrintf(degrees(10) * 10.f)); // pitch [decidegrees]
                     // r.writeU16(lrintf(degrees(-10)));       // yaw   [degrees]
 
-                    // r.writeU16(lrintf(degrees(_model.state.angle.x) * 10.f)); // roll
-                    // [decidegrees] r.writeU16(lrintf(degrees(_model.state.angle.y) * 10.f)); //
-                    // pitch [decidegrees] r.writeU16(lrintf(degrees(-_model.state.angle.z))); //
+                    // r.writeU16(lrintf(degrees(_model.c_state.angle.x) * 10.f)); // roll
+                    // [decidegrees] r.writeU16(lrintf(degrees(_model.c_state.angle.y) * 10.f)); //
+                    // pitch [decidegrees] r.writeU16(lrintf(degrees(-_model.c_state.angle.z))); //
                     // yaw   [degrees]
                     break;
 
                 case MSP_ALTITUDE:
-                    // r.writeU32(lrintf(_model.state.baroAltitude * 100.f));    // alt [cm]
+                    // r.writeU32(lrintf(_model.c_state.baroAltitude * 100.f));    // alt [cm]
                     r.writeU16(0);  // vario
                     break;
 
@@ -602,7 +623,7 @@ namespace RMFC {
                     // r.writeU16(_model.config.output.minThrottle); // minthrottle
                     // r.writeU16(_model.config.output.maxThrottle); // maxthrottle
                     // r.writeU16(_model.config.output.minCommand);  // mincommand
-                    // r.writeU8(_model.state.currentMixer.count);   // motor count
+                    // r.writeU8(_model.c_state.currentMixer.count);   // motor count
                     // 1.42+
                     r.writeU8(14);  // motor pole count
                     r.writeU8(0);   // dshot telemtery
@@ -740,7 +761,7 @@ namespace RMFC {
                     break;
 
                 case MSP_RXFAIL_CONFIG:
-                    // for (size_t i = 0; i < _model.state.inputChannelCount; i++)
+                    // for (size_t i = 0; i < _model.c_state.inputChannelCount; i++)
                     // {
                     //   r.writeU8(_model.config.input.channel[i].fsMode);
                     //   r.writeU16(_model.config.input.channel[i].fsValue);
@@ -763,9 +784,9 @@ namespace RMFC {
                     break;
 
                 case MSP_RC:
-                    // for(size_t i = 0; i < _model.state.inputChannelCount; i++)
+                    // for(size_t i = 0; i < _model.c_state.inputChannelCount; i++)
                     // {
-                    //   r.writeU16(lrintf(_model.state.inputUs[i]));
+                    //   r.writeU16(lrintf(_model.c_state.inputUs[i]));
                     // }
                     break;
 
@@ -1218,15 +1239,15 @@ namespace RMFC {
                     //
                     //   for (int i = 0; i < 3; i++)
                     //   {
-                    //     r.writeU16(lrintf(_model.state.accel[i] * ACCEL_G_INV * 512.f));
+                    //     r.writeU16(lrintf(_model.c_state.accel[i] * ACCEL_G_INV * 512.f));
                     //   }
                     //   for (int i = 0; i < 3; i++)
                     //   {
-                    //     r.writeU16(lrintf(Math::toDeg(_model.state.gyro[i])));
+                    //     r.writeU16(lrintf(Math::toDeg(_model.c_state.gyro[i])));
                     //   }
                     //   for (int i = 0; i < 3; i++)
                     //   {
-                    //     r.writeU16(lrintf(_model.state.mag[i] * 1090));
+                    //     r.writeU16(lrintf(_model.c_state.mag[i] * 1090));
                     //   }
                     //   break;
                     //
@@ -1238,14 +1259,14 @@ namespace RMFC {
                     //       r.writeU16(0);
                     //       continue;
                     //     }
-                    //     r.writeU16(_model.state.outputUs[i]);
+                    //     r.writeU16(_model.c_state.outputUs[i]);
                     //   }
                     break;
 
                 case MSP_SET_MOTOR:
                     // for(size_t i = 0; i < OUTPUT_CHANNELS; i++)
                     // {
-                    //   _model.state.outputDisarmed[i] = m.readU16();
+                    //   _model.c_state.outputDisarmed[i] = m.readU16();
                     // }
                     break;
 
@@ -1258,7 +1279,7 @@ namespace RMFC {
                     //              r.writeU16(1500);
                     //              continue;
                     //            }
-                    //            r.writeU16(_model.state.outputUs[i]);
+                    //            r.writeU16(_model.c_state.outputUs[i]);
                     //          }
                     break;
 
@@ -1343,7 +1364,7 @@ namespace RMFC {
 
                 case MSP_DEBUG:
                     for (int i = 0; i < 4; i++) {
-                        // r.writeU16(_model.state.debug[i]);
+                        // r.writeU16(_model.c_state.debug[i]);
                     }
                     break;
 
@@ -1359,7 +1380,9 @@ namespace RMFC {
                     break;
 
                 case MSP_REBOOT:
-                    _reboot = true;
+                    if (mspPostProcessFn) {
+                        *mspPostProcessFn = mspRebootFn;
+                    }
                     break;
 
                 default:
@@ -1368,20 +1391,20 @@ namespace RMFC {
             }
         }
 
-        void MspProcessor::sendResponse(MspResponse& r, serialPort_t& s) {
-            // debugResponse(r);
+        void MspProcessor::sendResponse(serialPort_t* SerialMSP, MspResponse& r) {
+            debugResponse(r);
             switch (r.version) {
                 case MSP_V1:
-                    sendResponseV1(r, s);
+                    sendResponseV1(SerialMSP, r);
                     break;
                 case MSP_V2:
-                    sendResponseV2(r, s);
+                    sendResponseV2(SerialMSP, r);
                     break;
             }
-            postCommand();
+            // postCommand();
         }
 
-        void MspProcessor::sendResponseV1(MspResponse& r, serialPort_t& s) {
+        void MspProcessor::sendResponseV1(serialPort_t* SerialMSP, MspResponse& r) {
             // TODO: optimize to write at once
             uint8_t hdr[5] = {'$', 'M', '>'};
             if (r.result == -1) {
@@ -1390,15 +1413,15 @@ namespace RMFC {
             hdr[3] = r.len;
             hdr[4] = r.cmd;
             uint8_t checksum = crc8_xor_update(0, &hdr[3], 2);
-            serialWriteBuf(&s, hdr, 5);
+            serialWriteBuf(SerialMSP, hdr, 5);
             if (r.len > 0) {
-                serialWriteBuf(&s, r.data, r.len);
+                serialWriteBuf(SerialMSP, r.data, r.len);
                 checksum = crc8_xor_update(checksum, r.data, r.len);
             }
-            serialWriteBuf(&s, &checksum, sizeof(checksum));
+            serialWriteBuf(SerialMSP, &checksum, sizeof(checksum));
         }
 
-        void MspProcessor::sendResponseV2(MspResponse& r, serialPort_t& s) {
+        void MspProcessor::sendResponseV2(serialPort_t* SerialMSP, MspResponse& r) {
             uint8_t hdr[8] = {'$', 'X', '>', 0};
             if (r.result == -1) {
                 hdr[2] = '!';  // error ??
@@ -1408,19 +1431,12 @@ namespace RMFC {
             hdr[6] = r.len & 0xff;
             hdr[7] = (r.len >> 8) & 0xff;
             uint8_t checksum = crc8_dvb_s2_update(0, &hdr[3], 5);
-            serialWriteBuf(&s, hdr, 8);
+            serialWriteBuf(SerialMSP, hdr, 8);
             if (r.len > 0) {
-                serialWriteBuf(&s, r.data, r.len);
+                serialWriteBuf(SerialMSP, r.data, r.len);
                 checksum = crc8_dvb_s2_update(checksum, r.data, r.len);
             }
-            serialWriteBuf(&s, &checksum, sizeof(checksum));
-        }
-
-        void MspProcessor::postCommand() {
-            if (_reboot) {
-                // Hardware::restart(_model);
-                NVIC_SystemReset();
-            }
+            serialWriteBuf(SerialMSP, &checksum, sizeof(checksum));
         }
 
         bool MspProcessor::debugSkip(uint8_t cmd) {
@@ -1455,36 +1471,35 @@ namespace RMFC {
             return false;
         }
 
-        // void MspProcessor::debugMessage(const MspMessage& m) {
-        //     if (debugSkip(m.cmd))
-        //         return;
-        //     serialPort_t* s = getSerialStream(FUNCTION_DEBUG);
-        //     if (!&s)
-        //         return;
-        //
-        //     serialPrintlnFormatted(s, "%c ", m.dir == MSP_TYPE_REPLY ? '>' : '<');
-        //     serialPrintlnFormatted(s, "%d ", m.cmd);
-        //     serialPrintlnFormatted(s, "%d ", m.expected);
-        //     for (size_t i = 0; i < m.expected; i++) {
-        //         serialPrintlnFormatted(s, "%d ", m.buffer[i]);
-        //     }
-        //     serialPrintlnFormatted(s, "\r\n");
-        // }
-        //
-        // void MspProcessor::debugResponse(const MspResponse& r) {
-        //     if (debugSkip(r.cmd))
-        //         return;
-        //     serialPort_t* s = getSerialStream(FUNCTION_DEBUG);
-        //     if (!&s)
-        //         return;
-        //
-        //     serialPrintFormatted(s, "%c ", r.result == 1 ? '>' : (r.result == -1 ? '!' : '@'));
-        //     serialPrintFormatted(s, "%d ", r.cmd);
-        //     serialPrintFormatted(s, "%d ", r.len);
-        //     for (size_t i = 0; i < r.len; i++) {
-        //         serialPrintFormatted(s, "%d ", r.data[i]);
-        //     }
-        //     serialPrintFormatted(s, "\r\n");
-        // }
-    };  // namespace Msp
+        void MspProcessor::debugMessage(const MspMessage& m) {
+            if (debugSkip(m.cmd))
+                return;
+            if (!&SerialDebug)
+                return;
+
+            serialPrintlnFormatted(SerialDebug, "%c ", m.dir == MSP_TYPE_REPLY ? '>' : '<');
+            serialPrintlnFormatted(SerialDebug, "%d ", m.cmd);
+            serialPrintlnFormatted(SerialDebug, "%d ", m.expected);
+            for (size_t i = 0; i < m.expected; i++) {
+                serialPrintlnFormatted(SerialDebug, "%d ", m.buffer[i]);
+            }
+            serialPrintlnFormatted(SerialDebug, "\r\n");
+        }
+
+        void MspProcessor::debugResponse(const MspResponse& r) {
+            if (debugSkip(r.cmd))
+                return;
+            if (!&SerialDebug)
+                return;
+
+            serialPrintFormatted(SerialDebug, "%c ",
+                                 r.result == 1 ? '>' : (r.result == -1 ? '!' : '@'));
+            serialPrintFormatted(SerialDebug, "%d ", r.cmd);
+            serialPrintFormatted(SerialDebug, "%d ", r.len);
+            for (size_t i = 0; i < r.len; i++) {
+                serialPrintFormatted(SerialDebug, "%d ", r.data[i]);
+            }
+            serialPrintFormatted(SerialDebug, "\r\n");
+        }
+    };  // namespace MSP
 };  // namespace RMFC

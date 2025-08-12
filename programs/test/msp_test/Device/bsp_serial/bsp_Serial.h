@@ -20,17 +20,40 @@
 
 #pragma once
 
-#include "usart.h"
 #include <cstdarg>
+
+#include "usart.h"
 
 // 前向声明
 typedef struct serialPort_s serialPort_t;
-
-// 串口模式
 typedef enum { MODE_RX = 1 << 0, MODE_TX = 1 << 1, MODE_RXTX = MODE_RX | MODE_TX } portMode_e;
-
-// 串口选项
-typedef enum { SERIAL_NOT_INVERTED = 0, SERIAL_INVERTED = 1 << 0 } portOptions_e;
+typedef enum {
+    SERIAL_NOT_INVERTED = 0 << 0,
+    SERIAL_INVERTED = 1 << 0,
+    SERIAL_STOPBITS_1 = 0 << 1,
+    SERIAL_STOPBITS_2 = 1 << 1,
+    SERIAL_PARITY_NO = 0 << 2,
+    SERIAL_PARITY_EVEN = 1 << 2,
+    SERIAL_UNIDIR = 0 << 3,
+    SERIAL_BIDIR = 1 << 3,
+    /*
+     * Note on SERIAL_BIDIR_PP
+     * With SERIAL_BIDIR_PP, the very first start bit of back-to-back bytes
+     * is lost and the first data byte will be lost by a framing error.
+     * To ensure the first start bit to be sent, prepend a zero byte (0x00)
+     * to actual data bytes.
+     */
+    SERIAL_BIDIR_OD = 0 << 4,
+    SERIAL_BIDIR_PP = 1 << 4,
+    SERIAL_BIDIR_NOPULL = 1 << 5,  // disable pulls in BIDIR RX mode
+    SERIAL_BIDIR_PP_PD = 1 << 6,   // PP mode, normall inverted, but with PullDowns, to fix SA after
+                                   // bidir issue fixed (#10220)
+    // If this option is set then switch the TX line to input when not in use to detect it being
+    // pulled low
+    SERIAL_CHECK_TX = 1 << 7,
+} portOptions_e;
+typedef void (*serialReceiveCallbackPtr)(
+    uint16_t data, void* rxCallbackData);  // used by serial drivers to return frames to app
 
 // 虚函数表，定义了串口的各种操作
 struct serialPortVTable {
@@ -53,10 +76,13 @@ typedef struct serialPort_s {
     portMode_e mode;
     portOptions_e options;
     uint32_t baudRate;
-    void (*rxCallback)(serialPort_t* instance, uint8_t ch);
+    serialReceiveCallbackPtr rxCallback;
     void* rxCallbackData;
     void* privateData;
 } serialPort_t;
+
+#define TELEMETRY_SHAREABLE_PORT_FUNCTIONS_MASK (FUNCTION_TELEMETRY_FRSKY_HUB | FUNCTION_TELEMETRY_LTM | FUNCTION_TELEMETRY_MAVLINK)
+#define TELEMETRY_PORT_FUNCTIONS_MASK (TELEMETRY_SHAREABLE_PORT_FUNCTIONS_MASK | FUNCTION_TELEMETRY_HOTT | FUNCTION_TELEMETRY_SMARTPORT)
 
 // 公共接口函数
 void serialWrite(serialPort_t* instance, uint8_t ch);

@@ -32,7 +32,7 @@ extern "C" {
 }
 namespace RMFC {
 
-    namespace Msp {
+    namespace MSP {
         int MspMessage::remain() {
             return received - read;
         }

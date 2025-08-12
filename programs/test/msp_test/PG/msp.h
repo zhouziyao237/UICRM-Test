@@ -16,26 +16,12 @@
 // Public License along with this program.  If not, see
 // <https://www.gnu.org/licenses/>.
 
-//
-// Created by Administrator on 2025/8/10.
-//
+#pragma once
 
-#ifndef TARGET_H
-#define TARGET_H
+#include "Device/bsp_pg/bsp_pg.h"
 
+typedef struct mspConfig_s {
+    uint8_t halfDuplex;  // allow msp to operate in half duplex mode
+} mspConfig_t;
 
-#define SERIAL_PORT_COUNT 7
-
-#define SerialUART
-
-#define SerialUSB_VCP VCP_DEV
-#define SerialUART_1 &huart1
-#define SerialUART_2 &huart2
-#define SerialUART_3 &huart3
-#define SerialUART_6 &huart6
-#define SerialUART_7 &huart7
-#define SerialUART_8 &huart8
-
-#define SerialUART_SOFTSERIAL2
-
-#endif //TARGET_H
+PG_DECLARE(mspConfig_t, mspConfig);
