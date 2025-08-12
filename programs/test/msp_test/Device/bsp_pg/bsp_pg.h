@@ -106,18 +106,6 @@ extern const uint8_t __pg_resetdata_end[];
 
 #endif
 
-#define MIN(a, b)               \
-    __extension__({             \
-        __typeof__(a) _a = (a); \
-        __typeof__(b) _b = (b); \
-        _a < _b ? _a : _b;      \
-    })
-#define MAX(a, b)               \
-    __extension__({             \
-        __typeof__(a) _a = (a); \
-        __typeof__(b) _b = (b); \
-        _a > _b ? _a : _b;      \
-    })
 #define ABS(x)                  \
     __extension__({             \
         __typeof__(x) _x = (x); \
@@ -200,7 +188,7 @@ extern const uint8_t __pg_resetdata_end[];
     /**/
 
 #define PG_REGISTER_WITH_RESET_FN(_type, _name, _pgn, _version)                                    \
-    extern void pgResetFn_##_name(_type*);                                                         \
+    extern void pgResetFn_##_name(_type*, int);                                                    \
     PG_REGISTER_I(_type, _name, _pgn, _version, .reset = {.fn = (pgResetFunc*)&pgResetFn_##_name}) \
     /**/
 
@@ -228,7 +216,7 @@ extern const uint8_t __pg_resetdata_end[];
     /**/
 
 #define PG_REGISTER_ARRAY_WITH_RESET_FN(_type, _size, _name, _pgn, _version) \
-    extern void pgResetFn_##_name(_type*);                                   \
+    extern void pgResetFn_##_name(_type*, int);                              \
     PG_REGISTER_ARRAY_I(_type, _size, _name, _pgn, _version,                 \
                         .reset = {.fn = (pgResetFunc*)&pgResetFn_##_name})   \
     /**/

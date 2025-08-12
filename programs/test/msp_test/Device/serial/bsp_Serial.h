@@ -25,12 +25,10 @@
 
 // 前向声明
 typedef struct serialPort_s serialPort_t;
-
-// 串口模式
 typedef enum { MODE_RX = 1 << 0, MODE_TX = 1 << 1, MODE_RXTX = MODE_RX | MODE_TX } portMode_e;
-
-// 串口选项
 typedef enum { SERIAL_NOT_INVERTED = 0, SERIAL_INVERTED = 1 << 0 } portOptions_e;
+typedef void (*serialReceiveCallbackPtr)(
+    uint16_t data, void* rxCallbackData);  // used by serial drivers to return frames to app
 
 // 虚函数表，定义了串口的各种操作
 struct serialPortVTable {
@@ -53,7 +51,7 @@ typedef struct serialPort_s {
     portMode_e mode;
     portOptions_e options;
     uint32_t baudRate;
-    void (*rxCallback)(serialPort_t* instance, uint8_t ch);
+    serialReceiveCallbackPtr rxCallback;
     void* rxCallbackData;
     void* privateData;
 } serialPort_t;

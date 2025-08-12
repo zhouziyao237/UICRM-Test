@@ -36,7 +36,17 @@
 
 namespace RMFC {
     namespace Msp {
-        bool MspProcessor::process(char c, MspMessage& msg, MspResponse& res, serialPort_t& s) {
+
+        void MspProcessor::InitMSP(serialPort_t* MSP, serialPort_t* Debug) {
+            SerialMSP = MSP;
+#if defined(DEBUG_MSP)
+            SerialDebug = Debug;
+#else
+            UNUSED(Debug);
+#endif
+        }
+
+        bool MspProcessor::process(char c, MspMessage& msg, MspResponse& res) {
             _parser.parse(c, msg);
 
             if (msg.state == MSP_STATE_RECEIVED) {
@@ -46,12 +56,12 @@ namespace RMFC {
                 switch (msg.dir) {
                     case MSP_TYPE_CMD:
                         processCommand(msg, res);
-                        sendResponse(res, s);
+                        sendResponse(res);
                         msg = MspMessage();
                         res = MspResponse();
                         break;
                     case MSP_TYPE_REPLY:
-                        // processCommand(msg, s);
+                        // processCommand(msg);
                         break;
                 }
                 return true;
@@ -1368,20 +1378,20 @@ namespace RMFC {
             }
         }
 
-        void MspProcessor::sendResponse(MspResponse& r, serialPort_t& s) {
-            // debugResponse(r);
+        void MspProcessor::sendResponse(MspResponse& r) {
+            debugResponse(r);
             switch (r.version) {
                 case MSP_V1:
-                    sendResponseV1(r, s);
+                    sendResponseV1(r);
                     break;
                 case MSP_V2:
-                    sendResponseV2(r, s);
+                    sendResponseV2(r);
                     break;
             }
             postCommand();
         }
 
-        void MspProcessor::sendResponseV1(MspResponse& r, serialPort_t& s) {
+        void MspProcessor::sendResponseV1(MspResponse& r) {
             // TODO: optimize to write at once
             uint8_t hdr[5] = {'$', 'M', '>'};
             if (r.result == -1) {
@@ -1390,15 +1400,15 @@ namespace RMFC {
             hdr[3] = r.len;
             hdr[4] = r.cmd;
             uint8_t checksum = crc8_xor_update(0, &hdr[3], 2);
-            serialWriteBuf(&s, hdr, 5);
+            serialWriteBuf(SerialMSP, hdr, 5);
             if (r.len > 0) {
-                serialWriteBuf(&s, r.data, r.len);
+                serialWriteBuf(SerialMSP, r.data, r.len);
                 checksum = crc8_xor_update(checksum, r.data, r.len);
             }
-            serialWriteBuf(&s, &checksum, sizeof(checksum));
+            serialWriteBuf(SerialMSP, &checksum, sizeof(checksum));
         }
 
-        void MspProcessor::sendResponseV2(MspResponse& r, serialPort_t& s) {
+        void MspProcessor::sendResponseV2(MspResponse& r) {
             uint8_t hdr[8] = {'$', 'X', '>', 0};
             if (r.result == -1) {
                 hdr[2] = '!';  // error ??
@@ -1408,12 +1418,12 @@ namespace RMFC {
             hdr[6] = r.len & 0xff;
             hdr[7] = (r.len >> 8) & 0xff;
             uint8_t checksum = crc8_dvb_s2_update(0, &hdr[3], 5);
-            serialWriteBuf(&s, hdr, 8);
+            serialWriteBuf(SerialMSP, hdr, 8);
             if (r.len > 0) {
-                serialWriteBuf(&s, r.data, r.len);
+                serialWriteBuf(SerialMSP, r.data, r.len);
                 checksum = crc8_dvb_s2_update(checksum, r.data, r.len);
             }
-            serialWriteBuf(&s, &checksum, sizeof(checksum));
+            serialWriteBuf(SerialMSP, &checksum, sizeof(checksum));
         }
 
         void MspProcessor::postCommand() {
@@ -1455,36 +1465,35 @@ namespace RMFC {
             return false;
         }
 
-        // void MspProcessor::debugMessage(const MspMessage& m) {
-        //     if (debugSkip(m.cmd))
-        //         return;
-        //     serialPort_t* s = getSerialStream(FUNCTION_DEBUG);
-        //     if (!&s)
-        //         return;
-        //
-        //     serialPrintlnFormatted(s, "%c ", m.dir == MSP_TYPE_REPLY ? '>' : '<');
-        //     serialPrintlnFormatted(s, "%d ", m.cmd);
-        //     serialPrintlnFormatted(s, "%d ", m.expected);
-        //     for (size_t i = 0; i < m.expected; i++) {
-        //         serialPrintlnFormatted(s, "%d ", m.buffer[i]);
-        //     }
-        //     serialPrintlnFormatted(s, "\r\n");
-        // }
-        //
-        // void MspProcessor::debugResponse(const MspResponse& r) {
-        //     if (debugSkip(r.cmd))
-        //         return;
-        //     serialPort_t* s = getSerialStream(FUNCTION_DEBUG);
-        //     if (!&s)
-        //         return;
-        //
-        //     serialPrintFormatted(s, "%c ", r.result == 1 ? '>' : (r.result == -1 ? '!' : '@'));
-        //     serialPrintFormatted(s, "%d ", r.cmd);
-        //     serialPrintFormatted(s, "%d ", r.len);
-        //     for (size_t i = 0; i < r.len; i++) {
-        //         serialPrintFormatted(s, "%d ", r.data[i]);
-        //     }
-        //     serialPrintFormatted(s, "\r\n");
-        // }
+        void MspProcessor::debugMessage(const MspMessage& m) {
+            if (debugSkip(m.cmd))
+                return;
+            if (!&SerialDebug)
+                return;
+
+            serialPrintlnFormatted(SerialDebug, "%c ", m.dir == MSP_TYPE_REPLY ? '>' : '<');
+            serialPrintlnFormatted(SerialDebug, "%d ", m.cmd);
+            serialPrintlnFormatted(SerialDebug, "%d ", m.expected);
+            for (size_t i = 0; i < m.expected; i++) {
+                serialPrintlnFormatted(SerialDebug, "%d ", m.buffer[i]);
+            }
+            serialPrintlnFormatted(SerialDebug, "\r\n");
+        }
+
+        void MspProcessor::debugResponse(const MspResponse& r) {
+            if (debugSkip(r.cmd))
+                return;
+            if (!&SerialDebug)
+                return;
+
+            serialPrintFormatted(SerialDebug, "%c ",
+                                 r.result == 1 ? '>' : (r.result == -1 ? '!' : '@'));
+            serialPrintFormatted(SerialDebug, "%d ", r.cmd);
+            serialPrintFormatted(SerialDebug, "%d ", r.len);
+            for (size_t i = 0; i < r.len; i++) {
+                serialPrintFormatted(SerialDebug, "%d ", r.data[i]);
+            }
+            serialPrintFormatted(SerialDebug, "\r\n");
+        }
     };  // namespace Msp
 };  // namespace RMFC

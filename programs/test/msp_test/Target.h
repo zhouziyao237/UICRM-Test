@@ -26,16 +26,17 @@
 
 #define SERIAL_PORT_COUNT 7
 
-#define SerialUART
+#define MAX_MSP_PORT_COUNT 3
 
-#define SerialUSB_VCP VCP_DEV
-#define SerialUART_1 &huart1
-#define SerialUART_2 &huart2
-#define SerialUART_3 &huart3
-#define SerialUART_6 &huart6
-#define SerialUART_7 &huart7
-#define SerialUART_8 &huart8
+#define USEUSB_VCP
+#define USEUART
+#define USEUART_1
+#define USEUART_2
+#define USEUART_3
+#define USEUART_6
+#define USEUART_7
+#define USEUART_8
 
-#define SerialUART_SOFTSERIAL2
+// #define DEBUG_MSP
 
 #endif //TARGET_H

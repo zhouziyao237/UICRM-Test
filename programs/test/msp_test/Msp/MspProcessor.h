@@ -35,16 +35,17 @@ namespace RMFC {
         class MspProcessor {
           public:
             // MspProcessor(Model& model): _model(model) {}
+            void InitMSP(serialPort_t* MSP, serialPort_t* Debug);
 
-            bool process(char c, MspMessage& msg, MspResponse& res, serialPort_t& s);
+            bool process(char c, MspMessage& msg, MspResponse& res);
 
             void processCommand(MspMessage& m, MspResponse& r);
 
-            void sendResponse(MspResponse& r, serialPort_t& s);
+            void sendResponse(MspResponse& r);
 
-            void sendResponseV1(MspResponse& r, serialPort_t& s);
+            void sendResponseV1(MspResponse& r);
 
-            void sendResponseV2(MspResponse& r, serialPort_t& s);
+            void sendResponseV2(MspResponse& r);
 
             void postCommand();
 
@@ -56,6 +57,8 @@ namespace RMFC {
 
           private:
             // Model& _model;
+            serialPort_t* SerialDebug;
+            serialPort_t* SerialMSP;
             MspParser _parser;
             bool _reboot;
         };

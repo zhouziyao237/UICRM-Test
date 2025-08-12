@@ -74,7 +74,10 @@
 #define PG_SuperCap_PROFILE 8 // struct OK, CF differences
 
 /* - FEATURE - */
-
 #define PG_FEATURE_CONFIG 19 // just has enabledFeatures
+
+/* - SerialConfig - */
+#define Serial_Version 0
+#define PG_SERIAL_CONFIG 9
 
 #endif //BSP_PG_IDS_H
