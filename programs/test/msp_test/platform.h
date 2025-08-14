@@ -21,6 +21,8 @@
 
 #pragma once
 
+#define BOARD_NAME "RMFC"
+
 #define USE_BLACKBOX
 #define USE_ACC
 #define USE_MAG
@@ -41,6 +43,10 @@
 #else
 #error "Unsupported platform"
 #endif
+
+#define U_ID_0 (*(uint32_t*)0x1fff7a10)
+#define U_ID_1 (*(uint32_t*)0x1fff7a14)
+#define U_ID_2 (*(uint32_t*)0x1fff7a18)
 
 #ifndef ESPFC_REVISION
 #define ESPFC_REVISION 0000000

@@ -33,6 +33,14 @@
 
 namespace RMFC {
     namespace MSP {
+
+        typedef enum {
+            MSP_RESULT_ACK = 1,
+            MSP_RESULT_ERROR = -1,
+            MSP_RESULT_NO_REPLY = 0,
+            MSP_RESULT_CMD_UNKNOWN = -2,  // don't know how to process command, try next handler
+        } mspResult_e;
+
         class MspProcessor {
           public:
             // MspProcessor(Model& model): _model(model) {}
@@ -43,8 +51,8 @@ namespace RMFC {
 
             typedef void (*mspPostProcessFnPtr)(struct serialPort_s* port);
 
-            void processCommand(MspMessage& m, MspResponse& r,
-                                mspPostProcessFnPtr* mspPostProcessFn);
+            mspResult_e processCommand(MspMessage& m, MspResponse& r,
+                                       mspPostProcessFnPtr* mspPostProcessFn);
 
             void sendResponse(serialPort_t* SerialMSP, MspResponse& r);
 

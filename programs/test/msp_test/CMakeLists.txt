@@ -5,6 +5,7 @@ file(GLOB_RECURSE SOURCES
     "*.cpp"
         "Msp/*cpp"
     "Device/serial/*.cpp"
+        "Device/*.cpp"
         "System/*.cpp"
         "PG/*.cpp"
 )

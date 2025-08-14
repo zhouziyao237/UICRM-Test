@@ -26,60 +26,70 @@
 #include "bsp_pg_ids.h"
 
 
-static uint32_t activeFeaturesLatch = 0;
-
-PG_REGISTER_WITH_RESET_TEMPLATE(featureConfig_t, featureConfig, PG_FEATURE_CONFIG, 0);
+PG_REGISTER_WITH_RESET_TEMPLATE(featureConfig_t, featureConfig, PG_FEATURE_CONFIG, 1);
 
 PG_RESET_TEMPLATE(featureConfig_t, featureConfig,
-    .enabledFeatures = DEFAULT_FEATURES | DEFAULT_RX_FEATURE
-);
+                  .enabledFeatures = DEFAULT_FEATURES | DEFAULT_RX_FEATURE | FEATURE_ANTI_GRAVITY |
+                                     FEATURE_AIRMODE, );
 
-void intFeatureSet(uint32_t mask, uint32_t *features)
-{
+static uint32_t runtimeFeatureMask;
+
+void featureInit(void) {
+    runtimeFeatureMask = featureConfig()->enabledFeatures;
+}
+
+static void featureSet(const uint32_t mask, uint32_t* features) {
     *features |= mask;
 }
 
-void intFeatureClear(uint32_t mask, uint32_t *features)
-{
+static void featureClear(const uint32_t mask, uint32_t* features) {
     *features &= ~(mask);
 }
 
-void intFeatureClearAll(uint32_t *features)
-{
-    *features = 0;
+// Determines if the feature is enabled (active) in the runtime state.
+// This is the primary funciton used by code that wants to know if a
+// feature is available.
+bool featureIsEnabled(const uint32_t mask) {
+    return runtimeFeatureMask & mask;
 }
 
-void latchActiveFeatures(void)
-{
-    activeFeaturesLatch = featureConfig()->enabledFeatures;
-}
-
-bool featureConfigured(uint32_t mask)
-{
+// Determines if the feature is configured (set in the configuration). Doesn't mean the
+// feature is active in the runtime. This function *SHOULD ONLY* be used in the config check
+// performed at startup and when writing to EEPROM.
+bool featureIsConfigured(const uint32_t mask) {
     return featureConfig()->enabledFeatures & mask;
 }
 
-bool feature(uint32_t mask)
-{
-    return activeFeaturesLatch & mask;
+// Updates the configuration *AND* runtime state of a feature.
+// Used *ONLY* by the config check process that runs at startup and EEPROM save.
+void featureEnableImmediate(const uint32_t mask) {
+    featureSet(mask, &featureConfigMutable()->enabledFeatures);
+    featureSet(mask, &runtimeFeatureMask);
 }
 
-void featureSet(uint32_t mask)
-{
-    intFeatureSet(mask, &featureConfigMutable()->enabledFeatures);
+// Updates the configuration *AND* runtime state of a feature.
+// Used *ONLY* by the config check process that runs at startup and EEPROM save.
+void featureDisableImmediate(const uint32_t mask) {
+    featureClear(mask, &featureConfigMutable()->enabledFeatures);
+    featureClear(mask, &runtimeFeatureMask);
 }
 
-void featureClear(uint32_t mask)
-{
-    intFeatureClear(mask, &featureConfigMutable()->enabledFeatures);
+// Sets the configuration state of the feature and *DOES NOT* change the runtime state.
+// For example, used by the CLI "feature" command. Use this function if you want to
+// enable a feature that will be active after save/reboot.
+void featureConfigSet(const uint32_t mask) {
+    featureSet(mask, &featureConfigMutable()->enabledFeatures);
 }
 
-void featureClearAll(void)
-{
-    intFeatureClearAll(&featureConfigMutable()->enabledFeatures);
+// Sets the configuration state of the feature and *DOES NOT* change the runtime state.
+// For example, used by the CLI "feature" command. Use this function if you want to
+// disable a feature after a save/reboot.
+void featureConfigClear(const uint32_t mask) {
+    featureClear(mask, &featureConfigMutable()->enabledFeatures);
 }
 
-uint32_t featureMask(void)
-{
-    return featureConfig()->enabledFeatures;
+// Sets the configuration state of all features and *DOES NOT* change the runtime state.
+// For example, used by MSP to update all the configured features in one go.
+void featureConfigReplace(const uint32_t mask) {
+    featureConfigMutable()->enabledFeatures = mask;
 }
