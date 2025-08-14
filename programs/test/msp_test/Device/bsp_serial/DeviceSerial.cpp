@@ -25,37 +25,38 @@
 #include "bsp_uart.h"
 #include "bsp_usb.h"
 #include "cmsis_os2.h"
+#include "target.h"
 
 namespace RMFC {
 
     const serialPortIdentifier_e serialPortIdentifiers[SERIAL_PORT_COUNT] = {
-#ifdef USEUART_VCP
+#ifdef USEUSB_VCP
         SERIAL_PORT_USB_VCP,
-    #endif
+#endif
 #ifdef USEUART_1
         SERIAL_PORT_USART1,
-    #endif
+#endif
 #ifdef USEUART_2
         SERIAL_PORT_USART2,
-    #endif
+#endif
 #ifdef USEUART_3
         SERIAL_PORT_USART3,
-    #endif
+#endif
 #ifdef USEUART_4
         SERIAL_PORT_UART4,
-    #endif
+#endif
 #ifdef USEUART_5
         SERIAL_PORT_UART5,
-    #endif
+#endif
 #ifdef USEUART_6
         SERIAL_PORT_USART6,
-    #endif
+#endif
 #ifdef USEUART_7
         SERIAL_PORT_USART7,
-    #endif
+#endif
 #ifdef USEUART_8
         SERIAL_PORT_USART8,
-    #endif
+#endif
     };
 
     static uint8_t serialPortCount;
@@ -66,7 +67,7 @@ namespace RMFC {
                                   230400,  250000,  400000,  460800, 500000, 921600,
                                   1000000, 1500000, 2000000, 2470000};  // see baudRate_e
 
-    #define BAUD_RATE_COUNT (sizeof(baudRates) / sizeof(baudRates[0]))
+#define BAUD_RATE_COUNT (sizeof(baudRates) / sizeof(baudRates[0]))
 
     //
     // Serial Port PG
@@ -103,9 +104,13 @@ namespace RMFC {
         }
 #endif
 
-#if defined(USE_VCP) && defined(USE_MSP_UART)
+#if defined(USEUSB_VCP) && defined(USEUART)
         if (serialConfig->portConfigs[0].identifier == SERIAL_PORT_USB_VCP) {
+#if defined(MSP_FUNCTION_DEBUG)
+            serialPortConfig_t* uart1Config = serialFindPortConfiguration(MSP_FUNCTION_DEBUG);
+#else
             serialPortConfig_t* uart1Config = serialFindPortConfiguration(SERIAL_PORT_USART1);
+#endif
             if (uart1Config) {
                 uart1Config->functionMask = FUNCTION_MSP;
             }
@@ -120,8 +125,7 @@ namespace RMFC {
     // Serial Port Usage
     //
 
-    baudRate_e lookupBaudRateIndex(uint32_t baudRate)
-    {
+    baudRate_e lookupBaudRateIndex(uint32_t baudRate) {
         for (uint8_t index = 0; index < BAUD_RATE_COUNT; index++) {
             if (baudRates[index] == baudRate) {
                 return static_cast<baudRate_e>(index);
@@ -130,10 +134,10 @@ namespace RMFC {
         return BAUD_AUTO;
     }
 
-    serialPortUsage_t *findSerialPortUsageByIdentifier(const serialPortIdentifier_e identifier) {
+    serialPortUsage_t* findSerialPortUsageByIdentifier(const serialPortIdentifier_e identifier) {
         uint8_t index;
         for (index = 0; index < SERIAL_PORT_COUNT; index++) {
-            serialPortUsage_t *candidate = &serialPortUsageList[index];
+            serialPortUsage_t* candidate = &serialPortUsageList[index];
             if (candidate->identifier == identifier) {
                 return candidate;
             }
@@ -141,10 +145,10 @@ namespace RMFC {
         return NULL;
     }
 
-    serialPortUsage_t *findSerialPortUsageByPort(const serialPort_t *serialPort) {
+    serialPortUsage_t* findSerialPortUsageByPort(const serialPort_t* serialPort) {
         uint8_t index;
         for (index = 0; index < SERIAL_PORT_COUNT; index++) {
-            serialPortUsage_t *candidate = &serialPortUsageList[index];
+            serialPortUsage_t* candidate = &serialPortUsageList[index];
             if (candidate->serialPort == serialPort) {
                 return candidate;
             }
@@ -316,31 +320,47 @@ namespace RMFC {
                 break;
 #endif
 
-#if defined(SerialUART)
+#if defined(USEUART)
 #ifdef USEUART_1
             case SERIAL_PORT_USART1:
+                serialPort = newSerialPort(USEUART_1, baudRate, mode, options);
+                break;
 #endif
 #ifdef USEUART_2
             case SERIAL_PORT_USART2:
+                serialPort = newSerialPort(USEUART_2, baudRate, mode, options);
+                break;
 #endif
-#ifdef SerialUART_3
+#ifdef USEUART_3
             case SERIAL_PORT_USART3:
+                serialPort = newSerialPort(USEUART_3, baudRate, mode, options);
+                break;
 #endif
 #ifdef USEUART_4
             case SERIAL_PORT_UART4:
+                serialPort = newSerialPort(USEUART_4, baudRate, mode, options);
+                break;
 #endif
-#ifdef SerialUART_5
+#ifdef USEUART_5
             case SERIAL_PORT_UART5:
+                serialPort = newSerialPort(USEUART_5, baudRate, mode, options);
+                break;
+#endif
 #endif
 #ifdef USEUART_6
             case SERIAL_PORT_USART6:
+                serialPort = newSerialPort(USEUART_6, baudRate, mode, options);
+                break;
 #endif
 #ifdef USEUART_7
             case SERIAL_PORT_USART7:
+                serialPort = newSerialPort(USEUART_7, baudRate, mode, options);
+                break;
 #endif
 #ifdef USEUART_8
             case SERIAL_PORT_USART8:
-#endif
+                serialPort = newSerialPort(USEUART_8, baudRate, mode, options);
+                break;
 #endif
             default:
                 break;

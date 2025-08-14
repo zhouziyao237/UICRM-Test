@@ -81,8 +81,11 @@ typedef struct serialPort_s {
     void* privateData;
 } serialPort_t;
 
-#define TELEMETRY_SHAREABLE_PORT_FUNCTIONS_MASK (FUNCTION_TELEMETRY_FRSKY_HUB | FUNCTION_TELEMETRY_LTM | FUNCTION_TELEMETRY_MAVLINK)
-#define TELEMETRY_PORT_FUNCTIONS_MASK (TELEMETRY_SHAREABLE_PORT_FUNCTIONS_MASK | FUNCTION_TELEMETRY_HOTT | FUNCTION_TELEMETRY_SMARTPORT)
+#define TELEMETRY_SHAREABLE_PORT_FUNCTIONS_MASK \
+    (FUNCTION_TELEMETRY_FRSKY_HUB | FUNCTION_TELEMETRY_LTM | FUNCTION_TELEMETRY_MAVLINK)
+#define TELEMETRY_PORT_FUNCTIONS_MASK                                    \
+    (TELEMETRY_SHAREABLE_PORT_FUNCTIONS_MASK | FUNCTION_TELEMETRY_HOTT | \
+     FUNCTION_TELEMETRY_SMARTPORT)
 
 // 公共接口函数
 void serialWrite(serialPort_t* instance, uint8_t ch);
@@ -103,7 +106,8 @@ uint32_t serialPrintFormatted(serialPort_t* instance, const char* format, ...);
 uint32_t serialPrintlnFormatted(serialPort_t* instance, const char* format, ...);
 
 // 工厂函数
-serialPort_t* newSerialPort(UART_HandleTypeDef* huart, uint32_t baudRate);
+serialPort_t* newSerialPort(UART_HandleTypeDef* huart, uint32_t baudRate, portMode_e mode,
+                            portOptions_e options);
 serialPort_t* newSerialPortUSB();
 void deleteSerialPort(serialPort_t* instance);
 

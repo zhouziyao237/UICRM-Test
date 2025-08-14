@@ -23,19 +23,19 @@
 #ifndef TARGET_H
 #define TARGET_H
 
-
+#define USEUART
 #define SERIAL_PORT_COUNT 7
-
 #define MAX_MSP_PORT_COUNT 3
 
+#define MSP_FUNCTION_DEBUG SERIAL_PORT_USART8
+
 #define USEUSB_VCP
-#define USEUART
-#define USEUART_1
-#define USEUART_2
-#define USEUART_3
-#define USEUART_6
-#define USEUART_7
-#define USEUART_8
+#define USEUART_1 &huart1
+#define USEUART_2 &huart2
+#define USEUART_3 &huart3
+#define USEUART_6 &huart6
+#define USEUART_7 &huart7
+#define USEUART_8 &huart8
 
 #define USE_CLI
 // #define DEBUG_MSP

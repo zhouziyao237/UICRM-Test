@@ -18,14 +18,16 @@
  # <https://www.gnu.org/licenses/>.                         #
  ###########################################################*/
 
+#include "bsp_Serial.h"
+
 #include <stdlib.h>
 #include <string.h>
+
 #include <cstdarg>
 
-#include "bsp_Serial.h"
+#include "Target.h"
 #include "bsp_uart.h"
 #include "bsp_usb.h"
-#include "Target.h"
 
 #define MAX_PRINT_LEN 1024
 #define RX_SIGNAL (1 << 0)
@@ -184,9 +186,7 @@ static const struct serialPortVTable usbVTable = {
 
 // 公共接口函数实现
 void serialWrite(serialPort_t* instance, uint8_t ch) {
-    if (instance && instance->vTable && instance->vTable->serialWrite) {
-        instance->vTable->serialWrite(instance, ch);
-    }
+    instance->vTable->serialWrite(instance, ch);
 }
 
 uint32_t serialGetBaudRate(serialPort_t* instance) {
@@ -194,9 +194,6 @@ uint32_t serialGetBaudRate(serialPort_t* instance) {
 }
 
 void serialWriteBuf(serialPort_t* instance, const uint8_t* data, int length) {
-    if (!instance || !instance->vTable)
-        return;
-
     if (instance->vTable->writeBuf) {
         instance->vTable->writeBuf(instance, data, length);
     } else {
@@ -207,59 +204,37 @@ void serialWriteBuf(serialPort_t* instance, const uint8_t* data, int length) {
 }
 
 uint32_t serialRxBytesWaiting(const serialPort_t* instance) {
-    if (instance && instance->vTable && instance->vTable->serialTotalRxWaiting) {
-        return instance->vTable->serialTotalRxWaiting(instance);
-    }
-    return 0;
+    return instance->vTable->serialTotalRxWaiting(instance);
 }
 
 uint32_t serialTxBytesFree(const serialPort_t* instance) {
-    if (instance && instance->vTable && instance->vTable->serialTotalTxFree) {
-        return instance->vTable->serialTotalTxFree(instance);
-    }
-    return 0;
+    return instance->vTable->serialTotalTxFree(instance);
 }
 
 uint32_t serialRead(serialPort_t* instance, uint8_t** data) {
-    if (instance && instance->vTable && instance->vTable->serialRead) {
-        return instance->vTable->serialRead(instance, data);
-    }
-    return 0;
+    return instance->vTable->serialRead(instance, data);
 }
 
 void serialSetBaudRate(serialPort_t* instance, uint32_t baudRate) {
-    if (instance) {
-        instance->baudRate = baudRate;
-        if (instance->vTable && instance->vTable->serialSetBaudRate) {
-            instance->vTable->serialSetBaudRate(instance, baudRate);
-        }
-    }
+    instance->vTable->serialSetBaudRate(instance, baudRate);
 }
 
 bool isSerialTransmitBufferEmpty(const serialPort_t* instance) {
-    if (instance && instance->vTable && instance->vTable->isSerialTransmitBufferEmpty) {
-        return instance->vTable->isSerialTransmitBufferEmpty(instance);
-    }
-    return true;
+    return instance->vTable->isSerialTransmitBufferEmpty(instance);
 }
 
 void serialSetMode(serialPort_t* instance, portMode_e mode) {
-    if (instance) {
-        instance->mode = mode;
-        if (instance->vTable && instance->vTable->setMode) {
-            instance->vTable->setMode(instance, mode);
-        }
-    }
+    instance->vTable->setMode(instance, mode);
 }
 
 void serialBeginWrite(serialPort_t* instance) {
-    if (instance && instance->vTable && instance->vTable->beginWrite) {
+    if (instance->vTable->beginWrite) {
         instance->vTable->beginWrite(instance);
     }
 }
 
 void serialEndWrite(serialPort_t* instance) {
-    if (instance && instance->vTable && instance->vTable->endWrite) {
+    if (instance->vTable->endWrite) {
         instance->vTable->endWrite(instance);
     }
 }
@@ -332,7 +307,8 @@ void serialWriteBufShim(void* instance, const uint8_t* data, int length) {
 }
 
 // 创建UART串口实例的工厂函数
-serialPort_t* newSerialPort(UART_HandleTypeDef* huart, uint32_t baudRate) {
+serialPort_t* newSerialPort(UART_HandleTypeDef* huart, uint32_t baudRate, portMode_e mode,
+                            portOptions_e options) {
     if (!huart)
         return NULL;
 
@@ -365,8 +341,8 @@ serialPort_t* newSerialPort(UART_HandleTypeDef* huart, uint32_t baudRate) {
     // 设置VTable和属性
     instance->vTable = &uartVTable;
     instance->baudRate = baudRate;
-    instance->mode = MODE_RXTX;
-    instance->options = SERIAL_NOT_INVERTED;
+    instance->mode = mode;
+    instance->options = options;
     instance->privateData = privateData;
 
     return instance;

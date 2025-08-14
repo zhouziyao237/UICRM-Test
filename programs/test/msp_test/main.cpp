@@ -24,8 +24,11 @@
 
 #include "Device/bsp_serial/DeviceSerial.h"
 #include "Device/bsp_serial/bsp_Serial.h"
+#include "Msp/MspSerial.h"
 #include "MspProcessor.h"
+#include "bsp_pg/bsp_pg.h"
 #include "bsp_serial.h"
+#include "cmsis_os2.h"
 
 serialPort_t* serialmsp;
 RMFC::MSP::MspProcessor _msp;
@@ -33,21 +36,15 @@ RMFC::MSP::MspMessage mspRequest;
 RMFC::MSP::MspResponse mspResponse;
 
 void RM_RTOS_Init() {
-    // 使用新的Cleanflight风格串口接口打开USB串口
-    serialmsp = newSerialPortUSB();
+    pgResetAll();
+    RMFC::serialInit(false, RMFC::SERIAL_PORT_NONE);
+    RMFC::MSP::mspSerialInit();
+    osDelay(100);
 }
 
 void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
-    uint8_t* data = nullptr;
     while (true) {
-        uint32_t len = serialRead(serialmsp, &data);
-        if (len > 0) {
-            char* c = (char*)data;
-            for (uint32_t i = 0; i < len; i++) {
-                _msp.process(*c, mspRequest, mspResponse, serialmsp);
-                c++;
-            }
-        }
+        RMFC::MSP::mspSerialProcess(RMFC::MSP::MSP_EVALUATE_NON_MSP_DATA);
     }
 }

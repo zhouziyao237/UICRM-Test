@@ -261,6 +261,7 @@ void pgReset(const pgRegistry_t* reg);
 #define EEPROM_CONF_VERSION 168
 
 bool isEEPROMContentValid(void);
+void initEEPROM(void);
 bool loadEEPROM(void);
 void writeConfigToEEPROM(void);
 uint16_t getEEPROMConfigSize(void);

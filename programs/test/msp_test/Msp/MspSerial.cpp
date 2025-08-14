@@ -30,6 +30,7 @@
 #include "PG/msp.h"
 #include "Target.h"
 #include "bsp_os.h"
+#include "cmsis_os.h"
 
 namespace RMFC {
     namespace MSP {
@@ -42,9 +43,20 @@ namespace RMFC {
             mspPortToReset->port = serialPort;
         }
 
+        void mspSerialReleasePortIfAllocated(serialPort_t* serialPort) {
+            for (uint8_t portIndex = 0; portIndex < MAX_MSP_PORT_COUNT; portIndex++) {
+                mspPort_t* candidateMspPort = &mspPorts[portIndex];
+                if (candidateMspPort->port == serialPort) {
+                    closeSerialPort(serialPort);
+                    *candidateMspPort = mspPort_t{};
+                }
+            }
+        }
+
         void mspSerialAllocatePorts(void) {
             uint8_t portIndex = 0;
             const serialPortConfig_t* portConfig = findSerialPortConfig(FUNCTION_MSP);
+            // todo:允许最大MAX_MSP_PORT_COUNT个msp端口，实际上默认分配N个，还有MAX_MSP_PORT_COUNT-N个是在地面站配置才生效
             while (portConfig && portIndex < MAX_MSP_PORT_COUNT) {
                 mspPort_t* mspPort = &mspPorts[portIndex];
 
@@ -71,16 +83,6 @@ namespace RMFC {
                 }
 
                 portConfig = findNextSerialPortConfig(FUNCTION_MSP);
-            }
-        }
-
-        void mspSerialReleasePortIfAllocated(serialPort_t* serialPort) {
-            for (uint8_t portIndex = 0; portIndex < MAX_MSP_PORT_COUNT; portIndex++) {
-                mspPort_t* candidateMspPort = &mspPorts[portIndex];
-                if (candidateMspPort->port == serialPort) {
-                    closeSerialPort(serialPort);
-                    *candidateMspPort = mspPort_t{};
-                }
             }
         }
 
@@ -111,7 +113,7 @@ namespace RMFC {
         static void mspProcessPendingRequest(mspPort_t* mspPort) {
             // If no request is pending or 100ms guard time has not elapsed - do nothing
             if ((mspPort->msg.pendingRequest == MSP_PENDING_NONE) ||
-                (bsp::GetHighresTickMicroSec() - mspPort->lastActivityMs < 100)) {
+                (bsp::GetHighresTickMilliSec() - mspPort->lastActivityMs < 100)) {
                 return;
             }
 
@@ -143,33 +145,22 @@ namespace RMFC {
                     continue;
                 }
 
-                if (serialRxBytesWaiting(mspPort->port)) {
-                    // There are bytes incoming - abort pending request
-                    mspPort->lastActivityMs = bsp::GetHighresTickMilliSec();
-                    mspPort->msg.pendingRequest = MSP_PENDING_NONE;
+                // There are bytes incoming - abort pending request
+                mspPort->lastActivityMs = bsp::GetHighresTickMilliSec();
+                mspPort->msg.pendingRequest = MSP_PENDING_NONE;
 
-                    size_t len = serialRxBytesWaiting(mspPort->port);
-                    if (len > 0) {
-                        uint8_t buff[64] = {0};
-                        len = std::min(len, sizeof(buff));
+                uint8_t* dataPtr = nullptr;
+                uint32_t len = serialRead(mspPort->port, &dataPtr);
+                if (len > 0) {
+                    char* str = reinterpret_cast<char*>(dataPtr);
+                    for (uint32_t i = 0; i < len; i++) {
+                        bool consumed =
+                            processor.process(*str, mspPort->msg, mspPort->res, mspPort->port);
 
-                        for (size_t i = 0; i < len; i++) {
-                            uint8_t* dataPtr;
-                            serialRead(mspPort->port, &dataPtr);
-                            buff[i] = *dataPtr;
+                        if (!consumed && evaluateNonMspData == MSP_EVALUATE_NON_MSP_DATA) {
+                            mspEvaluateNonMspData(mspPort, *str);
                         }
-
-                        char* c = (char*)&buff[0];
-                        while (len--) {
-                            bool consumed =
-                                processor.process(*c, mspPort->msg, mspPort->res, mspPort->port);
-
-                            if (!consumed && evaluateNonMspData == MSP_EVALUATE_NON_MSP_DATA) {
-                                mspEvaluateNonMspData(mspPort, *c);
-                            }
-
-                            c++;
-                        }
+                        str++;
                     }
                 } else {
                     mspProcessPendingRequest(mspPort);
