@@ -26,6 +26,7 @@
 
 #include "bsp_print.h"
 #include "config/config.h"
+#include "config/config_function.h"
 #include "config_eeprom/bsp_eeprom.h"
 #include "config_eeprom/bsp_pg.h"
 
@@ -72,11 +73,16 @@ void RM_RTOS_Default_Task(const void* args) {
     // 修改第一个配置文件的PID参数示例
     print("Modifying MotorPID profile 0...\r\n");
     MotorPID_t MotorPids;
-    setMotorPID(0, &MotorPids);
 
-    // 保存配置到EEPROM
-    print("Saving configuration to EEPROM...\r\n");
-    writeConfigToEEPROM();
+    for (int i = 0; i < 10; i++) {
+        MotorPids.ki += 0.1f; // 递增
+        setMotorPID(0, &MotorPids);
+        writeConfigToEEPROM();
+    }
+
+    // // 保存配置到EEPROM
+    // print("Saving configuration to EEPROM...\r\n");
+    // writeConfigToEEPROM();
 
     // 计算注册的配置项数量和大小
     int count = 0;

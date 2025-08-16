@@ -101,6 +101,10 @@ void append_crc8_check_sum(uint8_t* pchMessage, uint16_t dwLength) {
     pchMessage[dwLength - 1] = ucCRC;
 }
 
+//
+// from betafilght the crc8 module
+//
+
 uint8_t crc8_dvb_s2(uint8_t crc, unsigned char a) {
     crc ^= a;
     for (int ii = 0; ii < 8; ++ii) {
@@ -123,13 +127,13 @@ uint8_t crc8_dvb_s2_update(uint8_t crc, const void* data, uint32_t length) {
     return crc;
 }
 
-void crc8_dvb_s2_sbuf_append(sbuf_t* dst, uint8_t* start) {
+uint8_t crc8_dvb_s2_sbuf_append(sbuf_t* dst, uint8_t* start) {
     uint8_t crc = 0;
     const uint8_t* const end = dst->ptr;
     for (const uint8_t* ptr = start; ptr < end; ++ptr) {
         crc = crc8_dvb_s2(crc, *ptr);
     }
-    sbufWriteU8(dst, crc);
+    return crc;
 }
 
 uint8_t crc8_xor(uint8_t crc, const uint8_t data) {
@@ -146,13 +150,13 @@ uint8_t crc8_xor_update(uint8_t crc, const void* data, uint32_t length) {
     return crc;
 }
 
-void crc8_xor_sbuf_append(sbuf_t* dst, uint8_t* start) {
+uint8_t crc8_xor_sbuf_append(sbuf_t* dst, uint8_t* start) {
     uint8_t crc = 0;
     const uint8_t* end = dst->ptr;
     for (uint8_t* ptr = start; ptr < end; ++ptr) {
         crc ^= *ptr;
     }
-    sbufWriteU8(dst, crc);
+    return crc;
 }
 
 /**
@@ -196,6 +200,10 @@ void append_crc16_check_sum(uint8_t* pchMessage, uint32_t dwLength) {
     pchMessage[dwLength - 1] = (uint8_t)((wCRC >> 8) & 0x00ff);
 }
 
+//
+// from betafilght the crc16 module
+//
+
 uint16_t crc16_ccitt(uint16_t crc, unsigned char a) {
     crc ^= (uint16_t)a << 8;
     for (int ii = 0; ii < 8; ++ii) {
@@ -218,11 +226,11 @@ uint16_t crc16_ccitt_update(uint16_t crc, const void* data, uint32_t length) {
     return crc;
 }
 
-void crc16_ccitt_sbuf_append(sbuf_t* dst, uint8_t* start) {
+uint16_t crc16_ccitt_sbuf_append(sbuf_t* dst, uint8_t* start) {
     uint16_t crc = 0;
     const uint8_t* const end = sbufPtr(dst);
     for (const uint8_t* ptr = start; ptr < end; ++ptr) {
         crc = crc16_ccitt(crc, *ptr);
     }
-    sbufWriteU16(dst, crc);
+    return crc;
 }

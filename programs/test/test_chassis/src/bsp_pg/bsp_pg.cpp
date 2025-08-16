@@ -27,6 +27,24 @@
 #include "bsp_print.h"
 #include "crc_check.h"
 
+#define MIN(a, b)               \
+    __extension__({             \
+        __typeof__(a) _a = (a); \
+        __typeof__(b) _b = (b); \
+        _a < _b ? _a : _b;      \
+    })
+#define MAX(a, b)               \
+    __extension__({             \
+        __typeof__(a) _a = (a); \
+        __typeof__(b) _b = (b); \
+        _a > _b ? _a : _b;      \
+    })
+#define ABS(x)                  \
+    __extension__({             \
+        __typeof__(x) _x = (x); \
+        _x > 0 ? _x : -_x;      \
+    })
+
 static uint16_t eepromConfigSize;
 
 // Header for the saved copy.
@@ -105,13 +123,16 @@ bool pgResetCopy(uint8_t* copy, pgn_t pgn) {
     return false;
 }
 
-void pgLoad(const pgRegistry_t* reg, const void* from, int size, int version) {
+bool pgLoad(const pgRegistry_t* reg, const void* from, int size, int version) {
     pgResetInstance(reg, pgOffset(reg));
     // restore only matching version, keep defaults otherwise
     if (version == pgVersion(reg)) {
         const int take = MIN(size, pgSize(reg));
         memcpy(pgOffset(reg), from, take);
+
+        return true;
     }
+    return false;
 }
 
 int pgStore(const pgRegistry_t* reg, void* to, int size) {
@@ -144,10 +165,9 @@ void initEEPROM(void) {
 }
 
 // Scan the EEPROM config. Returns true if the config is valid.
-bool isEEPROMContentValid(void)
-{
-    const uint8_t *p = __config_start;
-    const configHeader_t *header = (const configHeader_t *)p;
+bool isEEPROMContentValid(void) {
+    const uint8_t* p = __config_start;
+    const configHeader_t* header = (const configHeader_t*)p;
 
     if (header->eepromConfigVersion != EEPROM_CONF_VERSION) {
         return false;
@@ -161,35 +181,43 @@ bool isEEPROMContentValid(void)
     p += sizeof(*header);
 
     for (;;) {
-        const configRecord_t *record = (const configRecord_t *)p;
+        const configRecord_t* record = (const configRecord_t*)p;
 
         if (record->size == 0) {
             // Found the end.  Stop scanning.
             break;
         }
-        if (p + record->size >= __config_end
-            || record->size < sizeof(*record)) {
+        if (p + record->size >= __config_end || record->size < sizeof(*record)) {
             // Too big or too small.
             return false;
-            }
+        }
 
         crc = crc16_ccitt_update(crc, p, record->size);
 
         p += record->size;
     }
 
-    const configFooter_t *footer = (const configFooter_t *)p;
+    const configFooter_t* footer = (const configFooter_t*)p;
     crc = crc16_ccitt_update(crc, footer, sizeof(*footer));
     p += sizeof(*footer);
 
     // include stored CRC in the CRC calculation
-    const uint16_t *storedCrc = (const uint16_t *)p;
+    const uint16_t* storedCrc = (const uint16_t*)p;
     crc = crc16_ccitt_update(crc, storedCrc, sizeof(*storedCrc));
     p += sizeof(storedCrc);
 
+#if defined(DEBUG_PG)
+    print("Calculated CRC before including stored CRC: 0x%04X\r\n", crc);
+    print("Stored CRC value: 0x%04X\r\n", *storedCrc);
+
+    print("Final CRC value: 0x%04X\r\n", crc);
+    print("Expected CRC_CHECK_VALUE: 0x%04X\r\n", CRC_CHECK_VALUE);
+#endif
+
     eepromConfigSize = p - __config_start;
 
-    // CRC has the property that if the CRC itself is included in the calculation the resulting CRC will have constant value
+    // CRC has the property that if the CRC itself is included in the calculation the resulting CRC
+    // will have constant value
     return crc == CRC_CHECK_VALUE;
 }
 
@@ -200,8 +228,7 @@ uint16_t getEEPROMConfigSize(void) {
 // find config record for reg + classification (profile info) in EEPROM
 // return NULL when record is not found
 // this function assumes that EEPROM content is valid
-static const configRecord_t* findEEPROM(const pgRegistry_t* reg,
-                                        configRecordFlags_e classification) {
+const configRecord_t* findEEPROM(const pgRegistry_t* reg, configRecordFlags_e classification) {
     const uint8_t* p = __config_start;
     p += sizeof(configHeader_t);  // skip header
     while (true) {
@@ -220,65 +247,90 @@ static const configRecord_t* findEEPROM(const pgRegistry_t* reg,
 // This functions processes all PGs sequentially, scanning EEPROM for each one. This is suboptimal,
 //   but each PG is loaded/initialized exactly once and in defined order.
 bool loadEEPROM(void) {
+    bool success = true;
+
     PG_FOREACH(reg) {
         const configRecord_t* rec = findEEPROM(reg, CR_CLASSICATION_SYSTEM);
         if (rec) {
             // config from EEPROM is available, use it to initialize PG. pgLoad will handle version
             // mismatch
-            pgLoad(reg, rec->pg, rec->size - offsetof(configRecord_t, pg), rec->version);
+            if (!pgLoad(reg, rec->pg, rec->size - offsetof(configRecord_t, pg), rec->version)) {
+                success = false;
+            }
         } else {
             pgReset(reg);
+            success = false;
         }
     }
-    return true;
+    return success;
 }
 
-static bool writeSettingsToEEPROM(void)
-{
+bool writeSettingsToEEPROM(void) {
+#if defined(DEBUG_PG)
+    print("Starting EEPROM write process\r\n");
+#endif
     config_streamer_t streamer;
     config_streamer_init(&streamer);
-
+#if defined(DEBUG_PG)
+    print("Stream start address: 0x%08X, size: %d\r\n", (uint32_t)__config_start,
+          __config_end - __config_start);
+#endif
     config_streamer_start(&streamer, (uintptr_t)__config_start, __config_end - __config_start);
 
     configHeader_t header = {
-        .eepromConfigVersion =  EEPROM_CONF_VERSION,
-        .magic_be =             0xBE,
+        .eepromConfigVersion = EEPROM_CONF_VERSION,
+        .magic_be = 0xBE,
     };
 
-    config_streamer_write(&streamer, (uint8_t *)&header, sizeof(header));
+#if defined(DEBUG_PG)
+    print("Writing header: version=%d, magic=0x%02X\r\n", header.eepromConfigVersion,
+          header.magic_be);
+#endif
+    config_streamer_write(&streamer, (uint8_t*)&header, sizeof(header));
     uint16_t crc = CRC_START_VALUE;
-    crc = crc16_ccitt_update(crc, (uint8_t *)&header, sizeof(header));
+    crc = crc16_ccitt_update(crc, (uint8_t*)&header, sizeof(header));
+
+#if defined(DEBUG_PG)
+    int pg_count = 0;
+#endif
     PG_FOREACH(reg) {
         const uint16_t regSize = pgSize(reg);
-        configRecord_t record = {
-            .size = static_cast<uint16_t>(sizeof(configRecord_t) + regSize),
-            .pgn = pgN(reg),
-            .version = pgVersion(reg),
-            .flags = 0
-        };
+        configRecord_t record = {.size = static_cast<uint16_t>(sizeof(configRecord_t) + regSize),
+                                 .pgn = pgN(reg),
+                                 .version = pgVersion(reg),
+                                 .flags = 0};
 
         record.flags |= CR_CLASSICATION_SYSTEM;
-        config_streamer_write(&streamer, (uint8_t *)&record, sizeof(record));
-        crc = crc16_ccitt_update(crc, (uint8_t *)&record, sizeof(record));
+#if defined(DEBUG_PG)
+        print("Writing PG %d: PGN=%d, size=%d, version=%d\r\n", pg_count, record.pgn, record.size,
+              record.version);
+#endif
+        config_streamer_write(&streamer, (uint8_t*)&record, sizeof(record));
+        crc = crc16_ccitt_update(crc, (uint8_t*)&record, sizeof(record));
         config_streamer_write(&streamer, reg->address, regSize);
         crc = crc16_ccitt_update(crc, reg->address, regSize);
+#if defined(DEBUG_PG)
+        pg_count++;
+#endif
     }
 
     configFooter_t footer = {
         .terminator = 0,
     };
 
-    config_streamer_write(&streamer, (uint8_t *)&footer, sizeof(footer));
-    crc = crc16_ccitt_update(crc, (uint8_t *)&footer, sizeof(footer));
+    config_streamer_write(&streamer, (uint8_t*)&footer, sizeof(footer));
+    crc = crc16_ccitt_update(crc, (uint8_t*)&footer, sizeof(footer));
 
     // include inverted CRC in big endian format in the CRC
     const uint16_t invertedBigEndianCrc = ~(((crc & 0xFF) << 8) | (crc >> 8));
-    config_streamer_write(&streamer, (uint8_t *)&invertedBigEndianCrc, sizeof(crc));
+    config_streamer_write(&streamer, (uint8_t*)&invertedBigEndianCrc, sizeof(crc));
 
     config_streamer_flush(&streamer);
 
     const bool success = config_streamer_finish(&streamer) == 0;
-
+#if defined(DEBUG_PG)
+    print("Write process finished, success: %s\r\n", success ? "YES" : "NO");
+#endif
     return success;
 }
 

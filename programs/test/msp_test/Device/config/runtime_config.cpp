@@ -20,4 +20,6 @@
 // Created by Administrator on 2025/8/14.
 //
 
-#include "runtime_config.h"
+#include "config.h"
+
+uint8_t armingFlags = 0;

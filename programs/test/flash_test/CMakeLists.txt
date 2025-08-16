@@ -6,4 +6,4 @@ file(GLOB SOURCES "./config_eeprom/*.cpp" "./config/*.cpp" "*.cpp")
 uicrm_add_arm_executable(${PROJECT_NAME}
         TARGET DJI_Board_TypeA_general
         SOURCES ${SOURCES}
-        INCLUDES .)
+        INCLUDES . config_eeprom config)

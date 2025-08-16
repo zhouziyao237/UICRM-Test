@@ -29,13 +29,14 @@ namespace RMFC {
     namespace MSP {
         class MspParser {
           public:
-            MspParser() { }
+            MspParser() {
+            }
 
             void parse(char c, MspMessage& msg);
 
             bool ProcessReceivedData(uint8_t c, MspMessage& msg);
         };
-    }  // namespace Msp
-}  // namespace Espfc
+    }  // namespace MSP
+}  // namespace RMFC
 
 #endif

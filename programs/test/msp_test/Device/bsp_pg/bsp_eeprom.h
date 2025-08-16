@@ -49,24 +49,10 @@ extern const uint8_t __config_end[];
 #endif
 
 #define PROGRAM_START_ADDR 0x08000000      // 程序起始地址
-#define DATA_EEPROM_START_ADDR 0x080E0000  // 配置数据起始地址
-#define DATA_EEPROM_END_ADDR (DATA_EEPROM_START_ADDR + FLASH_PAGE_SIZE)  // 配置数据结束地址
+#define DATA_EEPROM_START_ADDR 0x080DFFFF  // 配置数据起始地址
+#define DATA_EEPROM_SIZE 0x20000           // 配置数据大小
+#define DATA_EEPROM_END_ADDR (DATA_EEPROM_START_ADDR + DATA_EEPROM_SIZE)  // 配置数据结束地址
 #define iEEPROM_CHECK_NUM 2
-
-#define GET_SECTOR_FOR_EEPROM(Sector)             \
-    (((Sector) == FLASH_SECTOR_0)    ? 0x08000000 \
-     : ((Sector) == FLASH_SECTOR_1)  ? 0x08004000 \
-     : ((Sector) == FLASH_SECTOR_2)  ? 0x08008000 \
-     : ((Sector) == FLASH_SECTOR_3)  ? 0x0800C000 \
-     : ((Sector) == FLASH_SECTOR_4)  ? 0x08010000 \
-     : ((Sector) == FLASH_SECTOR_5)  ? 0x08020000 \
-     : ((Sector) == FLASH_SECTOR_6)  ? 0x08040000 \
-     : ((Sector) == FLASH_SECTOR_7)  ? 0x08060000 \
-     : ((Sector) == FLASH_SECTOR_8)  ? 0x08080000 \
-     : ((Sector) == FLASH_SECTOR_9)  ? 0x080A0000 \
-     : ((Sector) == FLASH_SECTOR_10) ? 0x080C0000 \
-     : ((Sector) == FLASH_SECTOR_11) ? 0x080E0000 \
-                                     : 0xFFFFFFFF)
 
 #define ARRAYLEN(x) (sizeof(x) / sizeof((x)[0]))
 #define ARRAYEND(x) (&(x)[ARRAYLEN(x)])
@@ -83,8 +69,10 @@ typedef struct config_streamer_s {
     bool unlocked;
 } config_streamer_t;
 
+uint32_t getFLASHSectorForEEPROM(void);
+
 HAL_StatusTypeDef EEPROM_EraseSector(uint32_t Sector);
-HAL_StatusTypeDef EEPROM__ProgramWord(uint32_t Address, uint32_t Data);
+HAL_StatusTypeDef EEPROM_ProgramWord(uint32_t Address, uint32_t Data);
 
 void config_streamer_init(config_streamer_t* c);
 

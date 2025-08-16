@@ -61,7 +61,8 @@ namespace RMFC {
         FUNCTION_VTX_TRAMP = (1 << 13),           // 8192
         FUNCTION_RCDEVICE = (1 << 14),            // 16384
         FUNCTION_LIDAR_TF = (1 << 15),            // 32768
-        FUNCTION_DEBUG = (1 << 16),               // 65536
+        FUNCTION_FRSKY_OSD = (1 << 16),           // 65536
+        FUNCTION_VTX_MSP = (1 << 17),             // 131072
     } serialPortFunction_e;
 
     typedef enum {
@@ -80,7 +81,8 @@ namespace RMFC {
         BAUD_1000000,
         BAUD_1500000,
         BAUD_2000000,
-        BAUD_2470000
+        BAUD_2470000,
+        BAUD_COUNT
     } baudRate_e;
 
     extern const uint32_t baudRates[];
@@ -97,6 +99,8 @@ namespace RMFC {
         SERIAL_PORT_USART6,
         SERIAL_PORT_USART7,
         SERIAL_PORT_USART8,
+        SERIAL_PORT_UART9,
+        SERIAL_PORT_USART10,
         SERIAL_PORT_USB_VCP = 20,
         SERIAL_PORT_SOFTSERIAL1 = 30,
         SERIAL_PORT_SOFTSERIAL2,
@@ -110,7 +114,7 @@ namespace RMFC {
     // runtime
     //
     typedef struct serialPortUsage_s {
-        serialPort_t *serialPort;     // todo: Serial Prot Config
+        serialPort_t* serialPort;  // todo: Serial Prot Config
         serialPortFunction_e function;
         serialPortIdentifier_e identifier;
     } serialPortUsage_t;
@@ -126,8 +130,8 @@ namespace RMFC {
     typedef void serialConsumer(uint8_t);
 
     typedef struct serialPortConfig_s {
-        uint16_t functionMask;
-        serialPortIdentifier_e identifier;
+        uint32_t functionMask;
+        uint8_t identifier;
         uint8_t msp_baudrateIndex;
         uint8_t navigation_baudrateIndex;
         uint8_t blackbox_baudrateIndex;

@@ -35,11 +35,25 @@ namespace RMFC {
     namespace MSP {
 
         typedef enum {
+            MSP_REBOOT_FIRMWARE = 0,
+            MSP_REBOOT_BOOTLOADER_ROM,
+            MSP_REBOOT_MSC,
+            MSP_REBOOT_MSC_UTC,
+            MSP_REBOOT_BOOTLOADER_FLASH,
+            MSP_REBOOT_COUNT,
+        } mspReboot_e;
+
+        typedef enum {
             MSP_RESULT_ACK = 1,
             MSP_RESULT_ERROR = -1,
             MSP_RESULT_NO_REPLY = 0,
             MSP_RESULT_CMD_UNKNOWN = -2,  // don't know how to process command, try next handler
         } mspResult_e;
+
+        typedef enum {
+            DEFAULTS_TYPE_BASE = 0,
+            DEFAULTS_TYPE_CUSTOM,
+        } defaultsType_e;
 
         class MspProcessor {
           public:
@@ -47,12 +61,8 @@ namespace RMFC {
             void InitMSP(serialPort_t* Debug);
 
             bool process(char data, MspMessage& msg, MspResponse& res, serialPort_t* SerialMSP);
-            // msp post process function, used for gracefully handling reboots, etc.
 
-            typedef void (*mspPostProcessFnPtr)(struct serialPort_s* port);
-
-            mspResult_e processCommand(MspMessage& m, MspResponse& r,
-                                       mspPostProcessFnPtr* mspPostProcessFn);
+            mspResult_e processCommand(MspMessage& m, MspResponse& r);
 
             void sendResponse(serialPort_t* SerialMSP, MspResponse& r);
 
@@ -68,8 +78,19 @@ namespace RMFC {
 
             void debugResponse(const MspResponse& r);
 
+            // msp post process function, used for gracefully handling reboots, etc.
+            typedef void (*mspPostProcessFnPtr)(struct serialPort_s* port);
+
+            mspPostProcessFnPtr getPostProcessFunction() const {
+                return mspPostProcessFn;
+            }
+            void clearPostProcessFunction() {
+                mspPostProcessFn = nullptr;
+            }
+
           private:
             // Model& _model;
+            mspPostProcessFnPtr mspPostProcessFn = nullptr;
             serialPort_t* SerialDebug;
             MspParser _parser;
         };

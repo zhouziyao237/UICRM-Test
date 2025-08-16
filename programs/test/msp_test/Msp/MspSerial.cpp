@@ -74,9 +74,9 @@ namespace RMFC {
                     options = static_cast<portOptions_e>(options | SERIAL_CHECK_TX);
                 }
 
-                serialPort_t* serialPort =
-                    openSerialPort(portConfig->identifier, FUNCTION_MSP, NULL, NULL,
-                                   baudRates[portConfig->msp_baudrateIndex], MODE_RXTX, options);
+                serialPort_t* serialPort = openSerialPort(
+                    static_cast<serialPortIdentifier_e>(portConfig->identifier), FUNCTION_MSP, NULL,
+                    NULL, baudRates[portConfig->msp_baudrateIndex], MODE_RXTX, options);
                 if (serialPort) {
                     resetMspPort(mspPort, serialPort);
                     portIndex++;

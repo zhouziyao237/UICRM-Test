@@ -21,13 +21,14 @@
 
 #include "MspProcessor.h"
 
+#include "Common/config.h"
 #include "Device/bsp_serial/DeviceSerial.h"
 #include "Device/bsp_serial/bsp_Serial.h"
-#include "Device/runtime_config.h"
+#include "Device/config/feature.h"
+#include "Device/config/runtime_config.h"
 #include "Msp.h"
 #include "MspParser.h"
 #include "bsp_pg/bsp_pg.h"
-#include "bsp_pg/feature.h"
 #include "bsp_serial.h"
 #include "config/msp_protocol.h"
 #include "crc_check.h"
@@ -40,13 +41,15 @@
 
 namespace RMFC {
     namespace MSP {
+        static uint8_t rebootMode;
+
         static void mspRebootFn(serialPort_t* serialPort) {
             UNUSED(serialPort);
 
-            systemReset();
-            // control should never return here.
-            while (true)
-                ;
+            // systemReset();
+            // // control should never return here.
+            // while (true)
+            //     ;
         }
 
         //
@@ -69,9 +72,11 @@ namespace RMFC {
 #ifdef DEBUG_MSP
                 debugMessage(msg);
 #endif
+                mspPostProcessFn = nullptr;
+
                 switch (msg.dir) {
                     case MSP_TYPE_CMD:
-                        processCommand(msg, res, nullptr);
+                        processCommand(msg, res);
                         sendResponse(SerialMSP, res);
                         msg = MspMessage();
                         res = MspResponse();
@@ -80,17 +85,22 @@ namespace RMFC {
                         // processCommand(msg);
                         break;
                 }
+
+                if (mspPostProcessFn) {
+                    mspPostProcessFn(SerialMSP);
+                }
+
                 return true;
             }
 
             return msg.c_state != MSP_STATE_IDLE;
         }
 
-        mspResult_e MspProcessor::processCommand(MspMessage& m, MspResponse& r,
-                                                 mspPostProcessFnPtr* mspPostProcessFn) {
+        mspResult_e MspProcessor::processCommand(MspMessage& m, MspResponse& r) {
             r.cmd = m.cmd;
             r.version = m.version;
             r.result = 1;
+            const unsigned int dataSize = m.remain();
             switch (m.cmd) {
                 case MSP_API_VERSION:
                     r.writeU8(MSP_PROTOCOL_VERSION);
@@ -447,7 +457,8 @@ namespace RMFC {
 
                 case MSP_CF_SERIAL_CONFIG: {
                     for (int i = 0; i < SERIAL_PORT_COUNT; i++) {
-                        if (!serialIsPortAvailable(serialConfig()->portConfigs[i].identifier)) {
+                        if (!serialIsPortAvailable(static_cast<serialPortIdentifier_e>(
+                                serialConfig()->portConfigs[i].identifier))) {
                             continue;
                         };
                         r.writeU8(serialConfig()->portConfigs[i].identifier);
@@ -463,13 +474,15 @@ namespace RMFC {
                 case MSP2_COMMON_SERIAL_CONFIG: {
                     uint8_t count = 0;
                     for (int i = 0; i < SERIAL_PORT_COUNT; i++) {
-                        if (serialIsPortAvailable(serialConfig()->portConfigs[i].identifier)) {
+                        if (serialIsPortAvailable(static_cast<serialPortIdentifier_e>(
+                                serialConfig()->portConfigs[i].identifier))) {
                             count++;
                         }
                     }
                     r.writeU8(count);
                     for (int i = 0; i < SERIAL_PORT_COUNT; i++) {
-                        if (!serialIsPortAvailable(serialConfig()->portConfigs[i].identifier)) {
+                        if (!serialIsPortAvailable(static_cast<serialPortIdentifier_e>(
+                                serialConfig()->portConfigs[i].identifier))) {
                             continue;
                         };
                         r.writeU8(serialConfig()->portConfigs[i].identifier);
@@ -483,44 +496,40 @@ namespace RMFC {
                 }
 
                 case MSP_SET_CF_SERIAL_CONFIG: {
-                    {
-                        const int packetSize =
-                            sizeof(uint8_t) + sizeof(uint16_t) + (sizeof(uint8_t) * 4);
+                    const int packetSize =
+                        sizeof(uint8_t) + sizeof(uint16_t) + (sizeof(uint8_t) * 4);
 
-                        if (m.remain() >= packetSize) {
+                    if (dataSize % packetSize != 0) {
+                        return MSP_RESULT_ERROR;
+                    }
+
+                    uint8_t remainingPortsInPacket = dataSize / packetSize;
+
+                    while (remainingPortsInPacket--) {
+                        uint8_t identifier = m.readU8();
+
+                        serialPortConfig_t* portConfig = serialFindPortConfiguration(
+                            static_cast<serialPortIdentifier_e>(identifier));
+
+                        if (!portConfig) {
                             return MSP_RESULT_ERROR;
                         }
 
-                        uint8_t remainingPortsInPacket = m.remain() / packetSize;
-
-                        while (remainingPortsInPacket--) {
-                            uint8_t identifier = m.readU8();
-
-                            serialPortConfig_t* portConfig = serialFindPortConfiguration(
-                                static_cast<serialPortIdentifier_e>(identifier));
-
-                            if (!portConfig) {
-                                return MSP_RESULT_ERROR;
-                            }
-
-                            portConfig->identifier =
-                                static_cast<serialPortIdentifier_e>(identifier);
-                            portConfig->functionMask = m.readU16();
-                            portConfig->msp_baudrateIndex = m.readU8();
-                            portConfig->navigation_baudrateIndex = m.readU8();
-                            portConfig->telemetry_baudrateIndex = m.readU8();
-                            portConfig->blackbox_baudrateIndex = m.readU8();
-                        }
+                        portConfig->identifier = identifier;
+                        portConfig->functionMask = m.readU16();
+                        portConfig->msp_baudrateIndex = m.readU8();
+                        portConfig->navigation_baudrateIndex = m.readU8();
+                        portConfig->telemetry_baudrateIndex = m.readU8();
+                        portConfig->blackbox_baudrateIndex = m.readU8();
                     }
-                    break;
-                }
+                } break;
 
                 case MSP2_COMMON_SET_SERIAL_CONFIG: {
-                    if (m.remain() < 1) {
+                    if (dataSize < 1) {
                         return MSP_RESULT_ERROR;
                     }
                     unsigned count = m.readU8();
-                    unsigned portConfigSize = (m.remain() - 1) / count;
+                    unsigned portConfigSize = (dataSize - 1) / count;
                     unsigned expectedPortSize =
                         sizeof(uint8_t) + sizeof(uint32_t) + (sizeof(uint8_t) * 4);
                     if (portConfigSize < expectedPortSize) {
@@ -536,7 +545,7 @@ namespace RMFC {
                             return MSP_RESULT_ERROR;
                         }
 
-                        portConfig->identifier = static_cast<serialPortIdentifier_e>(identifier);
+                        portConfig->identifier = identifier;
                         portConfig->functionMask = m.readU32();
                         portConfig->msp_baudrateIndex = m.readU8();
                         portConfig->navigation_baudrateIndex = m.readU8();
@@ -549,7 +558,6 @@ namespace RMFC {
                     }
                     break;
                 }
-
                 case MSP_BLACKBOX_CONFIG:
                     r.writeU8(1);  // Blackbox supported
                     // r.writeU8(_model.config.blackboxDev); // device serial or none
@@ -1401,23 +1409,58 @@ namespace RMFC {
                     break;
                 }
 
-                case MSP_RESET_CONF:
-                    // if(!_model.isActive(MODE_ARMED))
-                    // {
-                    //   _model.reset();
-                    // }
-                    break;
-
-                case MSP_REBOOT:
-                    if (mspPostProcessFn) {
-                        *mspPostProcessFn = mspRebootFn;
+                case MSP_RESET_CONF: {
+#if defined(USE_CUSTOM_DEFAULTS)
+                    defaultsType_e defaultsType = DEFAULTS_TYPE_CUSTOM;
+#endif
+                    if (m.remain() >= 1) {
+                        // Added in MSP API 1.42
+#if defined(USE_CUSTOM_DEFAULTS)
+                        defaultsType = static_cast<defaultsType_e>(m.readU8());
+#else
+                        m.readU8();
+#endif
                     }
-                    break;
+
+                    bool success = false;
+                    if (!ARMING_FLAG(ARMED)) {
+#if defined(USE_CUSTOM_DEFAULTS)
+                        success = resetEEPROM(defaultsType == DEFAULTS_TYPE_CUSTOM);
+#else
+                        success = resetEEPROM(false);
+#endif
+
+                        if (success) {
+                            rebootMode = MSP_REBOOT_FIRMWARE;
+                            mspPostProcessFn = mspRebootFn;
+                        }
+                    }
+
+                    // Added in API version 1.42
+                    r.writeU8(success);
+                } break;
+
+                case MSP_REBOOT: {
+                    if (m.remain()) {
+                        rebootMode = m.readU8();
+
+                        if (rebootMode >= MSP_REBOOT_COUNT) {
+                            return MSP_RESULT_ERROR;
+                        }
+                    } else {
+                        rebootMode = MSP_REBOOT_FIRMWARE;
+                    }
+
+                    r.writeU8(rebootMode);
+
+                    mspPostProcessFn = mspRebootFn;
+                } break;
 
                 default:
                     r.result = 0;
                     return MSP_RESULT_CMD_UNKNOWN;
             }
+
             return MSP_RESULT_ACK;
         }
 

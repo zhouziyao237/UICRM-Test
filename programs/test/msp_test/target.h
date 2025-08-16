@@ -23,6 +23,8 @@
 #ifndef TARGET_H
 #define TARGET_H
 
+#define USE_CUSTOM_DEFAULTS
+
 #define USEUART
 #define SERIAL_PORT_COUNT 7
 #define MAX_MSP_PORT_COUNT 3
@@ -38,6 +40,8 @@
 #define USEUART_8 &huart8
 
 #define USE_CLI
-// #define DEBUG_MSP
+#define DEBUG_PG
+// #define DEBUG_FLASH
+#define DEBUG_MSP
 
 #endif //TARGET_H

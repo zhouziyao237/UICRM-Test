@@ -95,7 +95,6 @@ extern const uint8_t __pg_resetdata_start[] __asm("section$start$__DATA$__pg_res
 extern const uint8_t __pg_resetdata_end[] __asm("section$end$__DATA$__pg_resetdata");
 #define PG_RESETDATA_ATTRIBUTES __attribute__((section("__DATA,__pg_resetdata"), used, aligned(2)))
 #else
-// 对于STM32等嵌入式系统，使用以下定义
 extern const pgRegistry_t __pg_registry_start[];
 extern const pgRegistry_t __pg_registry_end[];
 #define PG_REGISTER_ATTRIBUTES __attribute__((section(".pg_registry"), used, aligned(4)))
@@ -233,7 +232,7 @@ extern const uint8_t __pg_resetdata_end[];
 #define CONVERT_PARAMETER_TO_PERCENT(param) (0.01f * param)
 
 const pgRegistry_t* pgFind(pgn_t pgn);
-void pgLoad(const pgRegistry_t* reg, const void* from, int size, int version);
+bool pgLoad(const pgRegistry_t* reg, const void* from, int size, int version);
 int pgStore(const pgRegistry_t* reg, void* to, int size);
 void pgResetAll(void);
 void pgResetInstance(const pgRegistry_t* reg, uint8_t* base);

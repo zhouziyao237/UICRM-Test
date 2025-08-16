@@ -87,6 +87,10 @@ void LoadFlashConfig() {
         print("Configuration reset complete.\r\n");
     }
 
+    // for (int i = 0; i < 10; i++) {
+    //     writeConfigToEEPROM();
+    // }
+
     // 计算注册的配置项数量和大小
     int count = 0;
     int total_size = 0;

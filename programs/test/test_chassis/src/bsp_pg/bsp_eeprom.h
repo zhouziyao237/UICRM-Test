@@ -84,7 +84,7 @@ typedef struct config_streamer_s {
 } config_streamer_t;
 
 HAL_StatusTypeDef EEPROM_EraseSector(uint32_t Sector);
-HAL_StatusTypeDef EEPROM__ProgramWord(uint32_t Address, uint32_t Data);
+HAL_StatusTypeDef EEPROM_ProgramWord(uint32_t Address, uint32_t Data);
 
 void config_streamer_init(config_streamer_t* c);
 

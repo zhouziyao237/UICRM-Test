@@ -20,21 +20,21 @@
 // Created by Administrator on 2025/8/14.
 //
 
-#ifndef RUNTIME_CONFIG_H
-#define RUNTIME_CONFIG_H
+#pragma once
 
-namespace RMFC {
-    typedef enum {
-        ARMED = (1 << 0),
-        WAS_EVER_ARMED = (1 << 1),
-        WAS_ARMED_WITH_PREARM = (1 << 2)
-    } armingFlag_e;
+#include "bsp_pg/bsp_pg.h"
 
-    extern uint8_t armingFlags;
+//
+// EEPROM 控制函数
+//
+void initEEPROM(void);
+bool resetEEPROM(bool useCustomDefaults);
+bool readEEPROM(void);
+void writeEEPROM(void);
+void writeUnmodifiedConfigToEEPROM(void);
+void ensureEEPROMStructureIsValid(void);
 
-#define DISABLE_ARMING_FLAG(mask) (armingFlags &= ~(mask))
-#define ENABLE_ARMING_FLAG(mask) (armingFlags |= (mask))
-#define ARMING_FLAG(mask) (armingFlags & (mask))
-}  // namespace RMFC
+void saveConfigAndNotify(void);
 
-#endif  // RUNTIME_CONFIG_H
+void setConfigDirty(void);
+bool isConfigDirty(void);

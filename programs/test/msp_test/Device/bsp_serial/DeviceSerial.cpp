@@ -22,6 +22,7 @@
 
 #include "DeviceSerial.h"
 
+#include "bsp_print.h"
 #include "bsp_uart.h"
 #include "bsp_usb.h"
 #include "cmsis_os2.h"
@@ -119,6 +120,10 @@ namespace RMFC {
 
         serialConfig->reboot_character = 'R';
         serialConfig->serial_update_rate_hz = 100;
+
+#if defined(DEBUG_PG)
+        print("Serial config reset completed\r\n");
+#endif
     }
 
     //
@@ -214,8 +219,8 @@ namespace RMFC {
                 &serialConfig()->portConfigs[findSharedSerialPortState.lastIndex++];
 
             if (isSerialPortShared(candidate, functionMask, sharedWithFunction)) {
-                const serialPortUsage_t* serialPortUsage =
-                    findSerialPortUsageByIdentifier(candidate->identifier);
+                const serialPortUsage_t* serialPortUsage = findSerialPortUsageByIdentifier(
+                    static_cast<serialPortIdentifier_e>(candidate->identifier));
                 if (!serialPortUsage) {
                     continue;
                 }
