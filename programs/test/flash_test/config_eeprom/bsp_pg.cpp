@@ -27,7 +27,6 @@
 
 #include "bsp_print.h"
 #include "crc_check.h"
-#include "target.h"
 
 #define MIN(a, b)               \
     __extension__({             \

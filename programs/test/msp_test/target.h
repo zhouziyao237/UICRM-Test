@@ -36,7 +36,7 @@
 #define USEUART_2 &huart2
 #define USEUART_3 &huart3
 #define USEUART_6 &huart6
-#define USEUART_7 &huart7
+// #define USEUART_7 &huart7
 #define USEUART_8 &huart8
 
 #define USE_CLI

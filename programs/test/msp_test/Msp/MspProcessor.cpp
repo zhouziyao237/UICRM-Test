@@ -1405,8 +1405,7 @@ namespace RMFC {
                         return MSP_RESULT_ERROR;
                     }
                     writeEEPROM();
-                    // todo: 不知道为什么每次调用readEEPROM()在这都会卡死
-                    // readEEPROM();
+                    readEEPROM();
                     break;
                 }
 

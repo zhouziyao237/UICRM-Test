@@ -38,17 +38,17 @@ RMFC::MSP::MspMessage mspRequest;
 RMFC::MSP::MspResponse mspResponse;
 
 void RM_RTOS_Init() {
-    // pgResetAll();
+    pgResetAll();
 
-    initEEPROM();
-    // ensureEEPROMStructureIsValid();
-    readEEPROM();
-
-    print_use_uart(&huart6, true, 912600);
+    print_use_uart(&huart7, true, 912600);
 
     print("EEPROM start: 0x%08lX\r\n", (uint32_t)__config_start);
     print("EEPROM end: 0x%08lX\r\n", (uint32_t)__config_end);
     print("EEPROM size: %lu bytes\r\n", (uint32_t)(__config_end - __config_start));
+
+    initEEPROM();
+    ensureEEPROMStructureIsValid();
+    readEEPROM();
 
     RMFC::serialInit(false, RMFC::SERIAL_PORT_NONE);
     RMFC::MSP::mspSerialInit();

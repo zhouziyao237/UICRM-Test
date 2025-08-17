@@ -26,7 +26,6 @@
 
 #include "bsp_print.h"
 #include "stdio.h"
-#include "target.h"
 #include "usart.h"
 
 #if defined(STM32F4)
