@@ -47,9 +47,9 @@ namespace RMFC {
             UNUSED(serialPort);
 
             // systemReset();
-            // // control should never return here.
+            // control should never return here.
             // while (true)
-            //     ;
+            // ;
         }
 
         //
@@ -1405,7 +1405,7 @@ namespace RMFC {
                         return MSP_RESULT_ERROR;
                     }
                     writeEEPROM();
-                    readEEPROM();
+                    // readEEPROM();
                     break;
                 }
 

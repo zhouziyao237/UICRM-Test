@@ -59,7 +59,7 @@ _Min_Heap_Size = 0x600;      /* required amount of heap  */
 _Min_Stack_Size = 0x800; /* required amount of stack */
 
 /* Configuration data size */
-_CONFIG_DATA_SIZE = 0x2000; /* 16KB configuration data size */
+_CONFIG_DATA_SIZE = 0x1FF00; /* 128KB configuration data size */
 
 /* Specify the memory areas */
 MEMORY
@@ -67,7 +67,7 @@ MEMORY
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
 CCMRAM (xrw)   : ORIGIN = 0x10000000, LENGTH = 64K
 FLASH (rx)     : ORIGIN = 0x08000000, LENGTH = 2032K
-EEPROM (rw)    : ORIGIN = 0x080DFFFF, LENGTH = 128K
+EEPROM (rw)    : ORIGIN = 0x080E0000, LENGTH = 128K
 }
 
 /* Define output sections */

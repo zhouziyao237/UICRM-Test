@@ -178,8 +178,8 @@ void config_streamer_start(config_streamer_t* c, uintptr_t base, int size) {
     c->address = base;
     c->size = size;
 
-    // FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR |
-    // FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
+    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR |
+    FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
 
     c->err = 0;
 }

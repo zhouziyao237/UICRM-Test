@@ -49,8 +49,8 @@ extern const uint8_t __config_end[];
 #endif
 
 #define PROGRAM_START_ADDR 0x08000000      // 程序起始地址
-#define DATA_EEPROM_START_ADDR 0x080DFFFF  // 配置数据起始地址
-#define DATA_EEPROM_SIZE 0x20000           // 配置数据大小
+#define DATA_EEPROM_START_ADDR 0x080E0000  // 配置数据起始地址
+#define DATA_EEPROM_SIZE 0x1FF00           // 配置数据大小
 #define DATA_EEPROM_END_ADDR (DATA_EEPROM_START_ADDR + DATA_EEPROM_SIZE)  // 配置数据结束地址
 #define iEEPROM_CHECK_NUM 2
 
