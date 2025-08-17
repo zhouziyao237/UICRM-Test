@@ -29,16 +29,57 @@
 #define MAX_PROFILE_COUNT 2
 #endif
 
+/* - system config - */
+#define SYS_VERSION "1.0.0"
+#define SYSTEM_CONFIG_MAX_PROFILE_COUNT 1
+
+/* - ProfileConfig - */
+#define PROFILE_CONFIG_Version 1
+#define PROFILE_CONFIG_PROFILE_COUNT 0
+#define PG_PROFILE_CONFIG_PROFILE 1
+
+/* - ControlModel - */
+#define ControlModel_Version 1
+#define ControlModel_PROFILE_COUNT 0
+#define PG_ControlModel_PROFILE 2
+
+/* - MotorPID - */
 #define MotorPID_Version 1
-#define PG_MotorPID_PROFILE 1 // struct OK, CF differences
+#define MotorPID_PROFILE_COUNT 0
+#define PG_MotorPID_PROFILE 3 // struct OK, CF differences
 
+/* - MotorId - */
 #define MotorId_Version 1
-#define PG_MotorId_PROFILE 2 // struct OK, CF differences
+#define MotorId_PROFILE_COUNT 0
+#define PG_MotorId_PROFILE 4 // struct OK, CF differences
 
+/* - CanBridge - */
 #define CanBridge_Version 1
-#define PG_CanBridge_PROFILE 3 // struct OK, CF differences
+#define CanBridge_PROFILE_COUNT 0
+#define PG_CanBridge_PROFILE 5 // struct OK, CF differences
 
+/* - RemoteDbus - */
+#define RemoteDbus_Version 1
+#define RemoteDbus_PROFILE_COUNT 0
+#define PG_RemoteDbus_PROFILE 6 // struct OK, CF differences
+
+/* - RemoteSbus - */
+#define RemoteSbus_Version 1
+#define RemoteSbus_PROFILE_COUNT 0
+#define PG_RemoteSbus_PROFILE 7 // struct OK, CF differences
+
+/* - SuperCap - */
 #define SuperCap_Version 1
-#define PG_SuperCap_PROFILE 4 // struct OK, CF differences
+#define SuperCap_PROFILE_COUNT 0
+#define PG_SuperCap_PROFILE 8 // struct OK, CF differences
+
+/* - FEATURE - */
+#define PG_FEATURE_CONFIG 19 // just has enabledFeatures
+
+/* - SerialConfig - */
+#define Serial_Version 0
+#define PG_SERIAL_CONFIG 9
+
+#define PG_MSP_CONFIG 557
 
 #endif //BSP_PG_IDS_H

@@ -28,29 +28,27 @@
 #include "stm32f4xx_hal_flash.h"
 #include "stm32f4xx_hal_flash_ex.h"
 
-// 配置数据区域符号
-extern const uint8_t __config_start[];
-extern const uint8_t __config_end[];
-#define PG_REGISTRY_SIZE (__pg_registry_end - __pg_registry_start)
-
 // 定义STM32F4的页大小
 #define STM32F427_437xx
 #define STM32F4
 
 // F4
-# if defined(STM32F40_41xxx)
-#  define FLASH_PAGE_SIZE                 ((uint32_t)0x4000) // 16K sectors
-# elif defined (STM32F411xE)
-#  define FLASH_PAGE_SIZE                 ((uint32_t)0x4000)
-# elif defined(STM32F427_437xx)
-#  define FLASH_PAGE_SIZE                 ((uint32_t)0x4000)
-# elif defined (STM32F446xx)
-#  define FLASH_PAGE_SIZE
+#if defined(STM32F40_41xxx)
+#define FLASH_PAGE_SIZE ((uint32_t)0x4000)  // 16K sectors
+#elif defined(STM32F411xE)
+#define FLASH_PAGE_SIZE ((uint32_t)0x4000)
+#elif defined(STM32F427_437xx)
+#define FLASH_PAGE_SIZE ((uint32_t)0x4000)
+#elif defined(STM32F446xx)
+#define FLASH_PAGE_SIZE
 #endif
 
-#define PROGRAM_START_ADDR 0x08000000      // 程序起始地址
-#define DATA_EEPROM_START_ADDR 0x080E0000  // 配置数据起始地址
-#define DATA_EEPROM_SIZE 0x1FF00           // 配置数据大小
+extern const uint8_t __config_start[];
+extern const uint8_t __config_end[];
+
+#define DATA_EEPROM_SIZE 0x1FF00                                          // 配置数据大小
+#define PROGRAM_START_ADDR 0x08000000                                     // 程序起始地址
+#define DATA_EEPROM_START_ADDR 0x080E0000                                 // 配置数据起始地址
 #define DATA_EEPROM_END_ADDR (DATA_EEPROM_START_ADDR + DATA_EEPROM_SIZE)  // 配置数据结束地址
 #define iEEPROM_CHECK_NUM 2
 

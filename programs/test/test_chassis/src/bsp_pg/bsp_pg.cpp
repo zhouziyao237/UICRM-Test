@@ -22,10 +22,12 @@
 
 #include "bsp_pg.h"
 
+#include <crc8.h>
 #include <string.h>
 
 #include "bsp_print.h"
 #include "crc_check.h"
+#include "target.h"
 
 #define MIN(a, b)               \
     __extension__({             \
@@ -164,63 +166,6 @@ void initEEPROM(void) {
     BUILD_BUG_ON(sizeof(configRecord_t) != 6);
 }
 
-// Scan the EEPROM config. Returns true if the config is valid.
-bool isEEPROMContentValid(void) {
-    const uint8_t* p = __config_start;
-    const configHeader_t* header = (const configHeader_t*)p;
-
-    if (header->eepromConfigVersion != EEPROM_CONF_VERSION) {
-        return false;
-    }
-    if (header->magic_be != 0xBE) {
-        return false;
-    }
-
-    uint16_t crc = CRC_START_VALUE;
-    crc = crc16_ccitt_update(crc, header, sizeof(*header));
-    p += sizeof(*header);
-
-    for (;;) {
-        const configRecord_t* record = (const configRecord_t*)p;
-
-        if (record->size == 0) {
-            // Found the end.  Stop scanning.
-            break;
-        }
-        if (p + record->size >= __config_end || record->size < sizeof(*record)) {
-            // Too big or too small.
-            return false;
-        }
-
-        crc = crc16_ccitt_update(crc, p, record->size);
-
-        p += record->size;
-    }
-
-    const configFooter_t* footer = (const configFooter_t*)p;
-    crc = crc16_ccitt_update(crc, footer, sizeof(*footer));
-    p += sizeof(*footer);
-
-    // include stored CRC in the CRC calculation
-    const uint16_t* storedCrc = (const uint16_t*)p;
-    crc = crc16_ccitt_update(crc, storedCrc, sizeof(*storedCrc));
-    p += sizeof(storedCrc);
-
-#if defined(DEBUG_PG)
-    print("Calculated CRC before including stored CRC: 0x%04X\r\n", crc);
-    print("Stored CRC value: 0x%04X\r\n", *storedCrc);
-
-    print("Final CRC value: 0x%04X\r\n", crc);
-    print("Expected CRC_CHECK_VALUE: 0x%04X\r\n", CRC_CHECK_VALUE);
-#endif
-
-    eepromConfigSize = p - __config_start;
-
-    // CRC has the property that if the CRC itself is included in the calculation the resulting CRC
-    // will have constant value
-    return crc == CRC_CHECK_VALUE;
-}
-
 uint16_t getEEPROMConfigSize(void) {
     return eepromConfigSize;
 }
@@ -265,16 +210,103 @@ bool loadEEPROM(void) {
     return success;
 }
 
+bool isEEPROMContentValid(void) {
+    const uint8_t* p = __config_start;
+    const configHeader_t* header = (const configHeader_t*)p;
+
+#if defined(DEBUG_PG)
+    print("-[Starting EEPROM validation]\r\n");
+#endif
+
+    if (header->eepromConfigVersion != EEPROM_CONF_VERSION) {
+#if defined(DEBUG_PG)
+        print("-[Invalid config version: expected %d, got %d]\r\n", EEPROM_CONF_VERSION,
+              header->eepromConfigVersion);
+#endif
+        return false;
+    }
+    if (header->magic_be != 0xBE) {
+#if defined(DEBUG_PG)
+        print("-[Invalid magic number: expected 0xBE, got 0x%02X]\r\n", header->magic_be);
+#endif
+        return false;
+    }
+
+#if defined(DEBUG_PG)
+    print("-[Header validated successfully]\r\n");
+#endif
+
+    uint16_t crc = CRC_START_VALUE;
+    crc = crc16_ccitt_update(crc, header, sizeof(*header));
+    p += sizeof(*header);
+
+#if defined(DEBUG_PG)
+    print("-[Header CRC]: 0x%04X\r\n", crc);
+#endif
+
+    for (;;) {
+        const configRecord_t* record = (const configRecord_t*)p;
+
+        if (record->size == 0) {
+            // Found the end.  Stop scanning.
+#if defined(DEBUG_PG)
+            print("-[End of records reached]\r\n");
+#endif
+            break;
+        }
+        if (p + record->size >= __config_end || record->size < sizeof(*record)) {
+            // Too big or too small.
+#if defined(DEBUG_PG)
+            print("-[Invalid record size: %d bytes]\r\n", record->size);
+#endif
+            return false;
+        }
+
+#if defined(DEBUG_PG)
+        print("-[Processing record: pgn=%d, size=%d]\r\n", record->pgn, record->size);
+#endif
+
+        crc = crc16_ccitt_update(crc, p, record->size);
+
+        p += record->size;
+    }
+
+    const configFooter_t* footer = (const configFooter_t*)p;
+    crc = crc16_ccitt_update(crc, footer, sizeof(*footer));
+    p += sizeof(*footer);
+
+#if defined(DEBUG_PG)
+    print("-[Footer CRC]: 0x%04X\r\n", crc);
+#endif
+
+    // include stored CRC in the CRC calculation
+    const uint16_t* storedCrc = (const uint16_t*)p;
+    crc = crc16_ccitt_update(crc, storedCrc, sizeof(*storedCrc));
+    p += sizeof(storedCrc);
+
+#if defined(DEBUG_PG)
+    print("-[Stored CRC]: 0x%04X, Calculated CRC: 0x%04X]\r\n", *storedCrc, crc);
+#endif
+
+    eepromConfigSize = p - __config_start;
+    // CRC has the property that if the CRC itself is included in the calculation the resulting CRC
+    // will have constant value
+
+#if defined(DEBUG_PG)
+    bool valid = (crc == CRC_CHECK_VALUE);
+    print("-[EEPROM validation result]: %s\r\n", valid ? "PASSED" : "FAILED");
+#endif
+
+    return crc == CRC_CHECK_VALUE;
+}
+
 bool writeSettingsToEEPROM(void) {
 #if defined(DEBUG_PG)
-    print("Starting EEPROM write process\r\n");
+    print("-[Starting EEPROM write]\r\n");
 #endif
     config_streamer_t streamer;
     config_streamer_init(&streamer);
-#if defined(DEBUG_PG)
-    print("Stream start address: 0x%08X, size: %d\r\n", (uint32_t)__config_start,
-          __config_end - __config_start);
-#endif
+
     config_streamer_start(&streamer, (uintptr_t)__config_start, __config_end - __config_start);
 
     configHeader_t header = {
@@ -282,35 +314,29 @@ bool writeSettingsToEEPROM(void) {
         .magic_be = 0xBE,
     };
 
-#if defined(DEBUG_PG)
-    print("Writing header: version=%d, magic=0x%02X\r\n", header.eepromConfigVersion,
-          header.magic_be);
-#endif
     config_streamer_write(&streamer, (uint8_t*)&header, sizeof(header));
     uint16_t crc = CRC_START_VALUE;
     crc = crc16_ccitt_update(crc, (uint8_t*)&header, sizeof(header));
-
 #if defined(DEBUG_PG)
-    int pg_count = 0;
+    print("-[Header CRC]: 0x%04X\r\n", crc);
 #endif
     PG_FOREACH(reg) {
         const uint16_t regSize = pgSize(reg);
-        configRecord_t record = {.size = static_cast<uint16_t>(sizeof(configRecord_t) + regSize),
+        configRecord_t record = {.size = (uint16_t)(sizeof(configRecord_t) + regSize),
                                  .pgn = pgN(reg),
                                  .version = pgVersion(reg),
                                  .flags = 0};
 
         record.flags |= CR_CLASSICATION_SYSTEM;
-#if defined(DEBUG_PG)
-        print("Writing PG %d: PGN=%d, size=%d, version=%d\r\n", pg_count, record.pgn, record.size,
-              record.version);
-#endif
         config_streamer_write(&streamer, (uint8_t*)&record, sizeof(record));
         crc = crc16_ccitt_update(crc, (uint8_t*)&record, sizeof(record));
+#if defined(DEBUG_PG)
+        print("-[After record CRC]: 0x%04X\r\n", crc);
+#endif
         config_streamer_write(&streamer, reg->address, regSize);
         crc = crc16_ccitt_update(crc, reg->address, regSize);
 #if defined(DEBUG_PG)
-        pg_count++;
+        print("-[After reg data CRC]: 0x%04X\r\n", crc);
 #endif
     }
 
@@ -320,16 +346,21 @@ bool writeSettingsToEEPROM(void) {
 
     config_streamer_write(&streamer, (uint8_t*)&footer, sizeof(footer));
     crc = crc16_ccitt_update(crc, (uint8_t*)&footer, sizeof(footer));
+#if defined(DEBUG_PG)
+    print("-[After footer CRC]: 0x%04X\r\n", crc);
+#endif
 
-    // include inverted CRC in big endian format in the CRC
     const uint16_t invertedBigEndianCrc = ~(((crc & 0xFF) << 8) | (crc >> 8));
+#if defined(DEBUG_PG)
+    print("-[Writing CRC]: 0x%04X\r\n", invertedBigEndianCrc);
+#endif
     config_streamer_write(&streamer, (uint8_t*)&invertedBigEndianCrc, sizeof(crc));
 
     config_streamer_flush(&streamer);
 
     const bool success = config_streamer_finish(&streamer) == 0;
 #if defined(DEBUG_PG)
-    print("Write process finished, success: %s\r\n", success ? "YES" : "NO");
+    print("[Write finished with success]=%s\r\n", success ? "PASSED" : "FAILED");
 #endif
     return success;
 }

@@ -61,6 +61,9 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 /* Configuration data size */
 _CONFIG_DATA_SIZE = 0x1FF00; /* 128KB configuration data size */
 
+__config_start = ORIGIN(EEPROM);
+__config_end = ORIGIN(EEPROM) + LENGTH(EEPROM);
+
 /* Specify the memory areas */
 MEMORY
 {
@@ -135,6 +138,20 @@ SECTIONS
     PROVIDE_HIDDEN (__fini_array_end = .);
   } >FLASH
 
+  .pg_registry :
+  {
+    PROVIDE_HIDDEN (__pg_registry_start = .);
+    KEEP (*(.pg_registry))
+    KEEP (*(SORT(.pg_registry.*)))
+    PROVIDE_HIDDEN (__pg_registry_end = .);
+  } >FLASH
+  .pg_resetdata :
+  {
+    PROVIDE_HIDDEN (__pg_resetdata_start = .);
+    KEEP (*(.pg_resetdata))
+    PROVIDE_HIDDEN (__pg_resetdata_end = .);
+  } >FLASH
+
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 
@@ -196,30 +213,6 @@ SECTIONS
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
   } >RAM
-
-  /* PG注册表段 */
-  .pg_registry : {
-      . = ALIGN(4);
-      __pg_registry_start = .;
-      KEEP(*(.pg_registry));
-      __pg_registry_end = .;
-  } >EEPROM
-
-  /* PG重置数据段 */
-  .pg_resetdata : {
-      . = ALIGN(2);
-      __pg_resetdata_start = .;
-      KEEP(*(.pg_resetdata));
-      __pg_resetdata_end = .;
-  } >EEPROM
-
-  /* 配置数据段*/
-  .config_data : {
-      . = ALIGN(4);
-      __config_start = .;
-      . += _CONFIG_DATA_SIZE;
-      __config_end = .;
-  } >EEPROM
 
   /* Remove information from the standard libraries */
   /DISCARD/ :

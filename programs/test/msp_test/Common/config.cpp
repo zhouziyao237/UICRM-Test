@@ -55,9 +55,7 @@ bool readEEPROM(void) {
 
     // Sanity check, read flash
     bool success = loadEEPROM();
-
     featureInit();
-
     validateAndFixConfig();
     activateConfig();
     //        resumeRxSignal();

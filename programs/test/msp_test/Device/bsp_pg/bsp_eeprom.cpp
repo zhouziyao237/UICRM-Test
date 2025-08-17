@@ -120,29 +120,6 @@ HAL_StatusTypeDef EEPROM_EraseSector(uint32_t Sector) {
     return HAL_OK;
 }
 
-// HAL_StatusTypeDef EEPROM_ProgramWord(uint32_t Address, uint32_t Data) {
-//     HAL_StatusTypeDef status = HAL_OK;
-//     // 检查地址范围
-//     if ((Address < DATA_EEPROM_START_ADDR) || (Address + 4 > DATA_EEPROM_END_ADDR)) {
-//         print("Error: Address out of range.\r\n");
-//         return HAL_ERROR;
-//     }
-//     HAL_FLASH_Unlock();  // 解锁Flash
-//     // 使用HAL_FLASH_Program函数进行编程
-//     status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, Address, Data);
-//     if (status != HAL_OK) {
-//         print("Error: Program Fail!!!\r\n");
-//         return HAL_ERROR;
-//     }
-//     HAL_FLASH_Lock();  // 上锁
-//
-// #if defined(DEBUG_FLASH)
-//     print("Program Success.\r\n");
-// #endif
-//     return status;
-// }
-
-// ... existing code ...
 HAL_StatusTypeDef EEPROM_ProgramWord(uint32_t Address, uint32_t Data) {
     HAL_StatusTypeDef status = HAL_OK;
 
@@ -182,7 +159,6 @@ HAL_StatusTypeDef EEPROM_ProgramWord(uint32_t Address, uint32_t Data) {
 
     return status;
 }
-// ... existing code ...
 
 static int write_word(config_streamer_t* c, uint32_t value) {
     static HAL_StatusTypeDef status = HAL_OK;

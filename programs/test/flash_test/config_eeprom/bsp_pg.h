@@ -95,7 +95,6 @@ extern const uint8_t __pg_resetdata_start[] __asm("section$start$__DATA$__pg_res
 extern const uint8_t __pg_resetdata_end[] __asm("section$end$__DATA$__pg_resetdata");
 #define PG_RESETDATA_ATTRIBUTES __attribute__((section("__DATA,__pg_resetdata"), used, aligned(2)))
 #else
-// 对于STM32等嵌入式系统，使用以下定义
 extern const pgRegistry_t __pg_registry_start[];
 extern const pgRegistry_t __pg_registry_end[];
 #define PG_REGISTER_ATTRIBUTES __attribute__((section(".pg_registry"), used, aligned(4)))
@@ -105,24 +104,6 @@ extern const uint8_t __pg_resetdata_end[];
 #define PG_RESETDATA_ATTRIBUTES __attribute__((section(".pg_resetdata"), used, aligned(2)))
 
 #endif
-
-#define MIN(a, b)               \
-    __extension__({             \
-        __typeof__(a) _a = (a); \
-        __typeof__(b) _b = (b); \
-        _a < _b ? _a : _b;      \
-    })
-#define MAX(a, b)               \
-    __extension__({             \
-        __typeof__(a) _a = (a); \
-        __typeof__(b) _b = (b); \
-        _a > _b ? _a : _b;      \
-    })
-#define ABS(x)                  \
-    __extension__({             \
-        __typeof__(x) _x = (x); \
-        _x > 0 ? _x : -_x;      \
-    })
 
 #ifndef __UNIQL
 #define __UNIQL_CONCAT2(x, y) x##y
@@ -200,7 +181,7 @@ extern const uint8_t __pg_resetdata_end[];
     /**/
 
 #define PG_REGISTER_WITH_RESET_FN(_type, _name, _pgn, _version)                                    \
-    extern void pgResetFn_##_name(_type*);                                                         \
+    extern void pgResetFn_##_name(_type*, int);                                                    \
     PG_REGISTER_I(_type, _name, _pgn, _version, .reset = {.fn = (pgResetFunc*)&pgResetFn_##_name}) \
     /**/
 
@@ -228,7 +209,7 @@ extern const uint8_t __pg_resetdata_end[];
     /**/
 
 #define PG_REGISTER_ARRAY_WITH_RESET_FN(_type, _size, _name, _pgn, _version) \
-    extern void pgResetFn_##_name(_type*);                                   \
+    extern void pgResetFn_##_name(_type*, int);                              \
     PG_REGISTER_ARRAY_I(_type, _size, _name, _pgn, _version,                 \
                         .reset = {.fn = (pgResetFunc*)&pgResetFn_##_name})   \
     /**/
@@ -251,7 +232,7 @@ extern const uint8_t __pg_resetdata_end[];
 #define CONVERT_PARAMETER_TO_PERCENT(param) (0.01f * param)
 
 const pgRegistry_t* pgFind(pgn_t pgn);
-void pgLoad(const pgRegistry_t* reg, const void* from, int size, int version);
+bool pgLoad(const pgRegistry_t* reg, const void* from, int size, int version);
 int pgStore(const pgRegistry_t* reg, void* to, int size);
 void pgResetAll(void);
 void pgResetInstance(const pgRegistry_t* reg, uint8_t* base);
@@ -261,7 +242,6 @@ void pgReset(const pgRegistry_t* reg);
 #define EEPROM_CONF_VERSION 168
 
 bool isEEPROMContentValid(void);
-void initEEPROM(void);
 bool loadEEPROM(void);
 void writeConfigToEEPROM(void);
 uint16_t getEEPROMConfigSize(void);

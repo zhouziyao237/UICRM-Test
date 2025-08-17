@@ -46,10 +46,10 @@ namespace RMFC {
         static void mspRebootFn(serialPort_t* serialPort) {
             UNUSED(serialPort);
 
-            // systemReset();
+            systemReset();
             // control should never return here.
-            // while (true)
-            // ;
+            while (true)
+                ;
         }
 
         //
@@ -1405,6 +1405,7 @@ namespace RMFC {
                         return MSP_RESULT_ERROR;
                     }
                     writeEEPROM();
+                    // todo: 不知道为什么每次调用readEEPROM()在这都会卡死
                     // readEEPROM();
                     break;
                 }
