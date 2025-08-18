@@ -26,18 +26,23 @@
 #define USE_CUSTOM_DEFAULTS
 
 #define USEUART
-#define SERIAL_PORT_COUNT 7
+#define SERIAL_PORT_COUNT 6
 #define MAX_MSP_PORT_COUNT 3
 
-#define MSP_FUNCTION_DEBUG SERIAL_PORT_USART8
+#define USE_DEBUGUART &huart8
 
 #define USEUSB_VCP
 #define USEUART_1 &huart1
 #define USEUART_2 &huart2
 #define USEUART_3 &huart3
 #define USEUART_6 &huart6
-// #define USEUART_7 &huart7
-#define USEUART_8 &huart8
+#define USEUART_7 &huart7
+#define MSP_FUNCTION_UART SERIAL_PORT_USART8
+// #define USEUART_8 &huart8
+
+#define ONBOARD_IMU_SPI hspi5
+#define ONBOARD_IMU_CS_GROUP GPIOF
+#define ONBOARD_IMU_CS_PIN GPIO_PIN_6
 
 #define USE_CLI
 #define DEBUG_PG

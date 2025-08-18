@@ -107,8 +107,8 @@ namespace RMFC {
 
 #if defined(USEUSB_VCP) && defined(USEUART)
         if (serialConfig->portConfigs[0].identifier == SERIAL_PORT_USB_VCP) {
-#if defined(MSP_FUNCTION_DEBUG)
-            serialPortConfig_t* uart1Config = serialFindPortConfiguration(MSP_FUNCTION_DEBUG);
+#if defined(MSP_FUNCTION_UART)
+            serialPortConfig_t* uart1Config = serialFindPortConfiguration(MSP_FUNCTION_UART);
 #else
             serialPortConfig_t* uart1Config = serialFindPortConfiguration(SERIAL_PORT_USART1);
 #endif
