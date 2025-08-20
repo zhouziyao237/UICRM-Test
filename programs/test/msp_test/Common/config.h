@@ -22,7 +22,7 @@
 
 #pragma once
 
-#include "bsp_pg/bsp_pg.h"
+#include "bsp_PG/bsp_pg.h"
 
 //
 // EEPROM 控制函数

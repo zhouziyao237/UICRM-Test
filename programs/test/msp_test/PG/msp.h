@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "Device/bsp_pg/bsp_pg.h"
+#include "Device/bsp_PG/bsp_pg.h"
 
 typedef struct mspConfig_s {
     uint8_t halfDuplex;  // allow msp to operate in half duplex mode

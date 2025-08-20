@@ -23,6 +23,10 @@
 #ifndef TARGET_H
 #define TARGET_H
 
+//
+// Uart User Config
+//
+
 #define USE_CUSTOM_DEFAULTS
 
 #define USEUART
@@ -43,6 +47,18 @@
 #define ONBOARD_IMU_SPI hspi5
 #define ONBOARD_IMU_CS_GROUP GPIOF
 #define ONBOARD_IMU_CS_PIN GPIO_PIN_6
+
+//
+// MPU User Config
+//
+
+#define ONBOARD_IMU_SPI hspi5
+#define ONBOARD_IMU_CS_GROUP GPIOF
+#define ONBOARD_IMU_CS_PIN GPIO_PIN_6
+
+//
+// Debug User Config
+//
 
 #define USE_CLI
 #define DEBUG_PG

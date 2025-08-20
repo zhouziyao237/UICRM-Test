@@ -24,7 +24,7 @@
 #define DEVICESERIAL_H
 
 #include "Target.h"
-#include "bsp_pg/bsp_pg.h"
+#include "bsp_PG/bsp_pg.h"
 #include "bsp_serial.h"
 #include "bsp_uart.h"
 #include "bsp_usb.h"

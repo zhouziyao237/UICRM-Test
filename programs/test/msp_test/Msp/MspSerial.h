@@ -23,10 +23,10 @@
 #ifndef MSPSERIAL_H
 #define MSPSERIAL_H
 
-#include <bsp_serial/bsp_serial.h>
+#include <bsp_Serial/bsp_serial.h>
 #include <stdio.h>
 
-#include "Device/bsp_serial/DeviceSerial.h"
+#include "Device/bsp_Serial/DeviceSerial.h"
 #include "Msp.h"
 
 #define MSP_PORT_INBUF_SIZE 192

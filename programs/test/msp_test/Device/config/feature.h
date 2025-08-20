@@ -35,7 +35,7 @@
 
 #pragma once
 
-#include "../bsp_pg/bsp_pg.h"
+#include "../bsp_PG/bsp_pg.h"
 
 #ifndef DEFAULT_FEATURES
 #define DEFAULT_FEATURES 0

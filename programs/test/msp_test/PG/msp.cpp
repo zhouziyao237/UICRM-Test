@@ -18,7 +18,7 @@
 
 #include "msp.h"
 
-#include "Device/bsp_pg/bsp_pg.h"
-#include "Device/bsp_pg/bsp_pg_ids.h"
+#include "Device/bsp_PG/bsp_pg.h"
+#include "Device/bsp_PG/bsp_pg_ids.h"
 
 PG_REGISTER(mspConfig_t, mspConfig, PG_MSP_CONFIG, 0);

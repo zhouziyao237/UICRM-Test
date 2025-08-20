@@ -22,7 +22,7 @@
 #ifndef _MSP_PROCESSOR_H_
 #define _MSP_PROCESSOR_H_
 
-#include "Device/bsp_serial/bsp_serial.h"
+#include "Device/bsp_Serial/bsp_serial.h"
 #include "Msp.h"
 #include "MspParser.h"
 #include "MspProcessor.h"

@@ -39,8 +39,8 @@
 
 // #include "platform.h"
 
-#include "../bsp_pg/bsp_pg.h"
-#include "../bsp_pg/bsp_pg_ids.h"
+#include "../bsp_PG/bsp_pg.h"
+#include "../bsp_PG/bsp_pg_ids.h"
 #include "feature.h"
 
 PG_REGISTER_WITH_RESET_TEMPLATE(featureConfig_t, featureConfig, PG_FEATURE_CONFIG, 1);

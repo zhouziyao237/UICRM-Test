@@ -22,8 +22,8 @@
 
 #include "config.h"
 
-#include "Device/bsp_serial/DeviceSerial.h"
-#include "Device/bsp_serial/bsp_Serial.h"
+#include "Device/bsp_Serial/DeviceSerial.h"
+#include "Device/bsp_Serial/bsp_Serial.h"
 #include "Device/config/feature.h"
 #include "FreeRTOS.h"
 #include "bsp_print.h"
