@@ -21,9 +21,7 @@
 //
 
 #include "main.h"
-
-#include <RefereeProcessor.h>
-
+#include "RFS/RefereeSerial.h"
 #include "Common/config.h"
 #include "Device/bsp_Serial/DeviceSerial.h"
 #include "Device/bsp_Serial/bsp_Serial.h"
@@ -33,11 +31,6 @@
 #include "bsp_print.h"
 #include "bsp_serial.h"
 #include "cmsis_os2.h"
-
-serialPort_t* RefereeSerial;
-RMFC::RFS::RefereeProcessor RFSProcessor;
-RMFC::RFS::RefereeMessage msg;
-RMFC::RFS::RefereeResponse res;
 
 void RM_RTOS_Init() {
     pgResetAll();
@@ -54,28 +47,20 @@ void RM_RTOS_Init() {
     ensureEEPROMStructureIsValid();
     readEEPROM();
 
-    RefereeSerial = newSerialPort(USEUART_6, 115200, MODE_RXTX, SERIAL_NOT_INVERTED);
+    // RefereeSerial = newSerialPort(USEUART_6, 115200, MODE_RXTX, SERIAL_NOT_INVERTED);
 
-    // RMFC::serialInit(false, RMFC::SERIAL_PORT_NONE);
-    // RMFC::MSP::mspSerialInit();
+    RMFC::serialInit(false, RMFC::SERIAL_PORT_NONE);
+    RMFC::RFS::RefereeInit(RefereeConfig());
+    RMFC::MSP::mspSerialInit();
     osDelay(100);
 }
 
 void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
-    RMFC::RFS::rwstatus_e rwstatus = RMFC::RFS::Write_Status;
-    uint8_t* data = nullptr;
     while (true) {
-        // RMFC::MSP::mspEvaluateNonMspData_e evaluateMspData =
-        //     ARMING_FLAG(ARMED) ? RMFC::MSP::MSP_SKIP_NON_MSP_DATA
-        //                        : RMFC::MSP::MSP_EVALUATE_NON_MSP_DATA;
-        // RMFC::MSP::mspSerialProcess(evaluateMspData);
-        char* c = (char*)data;
-        rwstatus = RMFC::RFS::Write_Status;
-        uint32_t len = serialRead(RefereeSerial, &data);
-        if (len > 0) {
-            rwstatus = RMFC::RFS::Read_Status;
-        }
-        RFSProcessor.process(*c, rwstatus, msg, res, RefereeSerial);
+        RMFC::MSP::mspEvaluateNonMspData_e evaluateMspData =
+            ARMING_FLAG(ARMED) ? RMFC::MSP::MSP_SKIP_NON_MSP_DATA
+                               : RMFC::MSP::MSP_EVALUATE_NON_MSP_DATA;
+        RMFC::MSP::mspSerialProcess(evaluateMspData);
     }
 }

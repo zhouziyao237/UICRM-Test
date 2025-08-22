@@ -22,6 +22,7 @@
 
 #include "RefereeProcessor.h"
 
+#include "connection_driver.h"
 #include "Device/bsp_Serial/DeviceSerial.h"
 #include "Device/bsp_Serial/bsp_Serial.h"
 #include "Referee.h"
@@ -33,10 +34,12 @@ namespace RMFC {
 
         bool RefereeProcessor::process(char data, rwstatus_e rwstatus, RefereeMessage& msg,
                                        RefereeResponse& res, serialPort_t* SerialRFS) {
-            _RefereeParser.parse(data, msg);
+
 
             switch (rwstatus) {
                 case Read_Status: {
+                    Heartbeat();
+                    _RefereeParser.parse(data, msg);
                     if (msg.c_state == RFS_STATE_RECEIVED) {
                         ReceiveCommand(msg);
                         msg = RefereeMessage();

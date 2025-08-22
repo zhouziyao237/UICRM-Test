@@ -81,5 +81,6 @@
 #define PG_SERIAL_CONFIG 9
 
 #define PG_MSP_CONFIG 557
+#define PG_RFS_CONFIG 558
 
 #endif //BSP_PG_IDS_H

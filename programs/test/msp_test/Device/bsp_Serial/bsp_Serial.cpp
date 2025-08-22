@@ -105,6 +105,15 @@ static void uartEndWrite(serialPort_t* instance) {
     UNUSED(instance);
 }
 
+// UART回调注册函数实现
+static void uartRegisterCallback(serialPort_t* instance, serial_rx_callback_t callback,
+                                 void* args) {
+    uartPrivateData_t* privateData = (uartPrivateData_t*)instance->privateData;
+    if (privateData && privateData->uart_instance) {
+        privateData->uart_instance->RegisterCallback(callback, args);
+    }
+}
+
 // USB VTable函数实现
 static void usbSerialWrite(serialPort_t* instance, uint8_t ch) {
     usbPrivateData_t* privateData = (usbPrivateData_t*)instance->privateData;
@@ -168,13 +177,22 @@ static void usbEndWrite(serialPort_t* instance) {
     UNUSED(instance);
 }
 
+// USB回调注册函数实现
+static void usbRegisterCallback(serialPort_t* instance, serial_rx_callback_t callback, void* args) {
+    usbPrivateData_t* privateData = (usbPrivateData_t*)instance->privateData;
+    if (privateData && privateData->usb_instance) {
+        privateData->usb_instance->RegisterCallback(callback, args);
+    }
+}
+
 // UART VTable
 static const struct serialPortVTable uartVTable = {
     uartSerialWrite,       uartSerialTotalRxWaiting,
     uartSerialTotalTxFree, uartSerialRead,
     uartSerialSetBaudRate, uartIsSerialTransmitBufferEmpty,
     uartSetMode,           uartWriteBuf,
-    uartBeginWrite,        uartEndWrite};
+    uartBeginWrite,        uartEndWrite,
+    uartRegisterCallback};
 
 // USB VTable
 static const struct serialPortVTable usbVTable = {
@@ -182,7 +200,8 @@ static const struct serialPortVTable usbVTable = {
     usbSerialTotalTxFree, usbSerialRead,
     usbSerialSetBaudRate, usbIsSerialTransmitBufferEmpty,
     usbSetMode,           usbWriteBuf,
-    usbBeginWrite,        usbEndWrite};
+    usbBeginWrite,        usbEndWrite,
+    usbRegisterCallback};
 
 // 公共接口函数实现
 void serialWrite(serialPort_t* instance, uint8_t ch) {
@@ -191,6 +210,13 @@ void serialWrite(serialPort_t* instance, uint8_t ch) {
 
 uint32_t serialGetBaudRate(serialPort_t* instance) {
     return instance ? instance->baudRate : 0;
+}
+
+// 添加RegisterCallback公共接口函数实现
+void serialRegisterCallback(serialPort_t* instance, serial_rx_callback_t callback, void* args) {
+    if (instance->vTable->registerCallback) {
+        instance->vTable->registerCallback(instance, callback, args);
+    }
 }
 
 void serialWriteBuf(serialPort_t* instance, const uint8_t* data, int length) {
@@ -308,7 +334,7 @@ void serialWriteBufShim(void* instance, const uint8_t* data, int length) {
 
 // 创建UART串口实例的工厂函数
 serialPort_t* newSerialPort(UART_HandleTypeDef* huart, uint32_t baudRate, portMode_e mode,
-                            portOptions_e options) {
+                            portOptions_e options, serial_rx_callback_t callback, void* args) {
     if (!huart)
         return NULL;
 
@@ -338,6 +364,8 @@ serialPort_t* newSerialPort(UART_HandleTypeDef* huart, uint32_t baudRate, portMo
         privateData->uart_instance->SetBaudrate(baudRate);
     }
 
+    privateData->uart_instance->RegisterCallback(callback, args);
+
     // 设置VTable和属性
     instance->vTable = &uartVTable;
     instance->baudRate = baudRate;
@@ -349,7 +377,7 @@ serialPort_t* newSerialPort(UART_HandleTypeDef* huart, uint32_t baudRate, portMo
 }
 
 // 创建USB串口实例的工厂函数
-serialPort_t* newSerialPortUSB() {
+serialPort_t* newSerialPortUSB(serial_rx_callback_t callback, void* args) {
     serialPort_t* instance = (serialPort_t*)malloc(sizeof(serialPort_t));
     if (!instance)
         return NULL;
@@ -378,6 +406,8 @@ serialPort_t* newSerialPortUSB() {
     free(instance);
     return NULL;
 #endif
+
+    privateData->usb_instance->RegisterCallback(callback, args);
 
     // 设置VTable和属性
     instance->vTable = &usbVTable;

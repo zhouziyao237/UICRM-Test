@@ -55,7 +55,9 @@ typedef enum {
 typedef void (*serialReceiveCallbackPtr)(
     uint16_t data, void* rxCallbackData);  // used by serial drivers to return frames to app
 
-// 虚函数表，定义了串口的各种操作
+// 添加回调函数类型定义
+typedef void (*serial_rx_callback_t)(void* args);
+
 struct serialPortVTable {
     void (*serialWrite)(serialPort_t* instance, uint8_t ch);
     uint32_t (*serialTotalRxWaiting)(const serialPort_t* instance);
@@ -67,6 +69,7 @@ struct serialPortVTable {
     void (*writeBuf)(serialPort_t* instance, const void* data, int length);
     void (*beginWrite)(serialPort_t* instance);
     void (*endWrite)(serialPort_t* instance);
+    void (*registerCallback)(serialPort_t* instance, serial_rx_callback_t callback, void* args);
 };
 
 // 串口结构体
@@ -99,6 +102,8 @@ void serialSetMode(serialPort_t* instance, portMode_e mode);
 void serialBeginWrite(serialPort_t* instance);
 void serialEndWrite(serialPort_t* instance);
 uint32_t serialGetBaudRate(serialPort_t* instance);
+// 添加RegisterCallback公共接口函数声明
+void serialRegisterCallback(serialPort_t* instance, serial_rx_callback_t callback, void* args);
 
 // 辅助函数
 void serialPrint(serialPort_t* instance, const char* str);
@@ -107,8 +112,8 @@ uint32_t serialPrintlnFormatted(serialPort_t* instance, const char* format, ...)
 
 // 工厂函数
 serialPort_t* newSerialPort(UART_HandleTypeDef* huart, uint32_t baudRate, portMode_e mode,
-                            portOptions_e options);
-serialPort_t* newSerialPortUSB();
+                            portOptions_e options, serial_rx_callback_t callback, void* args);
+serialPort_t* newSerialPortUSB(serial_rx_callback_t callback, void* args);
 void deleteSerialPort(serialPort_t* instance);
 
 // 用于缓冲写入的辅助函数

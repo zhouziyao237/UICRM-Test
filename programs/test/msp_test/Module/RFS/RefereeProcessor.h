@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "connection_driver.h"
 #include "Device/bsp_Serial/DeviceSerial.h"
 #include "Device/bsp_Serial/bsp_Serial.h"
 #include "Referee.h"
@@ -44,8 +45,9 @@ namespace RMFC {
 
         typedef enum { Read_Status = 0, Write_Status = 1 } rwstatus_e;
 
-        class RefereeProcessor {
+        class RefereeProcessor : public driver::ConnectionDriver{
           public:
+
             bool process(char data, rwstatus_e rwstatus, RefereeMessage& msg, RefereeResponse& res,
                          serialPort_t* SerialRFS);
 

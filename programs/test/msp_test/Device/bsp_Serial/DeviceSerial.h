@@ -63,6 +63,7 @@ namespace RMFC {
         FUNCTION_LIDAR_TF = (1 << 15),            // 32768
         FUNCTION_FRSKY_OSD = (1 << 16),           // 65536
         FUNCTION_VTX_MSP = (1 << 17),             // 131072
+        FUNCTION_RFS_MSP = (1 << 18),             // 262144
     } serialPortFunction_e;
 
     typedef enum {
@@ -176,7 +177,7 @@ namespace RMFC {
     // runtime
     //
     serialPort_t* openSerialPort(serialPortIdentifier_e identifier, serialPortFunction_e function,
-                                 serialReceiveCallbackPtr rxCallback, void* rxCallbackData,
+                                 serial_rx_callback_t rxCallback, void* rxCallbackData,
                                  uint32_t baudrate, portMode_e mode, portOptions_e options);
     void closeSerialPort(serialPort_t* serialPort);
     void waitForSerialPortToFinishTransmitting(serialPort_t* serialPort);
