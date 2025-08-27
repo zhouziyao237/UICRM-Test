@@ -27,6 +27,7 @@
 #include <stdio.h>
 
 #include "Device/bsp_Serial/DeviceSerial.h"
+#include "platform.h"
 #include "Msp.h"
 
 #define MSP_PORT_INBUF_SIZE 192
@@ -52,7 +53,7 @@ namespace RMFC {
         typedef int mspDescriptor_t;
         typedef struct mspPort_s {
             serialPort_t* port;  // null when port unused.
-            uint32_t lastActivityMs;
+            timeUs_t lastActivityMs;
             mspDescriptor_t descriptor;
             MspMessage msg;
             MspResponse res;

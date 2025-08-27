@@ -73,7 +73,6 @@ void failureMode(failureMode_e mode)
 
 void systemReset(void)
 {
-
     __disable_irq();
     NVIC_SystemReset();
 }

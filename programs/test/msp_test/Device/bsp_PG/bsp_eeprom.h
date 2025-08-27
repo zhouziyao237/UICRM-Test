@@ -52,9 +52,6 @@ extern const uint8_t __config_end[];
 #define DATA_EEPROM_END_ADDR (DATA_EEPROM_START_ADDR + DATA_EEPROM_SIZE)  // 配置数据结束地址
 #define iEEPROM_CHECK_NUM 2
 
-#define ARRAYLEN(x) (sizeof(x) / sizeof((x)[0]))
-#define ARRAYEND(x) (&(x)[ARRAYLEN(x)])
-
 typedef struct config_streamer_s {
     uintptr_t address;
     int size;

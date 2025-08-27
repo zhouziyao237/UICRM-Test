@@ -19,10 +19,29 @@
  ###########################################################*/
 
 #pragma once
-#include "main.h"
 #include <math.h>
 
-#define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
+#include "main.h"
+
+#define ARRAYLEN(x) (sizeof(x) / sizeof((x)[0]))
+#define ARRAYEND(x) (&(x)[ARRAYLEN(x)])
+
+template <typename T>
+T constrain(T amt, T low, T high) {
+    return (amt) < (low) ? (low) : ((amt) > (high) ? (high) : (amt));
+}
+
+template <typename T>
+T scaleRange(T x, T srcFrom, T srcTo, T destFrom, T destTo) {
+    const long int a = (destTo - destFrom) * (x - srcFrom);
+    const long int b = srcTo - srcFrom;
+    return (a / b) + destFrom;
+}
+
+template <typename T>
+T CMP(T x, T y) {
+    return x - y;
+}
 
 /**
  * @brief 将一个值限制在一个范围内

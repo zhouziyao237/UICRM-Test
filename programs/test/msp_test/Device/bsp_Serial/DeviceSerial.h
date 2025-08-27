@@ -132,7 +132,7 @@ namespace RMFC {
 
     typedef struct serialPortConfig_s {
         uint32_t functionMask;
-        uint8_t identifier;
+        int8_t identifier;
         uint8_t msp_baudrateIndex;
         uint8_t navigation_baudrateIndex;
         uint8_t blackbox_baudrateIndex;

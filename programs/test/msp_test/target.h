@@ -65,4 +65,14 @@
 // #define DEBUG_FLASH
 // #define DEBUG_MSP
 
+// RC User Config
+#define USE_SERIALRX
+#define USE_SERIALRX_SBUS
+#define USE_SBUS_CHANNELS
+
+
+// todo: 临时定义
+#define PPM_RCVR_TIMEOUT            0
+#define PWM_INPUT_PORT_COUNT        8
+
 #endif //TARGET_H

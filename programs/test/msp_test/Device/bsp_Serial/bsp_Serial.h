@@ -52,8 +52,6 @@ typedef enum {
     // pulled low
     SERIAL_CHECK_TX = 1 << 7,
 } portOptions_e;
-typedef void (*serialReceiveCallbackPtr)(
-    uint16_t data, void* rxCallbackData);  // used by serial drivers to return frames to app
 
 // 添加回调函数类型定义
 typedef void (*serial_rx_callback_t)(void* args);
@@ -79,7 +77,7 @@ typedef struct serialPort_s {
     portMode_e mode;
     portOptions_e options;
     uint32_t baudRate;
-    serialReceiveCallbackPtr rxCallback;
+    serial_rx_callback_t rxCallback;
     void* rxCallbackData;
     void* privateData;
 } serialPort_t;

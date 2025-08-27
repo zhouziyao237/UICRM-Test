@@ -24,6 +24,7 @@
 #include "PG/Referee.h"
 #include "bsp_thread.h"
 #include "connection_driver.h"
+#include "config/feature.h"
 
 namespace RMFC {
     namespace RFS {
@@ -33,6 +34,10 @@ namespace RMFC {
         driver::ConnectionDriver* connection_driver = nullptr;
 
         bool RefereeInit(const RefereeConfig_t* RefereeConfig) {
+
+            if (!featureIsEnabled(FEATURE_RFS_MSP)) {
+                return false;
+            }
 
             const serialPortConfig_t* portConfig = findSerialPortConfig(FUNCTION_RFS_MSP);
             if (!portConfig) {

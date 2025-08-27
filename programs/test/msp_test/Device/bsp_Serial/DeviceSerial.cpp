@@ -74,7 +74,7 @@ namespace RMFC {
     // Serial Port PG
     //
 
-    PG_REGISTER_WITH_RESET_FN(serialConfig_t, serialConfig, PG_SERIAL_CONFIG, Serial_Version);
+    PG_REGISTER_WITH_RESET_FN(serialConfig_t, serialConfig, PG_SERIAL_CONFIG, 0);
 
     void pgResetFn_serialConfig(serialConfig_t* serialConfig, int size) {
         UNUSED(size);

@@ -27,24 +27,8 @@
 
 #include "bsp_print.h"
 #include "crc_check.h"
-
-#define MIN(a, b)               \
-    __extension__({             \
-        __typeof__(a) _a = (a); \
-        __typeof__(b) _b = (b); \
-        _a < _b ? _a : _b;      \
-    })
-#define MAX(a, b)               \
-    __extension__({             \
-        __typeof__(a) _a = (a); \
-        __typeof__(b) _b = (b); \
-        _a > _b ? _a : _b;      \
-    })
-#define ABS(x)                  \
-    __extension__({             \
-        __typeof__(x) _x = (x); \
-        _x > 0 ? _x : -_x;      \
-    })
+#include "target.h"
+#include "utils.h"
 
 static uint16_t eepromConfigSize;
 
@@ -128,7 +112,7 @@ bool pgLoad(const pgRegistry_t* reg, const void* from, int size, int version) {
     pgResetInstance(reg, pgOffset(reg));
     // restore only matching version, keep defaults otherwise
     if (version == pgVersion(reg)) {
-        const int take = MIN(size, pgSize(reg));
+        const int take = min<int>(size, pgSize(reg));
         memcpy(pgOffset(reg), from, take);
 
         return true;
@@ -137,7 +121,7 @@ bool pgLoad(const pgRegistry_t* reg, const void* from, int size, int version) {
 }
 
 int pgStore(const pgRegistry_t* reg, void* to, int size) {
-    const int take = MIN(size, pgSize(reg));
+    const int take = max<int>(size, pgSize(reg));
     memcpy(to, pgOffset(reg), take);
     return take;
 }

@@ -32,6 +32,7 @@
 #include "bsp_serial.h"
 #include "config/msp_protocol.h"
 #include "crc_check.h"
+#include "build_data.h"
 #include "platform.h"
 #include "system.h"
 #include "utils.h"

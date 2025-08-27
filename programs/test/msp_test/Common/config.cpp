@@ -30,6 +30,8 @@
 #include "target.h"
 #include "task.h"
 
+#include "Module/RX/rx.h"
+
 bool eepromWriteInProgress = false;
 bool configIsDirty = false;
 
@@ -51,14 +53,14 @@ static void activateConfig(void) {
 //
 
 bool readEEPROM(void) {
-    //        suspendRxSignal();
+    RMFC::RX::suspendRxSignal();
 
     // Sanity check, read flash
     bool success = loadEEPROM();
     featureInit();
     validateAndFixConfig();
     activateConfig();
-    //        resumeRxSignal();
+    RMFC::RX::resumeRxSignal();
 
     return success;
 }
