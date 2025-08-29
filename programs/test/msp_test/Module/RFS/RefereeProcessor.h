@@ -36,6 +36,7 @@ extern "C" {
 
 namespace RMFC {
     namespace RFS {
+
         typedef enum {
             MSP_RESULT_ACK = 1,
             MSP_RESULT_ERROR = -1,
@@ -45,11 +46,18 @@ namespace RMFC {
 
         typedef enum { Read_Status = 0, Write_Status = 1 } rwstatus_e;
 
+        typedef struct {
+            RefereeMessage* msg;
+            RefereeResponse* res;
+            rwstatus_e rwstatus;
+        } package_t;
+
         class RefereeProcessor : public driver::ConnectionDriver{
           public:
 
-            bool process(char data, rwstatus_e rwstatus, RefereeMessage& msg, RefereeResponse& res,
-                         serialPort_t* SerialRFS);
+            bool ProcessReceive(char data, package_t& package);
+
+            bool ProcessTransmit(package_t& package, serialPort_t* SerialRFS);
 
             RefereeResult_e ReceiveCommand(RefereeMessage& m);
 

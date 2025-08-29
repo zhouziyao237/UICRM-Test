@@ -49,7 +49,7 @@ namespace RMFC {
         FUNCTION_MSP = (1 << 0),                  // 1
         FUNCTION_GPS = (1 << 1),                  // 2
         FUNCTION_TELEMETRY_FRSKY_HUB = (1 << 2),  // 4
-        FUNCTION_TELEMETRY_HOTT = (1 << 3),       // 8
+        FUNCTION_RFS_MSP = (1 << 3),              // 8
         FUNCTION_TELEMETRY_LTM = (1 << 4),        // 16
         FUNCTION_TELEMETRY_SMARTPORT = (1 << 5),  // 32
         FUNCTION_RX_SERIAL = (1 << 6),            // 64
@@ -63,7 +63,6 @@ namespace RMFC {
         FUNCTION_LIDAR_TF = (1 << 15),            // 32768
         FUNCTION_FRSKY_OSD = (1 << 16),           // 65536
         FUNCTION_VTX_MSP = (1 << 17),             // 131072
-        FUNCTION_RFS_MSP = (1 << 18),             // 262144
     } serialPortFunction_e;
 
     typedef enum {
@@ -137,7 +136,7 @@ namespace RMFC {
         uint8_t navigation_baudrateIndex;
         uint8_t blackbox_baudrateIndex;
         uint8_t referee_baudrateIndex;  // not used for all telemetry systems, e.g. HoTT only
-                                          // works at 19200.
+                                        // works at 19200.
     } serialPortConfig_t;
 
     typedef struct serialConfig_s {
@@ -172,6 +171,16 @@ namespace RMFC {
 
     serialPortUsage_t* findSerialPortUsageByIdentifier(serialPortIdentifier_e identifier);
     int findSerialPortIndexByIdentifier(serialPortIdentifier_e identifier);
+
+    typedef enum {
+        MSP_BAUD_Index = 0,
+        NAVIGATION_BAUD_Index = 1,
+        BLACKBOX_BAUD_Index = 2,
+        REREFEE_BAUD_Index = 3,
+    } baudrateFunctionIndex_e;
+
+    baudRate_e getBaudrateIndexByFunction(const serialPortConfig_t* serialConfig,
+                                          baudrateFunctionIndex_e baudrateFunctionIndex);
 
     //
     // runtime

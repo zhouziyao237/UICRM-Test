@@ -24,45 +24,48 @@
 
 #include <RefereeProcessor.h>
 
+#include "Device/bsp_Serial/DeviceSerial.h"
+#include "Device/bsp_Serial/bsp_Serial.h"
 #include "bsp_error_handler.h"
 #include "bsp_thread.h"
+#include "config/feature.h"
 
 namespace RMFC {
     namespace RFS {
 
-        struct data_s {
-            uint32_t threshold = 100;
-            uint8_t* data = nullptr;
-            rwstatus_e rwstatus = Write_Status;
-        };
+        typedef struct {
+            features_e features;
+            serialPortFunction_e serialPortFunction;
+            baudrateFunctionIndex_e baudRatesIndex;
+        } RefereeProtConfig_t;
 
-        class RefereeSerial : public driver::ConnectionDriver {
+        class RefereeProtocol : public RefereeProcessor {
           public:
-            ~RefereeSerial();
-            bool RefereeInit();
-            void RefereeDataSend();
+            explicit RefereeProtocol();
+            ~RefereeProtocol();
+            bool RefereeInit(RefereeProtConfig_t ProtConfig);
+            void SetThreshold(uint32_t threshold);
+            void InitTask();
+            void Transmit(int cmd_id);
+
+          protected:
+            serialPort_t* UARTProt_;
 
           private:
-            void SerialCallbackWrapper();
-            static void SerialCallbackWrapper(void* args);
-            serialPort_t* RefereePort;
-            data_s* data;
-            RefereeProcessor* RFSProcessor;
-            RefereeMessage* msg;
-            RefereeResponse* res;
+            uint8_t* data;
+            package_t* package;
+            static void CallbackWrapper(void* args);
             bsp::EventThread* callback_thread_ = nullptr;
-            const osThreadAttr_t callback_thread_attr_ = {
-                .name = "RefereeUpdateTask",
-                .attr_bits = osThreadDetached,
-                .cb_mem = nullptr,
-                .cb_size = 0,
-                .stack_mem = nullptr,
-                .stack_size = 1024,
-                .priority = (osPriority_t)osPriorityNormal,
-                .tz_module = 0,
-                .reserved = 0};
-
             static void callback_thread_func_(void* args);
+            const osThreadAttr_t callback_thread_attr_ = {.name = "RefereeProtocolUpdateTask",
+                                                          .attr_bits = osThreadDetached,
+                                                          .cb_mem = nullptr,
+                                                          .cb_size = 0,
+                                                          .stack_mem = nullptr,
+                                                          .stack_size = 256 * 4,
+                                                          .priority = (osPriority_t)osPriorityHigh,
+                                                          .tz_module = 0,
+                                                          .reserved = 0};
         };
 
     }  // namespace RFS

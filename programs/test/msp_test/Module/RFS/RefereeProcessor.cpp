@@ -32,28 +32,37 @@
 namespace RMFC {
     namespace RFS {
 
-        bool RefereeProcessor::process(char data, rwstatus_e rwstatus, RefereeMessage& msg,
-                                       RefereeResponse& res, serialPort_t* SerialRFS) {
-            switch (rwstatus) {
+        bool RefereeProcessor::ProcessReceive(char data, package_t& package) {
+            switch (package.rwstatus) {
                 case Read_Status: {
                     Heartbeat();
-                    _RefereeParser.parse(data, msg);
-                    if (msg.c_state == RFS_STATE_RECEIVED) {
-                        ReceiveCommand(msg);
-                        msg = RefereeMessage();
-                        res = RefereeResponse();
+                    _RefereeParser.parse(data, *package.msg);
+                    if (package.msg->c_state == RFS_STATE_RECEIVED) {
+                        ReceiveCommand(*package.msg);
+                        package.msg = (RefereeMessage*){};
+                        package.res = (RefereeResponse*){};
                     }
-                } break;
-                case Write_Status: {
-                    sendResponseV1(SerialRFS, res);
-                    msg = RefereeMessage();
-                    res = RefereeResponse();
                 } break;
                 default:
                     return false;
             }
 
-            return msg.c_state != RFS_STATE_IDLE;
+            return package.msg->c_state != RFS_STATE_IDLE;
+        }
+
+        bool RefereeProcessor::ProcessTransmit(package_t& package, serialPort_t* SerialRFS) {
+            switch (package.rwstatus) {
+                case Read_Status:
+                case Write_Status: {
+                    sendResponseV1(SerialRFS, *package.res);
+                    package.msg = (RefereeMessage*){};
+                    package.res = (RefereeResponse*){};
+                } break;
+                default:
+                    return false;
+            }
+
+            return package.msg->c_state != RFS_STATE_IDLE;
         }
 
         RefereeResult_e RefereeProcessor::ReceiveCommand(RefereeMessage& m) {

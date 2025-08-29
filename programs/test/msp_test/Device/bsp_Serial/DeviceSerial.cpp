@@ -130,6 +130,22 @@ namespace RMFC {
     // Serial Port Usage
     //
 
+    baudRate_e getBaudrateIndexByFunction(const serialPortConfig_t* portConfig,
+                                          baudrateFunctionIndex_e baudrateFunctionIndex) {
+        switch (baudrateFunctionIndex) {
+            case BLACKBOX_BAUD_Index:
+                return static_cast<baudRate_e>(portConfig->blackbox_baudrateIndex);
+            case MSP_BAUD_Index:
+                return static_cast<baudRate_e>(portConfig->msp_baudrateIndex);
+            case NAVIGATION_BAUD_Index:
+                return static_cast<baudRate_e>(portConfig->navigation_baudrateIndex);
+            case REREFEE_BAUD_Index:
+                return static_cast<baudRate_e>(portConfig->referee_baudrateIndex);
+            default:
+                return BAUD_AUTO;
+        }
+    }
+
     baudRate_e lookupBaudRateIndex(uint32_t baudRate) {
         for (uint8_t index = 0; index < BAUD_RATE_COUNT; index++) {
             if (baudRates[index] == baudRate) {

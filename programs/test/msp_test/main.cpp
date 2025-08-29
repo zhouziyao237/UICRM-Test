@@ -35,8 +35,8 @@
 #include "bsp_serial.h"
 #include "cmsis_os2.h"
 
-serialPort_t* RefereeSerial = nullptr;
-RMFC::RFS::RefereeSerial* TextReferee = nullptr;
+RMFC::RFS::RefereeProtocol* RefereeProtocol = nullptr;
+RMFC::RFS::RefereeProtConfig_t ProtConfig;
 
 void RM_RTOS_Init() {
     pgResetAll();
@@ -53,16 +53,20 @@ void RM_RTOS_Init() {
     ensureEEPROMStructureIsValid();
     readEEPROM();
 
+    ProtConfig.features = FEATURE_RFS_MSP;
+    ProtConfig.serialPortFunction = RMFC::FUNCTION_RFS_MSP;
+    ProtConfig.baudRatesIndex = RMFC::REREFEE_BAUD_Index;
+
     RMFC::serialInit(false, RMFC::SERIAL_PORT_NONE);
-    // RefereeSerial = newSerialPort(USEUART_6, 115200, MODE_RXTX, SERIAL_INVERTED, NULL, NULL);
-    TextReferee = new RMFC::RFS::RefereeSerial();
-    TextReferee->RefereeInit();
+    RefereeProtocol = new RMFC::RFS::RefereeProtocol();
+    RefereeProtocol->RefereeInit(ProtConfig);
     RMFC::MSP::mspSerialInit();
     osDelay(100);
 }
 
 void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
+    osDelay(50);
     while (true) {
         RMFC::MSP::mspEvaluateNonMspData_e evaluateMspData =
             ARMING_FLAG(ARMED) ? RMFC::MSP::MSP_SKIP_NON_MSP_DATA

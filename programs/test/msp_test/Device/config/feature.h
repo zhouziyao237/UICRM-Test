@@ -53,7 +53,7 @@ typedef enum {
     FEATURE_SOFTSERIAL = 1 << 6,
     FEATURE_GPS = 1 << 7,
     FEATURE_RANGEFINDER = 1 << 9,
-    FEATURE_TELEMETRY = 1 << 10,
+    FEATURE_RFS_MSP = 1 << 10,
     FEATURE_3D = 1 << 12,
     FEATURE_RX_PARALLEL_PWM = 1 << 13,
     FEATURE_RX_MSP = 1 << 14,
@@ -69,7 +69,6 @@ typedef enum {
     FEATURE_ESC_SENSOR = 1 << 27,
     FEATURE_ANTI_GRAVITY = 1 << 28,
     // FEATURE_DYNAMIC_FILTER = 1 << 29, (removed)
-    FEATURE_RFS_MSP = 1 << 30,
 } features_e;
 
 typedef struct featureConfig_s {
