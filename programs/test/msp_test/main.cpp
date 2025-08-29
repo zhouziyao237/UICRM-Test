@@ -21,16 +21,21 @@
 //
 
 #include "main.h"
-#include "RFS/RefereeSerial.h"
+
 #include "Common/config.h"
 #include "Device/bsp_Serial/DeviceSerial.h"
 #include "Device/bsp_Serial/bsp_Serial.h"
 #include "Device/config/runtime_config.h"
+#include "IMU/accgyro6500.h"
 #include "Msp/MspSerial.h"
+#include "RFS/RefereeSerial.h"
 #include "bsp_PG/bsp_pg.h"
+#include "bsp_os.h"
 #include "bsp_print.h"
 #include "bsp_serial.h"
 #include "cmsis_os2.h"
+
+RMFC::RFS::RefereeSerial* TextReferee = nullptr;
 
 void RM_RTOS_Init() {
     pgResetAll();
@@ -50,14 +55,20 @@ void RM_RTOS_Init() {
     // RefereeSerial = newSerialPort(USEUART_6, 115200, MODE_RXTX, SERIAL_NOT_INVERTED);
 
     RMFC::serialInit(false, RMFC::SERIAL_PORT_NONE);
-    RMFC::RFS::RefereeInit(RefereeConfig());
+    TextReferee = new RMFC::RFS::RefereeSerial();
+    TextReferee->RefereeInit();
     RMFC::MSP::mspSerialInit();
+    // InitDebugMPU();
     osDelay(100);
+}
+
+void RM_RTOS_Threads_Init(void) {
 }
 
 void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
     while (true) {
+        // MPU_Updata();
         RMFC::MSP::mspEvaluateNonMspData_e evaluateMspData =
             ARMING_FLAG(ARMED) ? RMFC::MSP::MSP_SKIP_NON_MSP_DATA
                                : RMFC::MSP::MSP_EVALUATE_NON_MSP_DATA;

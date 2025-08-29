@@ -668,13 +668,15 @@ namespace RMFC {
                     // 以便GPS救援可以获得30%的要求来终止救援
                     if (channel < NON_AUX_CHANNEL_COUNT) {
                         if (!thisChannelValid) {
-                            if (channel == THROTTLE) {
-                                sample = failsafeConfig()->failsafe_throttle;
-                                // 第2阶段失效保护油门值。在GPS救援飞行模式中，
-                                // gpsRescueGetThrottle会在mixer.c中覆盖
-                            } else {
-                                sample = rxConfig()->midrc;
-                            }
+                            sample = rxConfig()->midrc;
+                            // todo: 可以全部保持中值
+                            // if (channel == THROTTLE) {
+                            //     sample = failsafeConfig()->failsafe_throttle;
+                            //     // 第2阶段失效保护油门值。在GPS救援飞行模式中，
+                            //     // gpsRescueGetThrottle会在mixer.c中覆盖
+                            // } else {
+                            //     sample = rxConfig()->midrc;
+                            // }
                         }
                     } else {
                         // 根据第1阶段失效保护保持/设置值设置辅助通道，允许所有

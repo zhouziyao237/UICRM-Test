@@ -24,6 +24,12 @@
 #include "MPU6500.h"
 #include "target.h"
 
+static imu::MPU6500* mpu6500 = nullptr;
+static bsp::GPIO* imu_cs = nullptr;
+static bsp::GPIT* mpu6500_it = nullptr;
+static bsp::SPI* spi5 = nullptr;
+static bsp::SPIMaster* spi5_master = nullptr;
+
 void InitDebugMPU() {
     imu_cs = new bsp::GPIO(ONBOARD_IMU_CS_GROUP, ONBOARD_IMU_CS_PIN);
     mpu6500_it = new bsp::GPIT(MPU6500_IT_Pin);

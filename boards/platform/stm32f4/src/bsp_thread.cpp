@@ -72,9 +72,9 @@ namespace bsp {
     }
     void EventThread::ThreadFunc(void* args) {
         EventThread* instance = reinterpret_cast<EventThread*>(args);
-        void* user_instance = reinterpret_cast<EventThread*>(instance)->GetArgs();
+        void* user_instance = instance->GetArgs();
         while (true) {
-            osThreadFlagsWait(rx_signal_, osFlagsWaitAny, osWaitForever);
+            osThreadFlagsWait(instance->rx_signal_, osFlagsWaitAny, osWaitForever);
             instance->func_(user_instance);
         }
     }

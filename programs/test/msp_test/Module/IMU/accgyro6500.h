@@ -28,11 +28,5 @@
 #include "bsp_os.h"
 #include "bsp_spi.h"
 
-static imu::MPU6500* mpu6500 = nullptr;
-static bsp::GPIO* imu_cs = nullptr;
-static bsp::GPIT* mpu6500_it = nullptr;
-static bsp::SPI* spi5 = nullptr;
-static bsp::SPIMaster* spi5_master = nullptr;
-
 void InitDebugMPU();
 void MPU_Updata();

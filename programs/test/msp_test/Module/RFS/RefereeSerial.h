@@ -23,38 +23,47 @@
 #pragma once
 
 #include <RefereeProcessor.h>
-#include "PG/Referee.h"
+
+#include "bsp_error_handler.h"
 #include "bsp_thread.h"
 
 namespace RMFC {
     namespace RFS {
-        struct RefereeData {
+
+        struct data_s {
+            uint32_t threshold = 100;
             uint8_t* data = nullptr;
             rwstatus_e rwstatus = Write_Status;
-            serialPort_t* RefereePort = nullptr;
-            RefereeProcessor RFSProcessor;
-            RefereeMessage msg;
-            RefereeResponse res;
         };
 
-        bool RefereeInit(const RefereeConfig_t* RefereeConfig);
-        void deleteThread_Referee();
-        void RefereeDataSend();
+        class RefereeSerial : public driver::ConnectionDriver {
+          public:
+            ~RefereeSerial();
+            bool RefereeInit();
+            void RefereeDataSend();
 
-        void Referee_CallbackWrapper(void* args);
-        void Referee_thread_func_(void* args);
-        extern RefereeData* referee_data;
-        extern bsp::EventThread* callback_thread;
-        extern driver::ConnectionDriver* connection_driver;
-        const osThreadAttr_t Referee_thread_attr = {.name = "RefereeUpdateTask",
-                                                     .attr_bits = osThreadDetached,
-                                                     .cb_mem = nullptr,
-                                                     .cb_size = 0,
-                                                     .stack_mem = nullptr,
-                                                     .stack_size = 256 * 2,
-                                                     .priority = (osPriority_t)osPriorityHigh,
-                                                     .tz_module = 0,
-                                                     .reserved = 0};
+          private:
+            void SerialCallbackWrapper();
+            static void SerialCallbackWrapper(void* args);
+            serialPort_t* RefereePort;
+            data_s* data;
+            RefereeProcessor* RFSProcessor;
+            RefereeMessage* msg;
+            RefereeResponse* res;
+            bsp::EventThread* callback_thread_ = nullptr;
+            const osThreadAttr_t callback_thread_attr_ = {
+                .name = "RefereeUpdateTask",
+                .attr_bits = osThreadDetached,
+                .cb_mem = nullptr,
+                .cb_size = 0,
+                .stack_mem = nullptr,
+                .stack_size = 1024,
+                .priority = (osPriority_t)osPriorityNormal,
+                .tz_module = 0,
+                .reserved = 0};
+
+            static void callback_thread_func_(void* args);
+        };
 
     }  // namespace RFS
 }  // namespace RMFC

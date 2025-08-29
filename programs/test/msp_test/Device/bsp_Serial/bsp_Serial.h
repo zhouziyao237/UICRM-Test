@@ -101,7 +101,7 @@ void serialBeginWrite(serialPort_t* instance);
 void serialEndWrite(serialPort_t* instance);
 uint32_t serialGetBaudRate(serialPort_t* instance);
 // 添加RegisterCallback公共接口函数声明
-void serialRegisterCallback(serialPort_t* instance, serial_rx_callback_t callback, void* args);
+void SerialRegisterCallback(serialPort_t* instance, serial_rx_callback_t callback, void* args);
 
 // 辅助函数
 void serialPrint(serialPort_t* instance, const char* str);

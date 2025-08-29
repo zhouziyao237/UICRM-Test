@@ -22,11 +22,11 @@
 
 #include "RefereeProcessor.h"
 
-#include "connection_driver.h"
 #include "Device/bsp_Serial/DeviceSerial.h"
 #include "Device/bsp_Serial/bsp_Serial.h"
 #include "Referee.h"
 #include "RefereeParser.h"
+#include "connection_driver.h"
 #include "crc_check.h"
 
 namespace RMFC {
@@ -34,8 +34,6 @@ namespace RMFC {
 
         bool RefereeProcessor::process(char data, rwstatus_e rwstatus, RefereeMessage& msg,
                                        RefereeResponse& res, serialPort_t* SerialRFS) {
-
-
             switch (rwstatus) {
                 case Read_Status: {
                     Heartbeat();
@@ -210,147 +208,50 @@ namespace RMFC {
             r.result = 1;
             // const unsigned int dataSize = m.remain();
             switch (m.cmd) {
-                case GAME_STATUS: {
-                    r.writeU8(_Referee.game_status.game_type);
-                    r.writeU8(_Referee.game_status.game_progress);
-                    r.writeU16(_Referee.game_status.stage_remain_time);
-                    r.writeU64(_Referee.game_status.SyncTimeStamp);
-                } break;
-
-                case GAME_RESULT: {
-                    r.writeU8(_Referee.game_result.winner);
-                } break;
-
-                case GAME_ROBOT_HP: {
-                    r.writeU16(_Referee.game_robot_HP.red_1_robot_HP);
-                    r.writeU16(_Referee.game_robot_HP.red_2_robot_HP);
-                    r.writeU16(_Referee.game_robot_HP.red_3_robot_HP);
-                    r.writeU16(_Referee.game_robot_HP.red_4_robot_HP);
-                    r.writeU16(_Referee.game_robot_HP.red_5_robot_HP);
-                    r.writeU16(_Referee.game_robot_HP.red_7_robot_HP);
-                    r.writeU16(_Referee.game_robot_HP.red_base_HP);
-                    r.writeU16(_Referee.game_robot_HP.red_outpost_HP);
-
-                    r.writeU16(_Referee.game_robot_HP.blue_1_robot_HP);
-                    r.writeU16(_Referee.game_robot_HP.blue_2_robot_HP);
-                    r.writeU16(_Referee.game_robot_HP.blue_3_robot_HP);
-                    r.writeU16(_Referee.game_robot_HP.blue_4_robot_HP);
-                    r.writeU16(_Referee.game_robot_HP.blue_5_robot_HP);
-                    r.writeU16(_Referee.game_robot_HP.blue_7_robot_HP);
-                    r.writeU16(_Referee.game_robot_HP.blue_base_HP);
-                    r.writeU16(_Referee.game_robot_HP.blue_outpost_HP);
-                } break;
-
-                case EVENT_DATA: {
-                    r.writeU32(_Referee.event_data.event_type);
-                } break;
-
-                case SUPPLY_PROJECTILE_ACTION: {
-                    r.writeU8(_Referee.supply_projectile_action.supply_projectile_id);
-                    r.writeU8(_Referee.supply_projectile_action.supply_robot_id);
-                    r.writeU8(_Referee.supply_projectile_action.supply_projectile_step);
-                    r.writeU8(_Referee.supply_projectile_action.supply_projectile_num);
-                } break;
-
-                case REFEREE_WARNING: {
-                    r.writeU8(_Referee.referee_warning.level);
-                    r.writeU8(_Referee.referee_warning.offending_robot_id);
-                } break;
-
-                case DART_REMAINING_TIME: {
-                    r.writeU8(_Referee.dart_remaining_time.dart_remaining_time);
-                    r.writeU16(_Referee.dart_remaining_time.dart_info);
-                } break;
-
-                case GAME_ROBOT_STATUS: {
-                    r.writeU8(_Referee.game_robot_status.robot_id);
-                    r.writeU8(_Referee.game_robot_status.robot_level);
-                    r.writeU16(_Referee.game_robot_status.remain_HP);
-                    r.writeU16(_Referee.game_robot_status.max_HP);
-                    r.writeU16(_Referee.game_robot_status.shooter_cooling_rate);
-                    r.writeU16(_Referee.game_robot_status.shooter_heat_limit);
-                    r.writeU16(_Referee.game_robot_status.chassis_power_limit);
-                    r.writeU8(_Referee.game_robot_status.mains_power_gimbal_output |
-                              (_Referee.game_robot_status.mains_power_chassis_output << 1) |
-                              (_Referee.game_robot_status.mains_power_shooter_output << 2));
-                } break;
-
-                case POWER_HEAT_DATA: {
-                    r.writeU16(_Referee.power_heat_data.chassis_volt);
-                    r.writeU16(_Referee.power_heat_data.chassis_current);
-                    r.writefloat(_Referee.power_heat_data.chassis_power);
-                    r.writeU16(_Referee.power_heat_data.chassis_power_buffer);
-                    r.writeU16(_Referee.power_heat_data.shooter_id1_17mm_cooling_heat);
-                    r.writeU16(_Referee.power_heat_data.shooter_id2_17mm_cooling_heat);
-                    r.writeU16(_Referee.power_heat_data.shooter_id1_42mm_cooling_heat);
-                } break;
-
-                case GAME_ROBOT_POS: {
-                    r.writefloat(_Referee.game_robot_pos.x);
-                    r.writefloat(_Referee.game_robot_pos.y);
-                    r.writefloat(_Referee.game_robot_pos.yaw);
-
-                } break;
-
-                case BUFF: {
-                    r.writeU8(_Referee.buff.recovery_buff);
-                    r.writeU8(_Referee.buff.cooling_buff);
-                    r.writeU8(_Referee.buff.defence_buff);
-                    r.writeU8(_Referee.buff.vulnerability_buff);
-                    r.writeU16(_Referee.buff.attack_buff);
-                } break;
-
-                case AERIAL_ROBOT_ENERGY: {
-                    r.writeU8(_Referee.aerial_robot_energy.airforce_status);
-                    r.writeU8(_Referee.aerial_robot_energy.time_remain);
-                } break;
-
-                case ROBOT_HURT: {
-                    r.writeU8(_Referee.robot_hurt.armor_id | (_Referee.robot_hurt.hurt_type << 4));
-                } break;
-
-                case SHOOT_DATA: {
-                    r.writeU8(_Referee.shoot_data.bullet_type);
-                    r.writeU8(_Referee.shoot_data.shooter_id);
-                    r.writeU8(_Referee.shoot_data.bullet_freq);
-                    r.writefloat(_Referee.shoot_data.bullet_speed);
-
-                } break;
-
-                case BULLET_REMAINING: {
-                    r.writeU16(_Referee.bullet_remaining.bullet_remaining_num_17mm);
-                    r.writeU16(_Referee.bullet_remaining.bullet_remaining_num_42mm);
-                    r.writeU16(_Referee.bullet_remaining.coin_remaining_num);
-                } break;
-
-                case RFID_STATUS: {
-                    r.writeU32(_Referee.rfid_status.rfid_status);
-                } break;
-
-                case DART_CLIENT_CMD: {
-                    r.writeU8(_Referee.dart_client_cmd.dart_launch_opening_status);
-                    r.writeU8(_Referee.dart_client_cmd.dart_attack_target);
-                    r.writeU16(_Referee.dart_client_cmd.target_change_time);
-                    r.writeU16(_Referee.dart_client_cmd.operate_launch_cmd_time);
-                } break;
-
-                case REMOTE_CONTROL_DATA: {
-                    // 写入鼠标数据
-                    for (int i = 0; i < 12; i++) {
-                        r.writeU8(_Referee.remote_control.mouse_data[i]);
+                case STUDENT_INTERACTIVE: {
+                    switch (graph_content_) {
+                        case NO_GRAPH:
+                            r.len = 0;
+                            break;
+                        case DELETE_GRAPH:
+                            r.len = sizeof(graphic_delete_t);
+                            memcpy(r.data, &_Referee.graphic_delete, r.len);
+                            break;
+                        case SINGLE_GRAPH:
+                            r.len = sizeof(graphic_single_t);
+                            memcpy(r.data, &_Referee.graphic_single, r.len);
+                            break;
+                        case DOUBLE_GRAPH:
+                            r.len = sizeof(graphic_double_t);
+                            memcpy(r.data, &_Referee.graphic_double, r.len);
+                            break;
+                        case FIVE_GRAPH:
+                            r.len = sizeof(graphic_five_t);
+                            memcpy(r.data, &_Referee.graphic_five, r.len);
+                            break;
+                        case SEVEN_GRAPH:
+                            r.len = sizeof(graphic_seven_t);
+                            memcpy(r.data, &_Referee.graphic_seven, r.len);
+                            break;
+                        case CHAR_GRAPH:
+                            r.len = sizeof(graphic_character_t);
+                            memcpy(r.data, &_Referee.graphic_character, r.len);
+                            break;
+                        default:
+                            r.len = 0;
                     }
-                    // 写入键盘数据
-                    for (int i = 0; i < 10; i++) {
-                        r.writeU8(_Referee.remote_control.keyboard_data[i]);
-                    }
-                    r.writeU16(_Referee.remote_control.reserved);
-                } break;
-
+                    graph_content_ = NO_GRAPH;
+                    break;
+                }
                 default:
                     r.result = 0;
                     return MSP_RESULT_CMD_UNKNOWN;
             }
             return MSP_RESULT_ACK;
+        }
+
+        void RefereeProcessor::PrepareUIContent(content graph_content) {
+            graph_content_ = graph_content;
         }
 
         void RefereeProcessor::sendResponseV1(serialPort_t* SerialRFS, RefereeResponse& r) {

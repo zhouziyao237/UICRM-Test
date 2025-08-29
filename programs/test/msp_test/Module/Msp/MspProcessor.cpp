@@ -466,7 +466,7 @@ namespace RMFC {
                         r.writeU16(serialConfig()->portConfigs[i].functionMask);
                         r.writeU8(serialConfig()->portConfigs[i].msp_baudrateIndex);
                         r.writeU8(serialConfig()->portConfigs[i].navigation_baudrateIndex);
-                        r.writeU8(serialConfig()->portConfigs[i].telemetry_baudrateIndex);
+                        r.writeU8(serialConfig()->portConfigs[i].referee_baudrateIndex);
                         r.writeU8(serialConfig()->portConfigs[i].blackbox_baudrateIndex);
                     }
                     break;
@@ -490,7 +490,7 @@ namespace RMFC {
                         r.writeU32(serialConfig()->portConfigs[i].functionMask);
                         r.writeU8(serialConfig()->portConfigs[i].msp_baudrateIndex);
                         r.writeU8(serialConfig()->portConfigs[i].navigation_baudrateIndex);
-                        r.writeU8(serialConfig()->portConfigs[i].telemetry_baudrateIndex);
+                        r.writeU8(serialConfig()->portConfigs[i].referee_baudrateIndex);
                         r.writeU8(serialConfig()->portConfigs[i].blackbox_baudrateIndex);
                     }
                     break;
@@ -520,7 +520,7 @@ namespace RMFC {
                         portConfig->functionMask = m.readU16();
                         portConfig->msp_baudrateIndex = m.readU8();
                         portConfig->navigation_baudrateIndex = m.readU8();
-                        portConfig->telemetry_baudrateIndex = m.readU8();
+                        portConfig->referee_baudrateIndex = m.readU8();
                         portConfig->blackbox_baudrateIndex = m.readU8();
                     }
                 } break;
@@ -550,7 +550,7 @@ namespace RMFC {
                         portConfig->functionMask = m.readU32();
                         portConfig->msp_baudrateIndex = m.readU8();
                         portConfig->navigation_baudrateIndex = m.readU8();
-                        portConfig->telemetry_baudrateIndex = m.readU8();
+                        portConfig->referee_baudrateIndex = m.readU8();
                         portConfig->blackbox_baudrateIndex = m.readU8();
                         // Skip unknown bytes
                         while (start - m.remain() < portConfigSize && m.remain()) {

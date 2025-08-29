@@ -55,11 +55,14 @@ namespace RMFC {
 
             RefereeResult_e SendCommand(RefereeMessage& m, RefereeResponse& r);
 
+            void PrepareUIContent(content graph_content);
+
             void sendResponseV1(serialPort_t* SerialRFS, RefereeResponse& r);
 
           private:
             RefereeParser _RefereeParser;
             Referee _Referee;
+            content graph_content_ = NO_GRAPH;
         };
     }  // namespace RFS
 }  // namespace RMFC

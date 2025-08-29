@@ -49,7 +49,7 @@ void refereeTask(void* arg) {
 void RM_RTOS_Init(void) {
     print_use_uart(&huart8);
 
-    referee_uart = new bsp::UART(&huart3);
+    referee_uart = new bsp::UART(&huart6);
     referee_uart->SetupRx(300);
     referee_uart->SetupTx(300);
 

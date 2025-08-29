@@ -84,7 +84,7 @@ namespace RMFC {
             serialConfig->portConfigs[i].identifier = serialPortIdentifiers[i];
             serialConfig->portConfigs[i].msp_baudrateIndex = BAUD_115200;
             serialConfig->portConfigs[i].navigation_baudrateIndex = BAUD_57600;
-            serialConfig->portConfigs[i].telemetry_baudrateIndex = BAUD_AUTO;
+            serialConfig->portConfigs[i].referee_baudrateIndex = BAUD_AUTO;
             serialConfig->portConfigs[i].blackbox_baudrateIndex = BAUD_115200;
         }
 

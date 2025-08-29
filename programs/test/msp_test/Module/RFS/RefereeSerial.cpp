@@ -21,79 +21,89 @@
 //
 
 #include "RefereeSerial.h"
-#include "PG/Referee.h"
+
 #include "bsp_thread.h"
-#include "connection_driver.h"
 #include "config/feature.h"
+#include "connection_driver.h"
 
 namespace RMFC {
     namespace RFS {
 
-        RefereeData* referee_data = nullptr;
-        bsp::EventThread* callback_thread = nullptr;
-        driver::ConnectionDriver* connection_driver = nullptr;
-
-        bool RefereeInit(const RefereeConfig_t* RefereeConfig) {
-
-            if (!featureIsEnabled(FEATURE_RFS_MSP)) {
-                return false;
+        void RefereeSerial::SerialCallbackWrapper() {
+            if (callback_thread_ != nullptr) {
+                callback_thread_->Set();
             }
+        }
 
-            const serialPortConfig_t* portConfig = findSerialPortConfig(FUNCTION_RFS_MSP);
+        void RefereeSerial::SerialCallbackWrapper(void* args) {
+            if (args == nullptr)
+                return;
+            RefereeSerial* referee_serial = reinterpret_cast<RefereeSerial*>(args);
+            referee_serial->SerialCallbackWrapper();
+        }
+
+        void RefereeSerial::callback_thread_func_(void* args) {
+            RefereeSerial* referee_serial = reinterpret_cast<RefereeSerial*>(args);
+            uint32_t len = serialRead(referee_serial->RefereePort, &referee_serial->data->data);
+            if (len > 0) {
+                referee_serial->data->rwstatus = Read_Status;
+                referee_serial->RFSProcessor->process(
+                    *referee_serial->data->data, referee_serial->data->rwstatus,
+                    *referee_serial->msg, *referee_serial->res, referee_serial->RefereePort);
+            }
+        }
+
+        void RefereeSerial::RefereeDataSend() {
+            data->rwstatus = Write_Status;
+            RFSProcessor->process(*data->data, data->rwstatus, *msg, *res, RefereePort);
+        }
+
+        bool RefereeSerial::RefereeInit() {
+            // if (!featureIsEnabled(FEATURE_RFS_MSP)) {
+            //     return false;
+            // }
+
+            // const serialPortConfig_t* portConfig = findSerialPortConfig(FUNCTION_RFS_MSP);
+            const serialPortConfig_t* portConfig = findSerialPortConfig(FUNCTION_TELEMETRY_HOTT);
             if (!portConfig) {
                 return false;
             }
 
-            serialPort_t* RefereePort =
-                openSerialPort(static_cast<serialPortIdentifier_e>(portConfig->identifier),
-                FUNCTION_RFS_MSP,
-                Referee_CallbackWrapper,
-                nullptr,
-                RefereeConfig->BaudRate,
-                RefereeConfig->portShared ? MODE_RXTX : MODE_RX,
-                SERIAL_INVERTED
-                );
+            portOptions_e options = SERIAL_NOT_INVERTED;
 
+            if ((portConfig->identifier >= SERIAL_PORT_USART1) &&
+                (portConfig->identifier <= SERIAL_PORT_USART8)) {
+                options = static_cast<portOptions_e>(options | SERIAL_CHECK_TX);
+            }
+
+            // 在openSerialPort中直接设置回调函数和参数
+            RefereePort =
+                openSerialPort(static_cast<serialPortIdentifier_e>(portConfig->identifier),
+                               FUNCTION_TELEMETRY_HOTT, nullptr, nullptr,
+                               baudRates[portConfig->referee_baudrateIndex], MODE_RXTX, options);
 
             if (RefereePort != nullptr) {
-                referee_data->RFSProcessor.SetThreshold(RefereeConfig->threshold);
+                RFSProcessor->SetThreshold(data->threshold);
 
-                bsp::thread_init_t Referee_thread_init = {
-                    .func = Referee_thread_func_,
-                    .args = nullptr,
-                    .attr = Referee_thread_attr,
+                bsp::thread_init_t thread_init = {
+                    .func = callback_thread_func_,
+                    .args = this,
+                    .attr = callback_thread_attr_,
                 };
-                callback_thread = new bsp::EventThread(Referee_thread_init);
-                return true;
-            } else {
-                return false;
+                callback_thread_ = new bsp::EventThread(thread_init);
+                SerialRegisterCallback(RefereePort, SerialCallbackWrapper, this);
+
+                if (callback_thread_ != nullptr) {
+                    return true;
+                }
             }
+
+            closeSerialPort(RefereePort);
+            return false;
         }
 
-        void deleteThread_Referee() {
-            delete callback_thread;
-        }
-
-        void Referee_CallbackWrapper(void* args) {
-            UNUSED(args);
-            callback_thread->Set();
-        }
-
-        void Referee_thread_func_(void* args) {
-            UNUSED(args);
-            uint32_t len = serialRead(referee_data->RefereePort, &referee_data->data);
-            if (len > 0) {
-                referee_data->rwstatus = Read_Status;
-                referee_data->RFSProcessor.process(*referee_data->data, referee_data->rwstatus, referee_data->msg,
-                                              referee_data->res, referee_data->RefereePort);
-            }
-            referee_data->data = nullptr;
-        }
-
-        void RefereeDataSend() {
-            referee_data->rwstatus = Write_Status;
-            referee_data->RFSProcessor.process(*referee_data->data, referee_data->rwstatus, referee_data->msg,
-                                          referee_data->res, referee_data->RefereePort);
+        RefereeSerial::~RefereeSerial() {
+            delete callback_thread_;
         }
 
     }  // namespace RFS

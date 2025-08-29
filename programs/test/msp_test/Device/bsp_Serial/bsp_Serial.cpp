@@ -213,7 +213,7 @@ uint32_t serialGetBaudRate(serialPort_t* instance) {
 }
 
 // 添加RegisterCallback公共接口函数实现
-void serialRegisterCallback(serialPort_t* instance, serial_rx_callback_t callback, void* args) {
+void SerialRegisterCallback(serialPort_t* instance, serial_rx_callback_t callback, void* args) {
     if (instance->vTable->registerCallback) {
         instance->vTable->registerCallback(instance, callback, args);
     }
