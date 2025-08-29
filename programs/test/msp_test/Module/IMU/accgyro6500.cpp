@@ -30,6 +30,11 @@ static bsp::GPIT* mpu6500_it = nullptr;
 static bsp::SPI* spi5 = nullptr;
 static bsp::SPIMaster* spi5_master = nullptr;
 
+void test_set() {
+    print("Temp: %10.4f\r\n", mpu6500->temperature_);
+    osDelay(100);
+}
+
 void InitDebugMPU() {
     imu_cs = new bsp::GPIO(ONBOARD_IMU_CS_GROUP, ONBOARD_IMU_CS_PIN);
     mpu6500_it = new bsp::GPIT(MPU6500_IT_Pin);
@@ -50,7 +55,6 @@ void InitDebugMPU() {
     mpu6500_init.dma = true;
 
     mpu6500 = new imu::MPU6500(mpu6500_init);
-    bsp::SetHighresClockTimer(&htim7);
 }
 
 void MPU_Updata() {

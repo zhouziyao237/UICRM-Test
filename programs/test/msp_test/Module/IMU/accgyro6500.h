@@ -28,5 +28,6 @@
 #include "bsp_os.h"
 #include "bsp_spi.h"
 
+void test_set();
 void InitDebugMPU();
 void MPU_Updata();

@@ -35,6 +35,7 @@
 #include "bsp_serial.h"
 #include "cmsis_os2.h"
 
+serialPort_t* RefereeSerial = nullptr;
 RMFC::RFS::RefereeSerial* TextReferee = nullptr;
 
 void RM_RTOS_Init() {
@@ -52,23 +53,17 @@ void RM_RTOS_Init() {
     ensureEEPROMStructureIsValid();
     readEEPROM();
 
-    // RefereeSerial = newSerialPort(USEUART_6, 115200, MODE_RXTX, SERIAL_NOT_INVERTED);
-
     RMFC::serialInit(false, RMFC::SERIAL_PORT_NONE);
+    // RefereeSerial = newSerialPort(USEUART_6, 115200, MODE_RXTX, SERIAL_INVERTED, NULL, NULL);
     TextReferee = new RMFC::RFS::RefereeSerial();
     TextReferee->RefereeInit();
     RMFC::MSP::mspSerialInit();
-    // InitDebugMPU();
     osDelay(100);
-}
-
-void RM_RTOS_Threads_Init(void) {
 }
 
 void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
     while (true) {
-        // MPU_Updata();
         RMFC::MSP::mspEvaluateNonMspData_e evaluateMspData =
             ARMING_FLAG(ARMED) ? RMFC::MSP::MSP_SKIP_NON_MSP_DATA
                                : RMFC::MSP::MSP_EVALUATE_NON_MSP_DATA;
