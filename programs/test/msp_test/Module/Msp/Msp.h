@@ -102,6 +102,8 @@ namespace RMFC {
             uint16_t readU16();
 
             uint32_t readU32();
+
+            void ReadData(void *data, int len);
         };
 
         class MspResponse {

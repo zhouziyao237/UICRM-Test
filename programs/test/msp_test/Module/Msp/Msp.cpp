@@ -61,6 +61,15 @@ namespace RMFC {
             return ret;
         };  // namespace Msp
 
+        void MspMessage::ReadData(void *data, int len)
+        {
+            if (len > remain()) {
+                len = remain();
+            }
+            memcpy(data, &buffer[read], len);
+            advance(len);
+        }
+
         void MspResponse::writeData(const char* v, int size) {
             while (size-- > 0)
                 writeU8(*v++);

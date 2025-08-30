@@ -25,6 +25,7 @@
 #include "bsp_thread.h"
 #include "config/feature.h"
 #include "connection_driver.h"
+#include "target.h"
 
 namespace RMFC {
     namespace RFS {
@@ -85,6 +86,9 @@ namespace RMFC {
         }
 
         void RefereeProtocol::callback_thread_func_(void* args) {
+#if defined(DEBUG_RFS)
+            print("[RefereeSerial callback thread start]");
+#endif
             RefereeProtocol* protocol_ = reinterpret_cast<RefereeProtocol*>(args);
             protocol_->package->rwstatus = Read_Status;
             uint32_t len = serialRead(protocol_->UARTProt_, &protocol_->data);

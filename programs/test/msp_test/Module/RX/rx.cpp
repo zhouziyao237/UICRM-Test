@@ -258,10 +258,9 @@ namespace RMFC {
                 validRxSignalTimeout[i] = bsp::GetHighresTickMilliSec() + MAX_INVALID_PULSE_TIME_MS;
             }
 
-            // todo: 简化油门初始化, 不考虑3D模式, 直接初始化为rx_min_usec
+            // todo: 简化油门初始化, 不考虑3D模式, 直接初始化为 midrc
             // rcData[THROTTLE] =
             //     (featureIsEnabled(FEATURE_3D)) ? rxConfig()->midrc : rxConfig()->rx_min_usec;
-            rcData[THROTTLE] = rxConfig()->rx_min_usec;
 
             // 当定义了通过开关解锁时，将ARM开关初始化为OFF位置
             // TODO - 移至 rc_mode.c

@@ -60,10 +60,11 @@
 // Debug User Config
 //
 
-#define USE_CLI
-#define DEBUG_PG
+// #define USE_CLI
+// #define DEBUG_PG
 // #define DEBUG_FLASH
 // #define DEBUG_MSP
+#define DEBUG_RFS
 
 // RC User Config
 #define USE_SERIALRX

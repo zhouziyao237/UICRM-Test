@@ -26,13 +26,14 @@
 #include "Device/bsp_Serial/bsp_Serial.h"
 #include "Device/config/feature.h"
 #include "Device/config/runtime_config.h"
+#include "Module/RX/rx.h"
 #include "Msp.h"
 #include "MspParser.h"
 #include "bsp_PG/bsp_pg.h"
 #include "bsp_serial.h"
+#include "build_data.h"
 #include "config/msp_protocol.h"
 #include "crc_check.h"
-#include "build_data.h"
 #include "platform.h"
 #include "system.h"
 #include "utils.h"
@@ -701,80 +702,171 @@ namespace RMFC {
                     break;
 
                 case MSP_RX_CONFIG:
-                    // r.writeU8(_model.config.input.serialRxProvider); // serialrx_provider
-                    // r.writeU16(_model.config.input.maxCheck); //maxcheck
-                    // r.writeU16(_model.config.input.midRc); //midrc
-                    // r.writeU16(_model.config.input.minCheck); //mincheck
-                    r.writeU8(0);  // spectrum bind
-                    // r.writeU16(_model.config.input.minRc); //min_us
-                    // r.writeU16(_model.config.input.maxRc); //max_us
-                    // r.writeU8(_model.config.input.interpolationMode); // rc interpolation
-                    // r.writeU8(_model.config.input.interpolationInterval); // rc interpolation
-                    // interval
-                    r.writeU16(1500);  // airmode activate threshold
-                    r.writeU8(0);      // rx spi prot
-                    r.writeU32(0);     // rx spi id
-                    r.writeU8(0);      // rx spi chan count
-                    r.writeU8(0);      // fpv camera angle
-                    r.writeU8(2);      // rc iterpolation channels: RPYT
-                    // r.writeU8(_model.config.input.filterType); // rc_smoothing_type
-                    // r.writeU8(_model.config.input.filter.freq); // rc_smoothing_input_cutoff
-                    // r.writeU8(_model.config.input.filterDerivative.freq); //
-                    // rc_smoothing_derivative_cutoff
-                    r.writeU8(0);  //_model.config.input.filter.type); // rc_smoothing_input_type
-                    // r.writeU8(fromFilterTypeDerivative(_model.config.input.filterDerivative.type));
-                    // // rc_smoothing_derivative_type
-                    r.writeU8(0);  // usb type
-                    // 1.42+
-                    // r.writeU8(_model.config.input.filterAutoFactor); // rc_smoothing_auto_factor
+                    r.writeU8(RX::rxConfig()->serialrx_provider);
+                    r.writeU16(RX::rxConfig()->maxcheck);
+                    r.writeU16(RX::rxConfig()->midrc);
+                    r.writeU16(RX::rxConfig()->mincheck);
+                    r.writeU8(0);  // not have spektrum_sat_bind
+                    r.writeU8(0);
+                    r.writeU16(RX::rxConfig()->rx_min_usec);
+                    r.writeU16(RX::rxConfig()->rx_max_usec);
+                    r.writeU8(0);  // not required in API 1.44, was RX::rxConfig()->rcInterpolation
+                    r.writeU8(0);  // not required in API 1.44, was
+                                   // RX::rxConfig()->rcInterpolationInterval
+                    r.writeU16(RX::rxConfig()->airModeActivateThreshold * 10 + 1000);
+#ifdef USE_RX_SPI
+                    r.writeU8(RX::rxSpiConfig()->rx_spi_protocol);
+                    r.writeU32(RX::rxSpiConfig()->rx_spi_id);
+                    r.writeU8(RX::rxSpiConfig()->rx_spi_rf_channel_count);
+#else
+                    r.writeU8(0);
+                    r.writeU32(0);
+                    r.writeU8(0);
+#endif
+                    r.writeU8(RX::rxConfig()->fpvCamAngleDegrees);
+                    r.writeU8(
+                        0);  // not required in API 1.44, was RX::rxConfig()->rcSmoothingChannels
+#if defined(USE_RC_SMOOTHING_FILTER)
+                    r.writeU8(
+                        0);  // not required in API 1.44, was RX::rxConfig()->rc_smoothing_type
+                    r.writeU8(RX::rxConfig()->rc_smoothing_setpoint_cutoff);
+                    r.writeU8(RX::rxConfig()->rc_smoothing_feedforward_cutoff);
+                    r.writeU8(0);  // not required in API 1.44, was
+                                   // RX::rxConfig()->rc_smoothing_input_type
+                    r.writeU8(0);  // not required in API 1.44, was
+                                   // RX::rxConfig()->rc_smoothing_derivative_type
+#else
+                    r.writeU8(0);
+                    r.writeU8(0);
+                    r.writeU8(0);
+                    r.writeU8(0);
+                    r.writeU8(0);
+#endif
+#if defined(USE_USB_CDC_HID)
+                    r.writeU8(usbDevConfig()->type);
+#else
+                    r.writeU8(0);
+#endif
+                    // Added in MSP API 1.42
+#if defined(USE_RC_SMOOTHING_FILTER)
+                    r.writeU8(RX::rxConfig()->rc_smoothing_auto_factor_rpy);
+#else
+                    r.writeU8(0);
+#endif
+                    // Added in MSP API 1.44
+#if defined(USE_RC_SMOOTHING_FILTER)
+                    r.writeU8(RX::rxConfig()->rc_smoothing_mode);
+#else
+                    r.writeU8(0);
+#endif
+
+                    // Added in MSP API 1.45
+#ifdef USE_RX_EXPRESSLRS
+                    r.writeData(rxExpressLrsSpiConfig()->UID, sizeof(rxExpressLrsSpiConfig()->UID));
+#else
+                    uint8_t emptyUid[6];
+                    memset(emptyUid, 0, sizeof(emptyUid));
+                    r.writeData(reinterpret_cast<const char*>(&emptyUid), sizeof(emptyUid));
+#endif
                     break;
 
                 case MSP_SET_RX_CONFIG:
-                    // _model.config.input.serialRxProvider = m.readU8(); // serialrx_provider
-                    // _model.config.input.maxCheck = m.readU16(); //maxcheck
-                    // _model.config.input.midRc = m.readU16(); //midrc
-                    // _model.config.input.minCheck = m.readU16(); //mincheck
-                    // m.readU8(); // spectrum bind
-                    // _model.config.input.minRc = m.readU16(); //min_us
-                    // _model.config.input.maxRc = m.readU16(); //max_us
-                    // if (m.remain() >= 4) {
-                    //   _model.config.input.interpolationMode = m.readU8(); // rc interpolation
-                    //   _model.config.input.interpolationInterval = m.readU8(); // rc interpolation
-                    //   interval m.readU16(); // airmode activate threshold
-                    // }
-                    // if (m.remain() >= 6) {
-                    //   m.readU8(); // rx spi prot
-                    //   m.readU32(); // rx spi id
-                    //   m.readU8(); // rx spi chan count
-                    // }
-                    // if (m.remain() >= 1) {
-                    //   m.readU8(); // fpv camera angle
-                    // }
-                    // // 1.40+
-                    // if (m.remain() >= 6) {
-                    //   m.readU8(); // rc iterpolation channels
-                    //   _model.config.input.filterType = m.readU8(); // rc_smoothing_type
-                    //   _model.config.input.filter.freq = m.readU8(); // rc_smoothing_input_cutoff
-                    //   _model.config.input.filterDerivative.freq = m.readU8(); //
-                    //   rc_smoothing_derivative_cutoff
-                    //   //_model.config.input.filter.type = m.readU8() == 1 ? FILTER_BIQUAD :
-                    //   FILTER_PT1; // rc_smoothing_input_type m.readU8();
-                    //   _model.config.input.filterDerivative.type =
-                    //   toFilterTypeDerivative(m.readU8());
-                    //   // rc_smoothing_derivative_type
-                    // }
-                    // if (m.remain() >= 1) {
-                    //   m.readU8(); // usb type
-                    // }
-                    // // 1.42+
-                    // if (m.remain() >= 1) {
-                    //   _model.config.input.filterAutoFactor = m.readU8(); //
-                    //   rc_smoothing_auto_factor
-                    // }
-                    //
-                    // _model.reload();
+                    RX::rxConfigMutable()->serialrx_provider = m.readU8();
+                    RX::rxConfigMutable()->maxcheck = m.readU16();
+                    RX::rxConfigMutable()->midrc = m.readU16();
+                    RX::rxConfigMutable()->mincheck = m.readU16();
+                    m.readU8();  // not have spektrum_sat_bind
+                    if (m.remain() >= 4) {
+                        RX::rxConfigMutable()->rx_min_usec = m.readU16();
+                        RX::rxConfigMutable()->rx_max_usec = m.readU16();
+                    }
+                    if (m.remain() >= 4) {
+                        m.readU8();  // not required in API 1.44, was
+                                     // RX::rxConfigMutable()->rcInterpolation
+                        m.readU8();  // not required in API 1.44, was
+                                     // RX::rxConfigMutable()->rcInterpolationInterval
+                        RX::rxConfigMutable()->airModeActivateThreshold = (m.readU16() - 1000) / 10;
+                    }
+                    if (m.remain() >= 6) {
+#ifdef USE_RX_SPI
+                        rxSpiConfigMutable()->rx_spi_protocol = m.readU8();
+                        rxSpiConfigMutable()->rx_spi_id = m.readU32();
+                        rxSpiConfigMutable()->rx_spi_rf_channel_count = m.readU8();
+#else
+                        m.readU8();
+                        m.readU32();
+                        m.readU8();
+#endif
+                    }
+                    if (m.remain() >= 1) {
+                        RX::rxConfigMutable()->fpvCamAngleDegrees = m.readU8();
+                    }
+                    if (m.remain() >= 6) {
+                        // Added in MSP API 1.40
+                        m.readU8();  // not required in API 1.44, was
+                                     // RX::rxConfigMutable()->rcSmoothingChannels
+#if defined(USE_RC_SMOOTHING_FILTER)
+                        m.readU8();  // not required in API 1.44, was rc_smoothing_type
+                        configRebootUpdateCheckU8(
+                            &RX::rxConfigMutable()->rc_smoothing_setpoint_cutoff, m.readU8());
+                        configRebootUpdateCheckU8(
+                            &RX::rxConfigMutable()->rc_smoothing_feedforward_cutoff, m.readU8());
+                        m.readU8();  // not required in API 1.44, was rc_smoothing_input_type
+                        sbufReadU8(
+                            src);  // not required in API 1.44, was rc_smoothing_derivative_type
+#else
+                        m.readU8();
+                        m.readU8();
+                        m.readU8();
+                        m.readU8();
+                        m.readU8();
+#endif
+                    }
+                    if (m.remain() >= 1) {
+                        // Added in MSP API 1.40
+                        // Kept separate from the section above to work around missing Configurator
+                        // support in version < 10.4.2
+#if defined(USE_USB_CDC_HID)
+                        usbDevConfigMutable()->type = m.readU8();
+#else
+                        m.readU8();
+#endif
+                    }
+                    if (m.remain() >= 1) {
+                        // Added in MSP API 1.42
+#if defined(USE_RC_SMOOTHING_FILTER)
+                        // Added extra validation/range constraint for rc_smoothing_auto_factor as a
+                        // workaround for a bug in the 10.6 configurator where it was possible to
+                        // submit an invalid out-of-range value. We might be able to remove the
+                        // constraint at some point in the future once the affected versions are
+                        // deprecated enough that the risk is low.
+                        configRebootUpdateCheckU8(
+                            &RX::rxConfigMutable()->rc_smoothing_auto_factor_rpy,
+                            constrain(m.readU8(), RC_SMOOTHING_AUTO_FACTOR_MIN,
+                                      RC_SMOOTHING_AUTO_FACTOR_MAX));
+#else
+                        m.readU8();
+#endif
+                    }
+                    if (m.remain() >= 1) {
+                        // Added in MSP API 1.44
+#if defined(USE_RC_SMOOTHING_FILTER)
+                        configRebootUpdateCheckU8(&RX::rxConfigMutable()->rc_smoothing_mode,
+                                                  m.readU8());
+#else
+                        m.readU8();
+#endif
+                    }
+                    if (m.remain() >= 6) {
+                        // Added in MSP API 1.45
+#ifdef USE_RX_EXPRESSLRS
+                        m.ReadData(rxExpressLrsSpiConfigMutable()->UID, 6);
+#else
+                        uint8_t emptyUid[6];
+                        m.ReadData(emptyUid, 6);
+#endif
+                    }
                     break;
-
                 case MSP_FAILSAFE_CONFIG:
                     // r.writeU8(_model.config.failsafe.delay); // failsafe_delay
                     r.writeU8(0);      // failsafe_off_delay
@@ -794,33 +886,26 @@ namespace RMFC {
                     break;
 
                 case MSP_RXFAIL_CONFIG:
-                    // for (size_t i = 0; i < _model.c_state.inputChannelCount; i++)
-                    // {
-                    //   r.writeU8(_model.config.input.channel[i].fsMode);
-                    //   r.writeU16(_model.config.input.channel[i].fsValue);
-                    // }
+                    for (int i = 0; i < RX::rxRuntimeState.channelCount; i++) {
+                        r.writeU8(RX::rxFailsafeChannelConfigs(i)->mode);
+                        r.writeU16(RXFAIL_STEP_TO_CHANNEL_VALUE(RX::rxFailsafeChannelConfigs(i)->step));
+                    }
                     break;
 
-                case MSP_SET_RXFAIL_CONFIG:
-                    // {
-                    //   size_t i = m.readU8();
-                    //   if(i < INPUT_CHANNELS)
-                    //   {
-                    //     _model.config.input.channel[i].fsMode = m.readU8(); // mode
-                    //     _model.config.input.channel[i].fsValue = m.readU16(); // pulse
-                    //   }
-                    //   else
-                    //   {
-                    //     r.result = -1;
-                    //   }
-                    // }
-                    break;
+                case MSP_SET_RXFAIL_CONFIG: {
+                    size_t i = m.readU8();
+                    if (i < MAX_SUPPORTED_RC_CHANNEL_COUNT) {
+                        RX::rxFailsafeChannelConfigsMutable(i)->mode = m.readU8();   // mode
+                        RX::rxFailsafeChannelConfigsMutable(i)->step = m.readU16();  // pulse
+                    } else {
+                        return MSP_RESULT_ERROR;
+                    }
+                } break;
 
                 case MSP_RC:
-                    // for(size_t i = 0; i < _model.c_state.inputChannelCount; i++)
-                    // {
-                    //   r.writeU16(lrintf(_model.c_state.inputUs[i]));
-                    // }
+                    for (int i = 0; i < RX::rxRuntimeState.channelCount; i++) {
+                        r.writeU16(RX::rcData[i]);
+                    }
                     break;
 
                 case MSP_RC_TUNING:
