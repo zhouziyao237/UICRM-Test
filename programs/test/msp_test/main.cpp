@@ -24,13 +24,16 @@
 
 #include "Common/config.h"
 #include "Device/bsp_Serial/DeviceSerial.h"
-#include "Module/RX/rx.h"
+
+#include "Task/RXTask/rxtask.h"
 #include "Task/MSPTask/msptask.h"
 #include "Task/RFSTask/refereetask.h"
 #include "bsp_PG/bsp_pg.h"
 #include "bsp_print.h"
 #include "bsp_serial.h"
 #include "cmsis_os2.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 void RM_RTOS_Init() {
     pgResetAll();
@@ -48,7 +51,7 @@ void RM_RTOS_Init() {
     readEEPROM();
 
     RMFC::serialInit(false, RMFC::SERIAL_PORT_NONE);
-    RMFC::RX::rxInit();
+    InitRX();
     InitRFS();
     InitMSP();
 
@@ -62,5 +65,12 @@ void RM_RTOS_Threads_Init(void) {
 void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
     osDelay(50);
-    while (true) {}
+    while (true) {
+        clear_screen();
+
+        char buf[512];
+        vTaskList(buf);
+        print("vTaskList: %s\n", buf);
+        osDelay(200);
+    }
 }

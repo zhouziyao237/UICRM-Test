@@ -72,3 +72,5 @@ static inline int32_t cmpTimeCycles(uint32_t a, uint32_t b) {
 #else
 #define FALLTHROUGH do {} while(0)
 #endif
+
+#define TASK_PERIOD_HZ(hz) (1000 / (hz))
