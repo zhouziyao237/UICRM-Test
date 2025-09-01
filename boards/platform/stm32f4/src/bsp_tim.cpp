@@ -50,8 +50,8 @@ namespace bsp {
         return it->second;
     }
 
-    Timer::Timer(TIM_HandleTypeDef* htim, InitConfig InitConfig, uint32_t period_us, bool loop)
-        : htim_(htim), InitConfig_(InitConfig), period_us_(period_us), loop_(loop) {
+    Timer::Timer(TIM_HandleTypeDef* htim, InitConfig InitConfig, uint32_t period_us)
+        : htim_(htim), InitConfig_(InitConfig), period_us_(period_us) {
         htim_->Init.CounterMode = InitConfig_.CounterMode;
         htim_->Init.ClockDivision = InitConfig_.ClockDivision;
         htim_->Init.AutoReloadPreload = InitConfig_.AutoReloadPreload;
@@ -69,6 +69,8 @@ namespace bsp {
     }
 
     Timer::~Timer() {
+        HAL_TIM_Base_Stop_IT(htim_);
+        ptr_map.erase(htim_);
     }
 
     void Timer::Start_IT() {

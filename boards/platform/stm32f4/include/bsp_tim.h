@@ -43,8 +43,7 @@ namespace bsp {
 
     class Timer {
       public:
-        explicit Timer(TIM_HandleTypeDef* htim, InitConfig InitConfig, uint32_t period_us,
-                       bool loop);
+        explicit Timer(TIM_HandleTypeDef* htim, InitConfig InitConfig, uint32_t period_us);
         virtual ~Timer();
 
         void Start_IT();
@@ -58,7 +57,6 @@ namespace bsp {
         uint32_t period_us_;
         uint32_t clock_freq_;
         uint32_t freq_;
-        bool loop_;
 
         /* new TIM callback */
         TIM_callback_t callback_ = [](void* args) { UNUSED(args); };
