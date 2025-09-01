@@ -66,11 +66,13 @@ void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
     osDelay(50);
     while (true) {
+        set_cursor(0, 0);
         clear_screen();
 
         char buf[512];
         vTaskList(buf);
-        print("vTaskList: %s\n", buf);
+        print("vTaskList: \r\n");
+        print("%s\r\n", buf);
         osDelay(200);
     }
 }

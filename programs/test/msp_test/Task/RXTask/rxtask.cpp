@@ -26,13 +26,22 @@
 #include "bsp_os.h"
 #include "bsp_print.h"
 #include "bsp_thread.h"
+#include "bsp_tim.h"
 #include "cmsis_os2.h"
 #include "platform.h"
 #include "target.h"
 
 static rxState_e rxState = RX_STATE_CHECK;
-osTimerId_t updateRxMainTimer;
+bsp::Timer* rxTimer = nullptr;
 bsp::EventThread* RXcallbackthread_ = nullptr;
+bsp::InitTIMConfig RxTimConfig = {
+    .IRQn = TIM1_UP_TIM10_IRQn,
+    .PreemptPriority = 720 - 1,
+    .SubPriority = 100 - 1,
+    .CounterMode = TIM_COUNTERMODE_UP,
+    .ClockDivision = TIM_CLOCKDIVISION_DIV1,
+    .AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE,
+};
 
 bool UpdateRxMainInProgress(void) {
     return (rxState != RX_STATE_CHECK);
@@ -76,7 +85,8 @@ void taskUpdateRxMain(void* args) {
 static void callbackFunction(void* args) {
     UNUSED(args);
 #if defined(DEBUG_RX)
-    print("Timer callback fired!\r\n");
+    // todo: I don't know why the program keeps stuck here
+    // print("Timer callback fired!\r\n");
 #endif
 
     RXcallbackthread_->Set();
@@ -90,9 +100,11 @@ bool InitRX() {
         .attr = rx_thread_attr,
     };
     RXcallbackthread_ = new bsp::EventThread(init);
-    updateRxMainTimer = osTimerNew(callbackFunction, osTimerPeriodic, nullptr, &rx_timer_attr);
-    osStatus_t status = osTimerStart(updateRxMainTimer, 2000);
-    if (status != osOK) {
+    rxTimer = new bsp::Timer(&htim10, RxTimConfig, TASK_PERIOD_HZ(33));
+    HAL_StatusTypeDef status = rxTimer->TimerInit();
+    rxTimer->RegisterCallback(callbackFunction, nullptr);
+    rxTimer->Start_IT();
+    if (status != HAL_OK) {
         delete RXcallbackthread_;
         return false;
     }

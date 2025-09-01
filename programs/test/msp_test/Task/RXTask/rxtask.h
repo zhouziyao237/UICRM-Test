@@ -23,6 +23,7 @@
 #pragma once
 
 #include "bsp_thread.h"
+#include "bsp_tim.h"
 #include "cmsis_os2.h"
 
 typedef enum { RX_STATE_CHECK, RX_STATE_MODES, RX_STATE_UPDATE, RX_STATE_COUNT } rxState_e;
@@ -31,13 +32,8 @@ bool InitRX();
 bool UpdateRxMainInProgress(void);
 void taskUpdateRxMain(void* args);
 
-extern osTimerId_t updateRxMainTimer;
-const osTimerAttr_t rx_timer_attr = {
-    .name = "RxTimer",
-    .attr_bits = 0,
-    .cb_mem = nullptr,  // 使用系统分配的内存
-    .cb_size = 0        // 使用系统分配的内存
-};
+extern bsp::Timer* rxTimer;
+extern bsp::InitTIMConfig RxTimConfig;
 
 extern bsp::EventThread* RXcallbackthread_;
 const osThreadAttr_t rx_thread_attr = {.name = "RxThread",

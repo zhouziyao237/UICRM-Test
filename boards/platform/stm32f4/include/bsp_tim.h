@@ -27,6 +27,7 @@
 #include <map>
 
 #include "stm32f4xx_hal.h"
+#include "tim.h"
 
 namespace bsp {
 
@@ -39,12 +40,14 @@ namespace bsp {
         uint32_t CounterMode = TIM_COUNTERMODE_UP;
         uint32_t ClockDivision = TIM_CLOCKDIVISION_DIV1;
         uint32_t AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-    } InitConfig;
+    } InitTIMConfig;
 
     class Timer {
       public:
-        explicit Timer(TIM_HandleTypeDef* htim, InitConfig InitConfig, uint32_t period_us);
+        explicit Timer(TIM_HandleTypeDef* htim, InitTIMConfig InitConfig, uint32_t period_us);
         virtual ~Timer();
+
+        HAL_StatusTypeDef TimerInit();
 
         void Start_IT();
         void Stop_IT();
@@ -53,7 +56,7 @@ namespace bsp {
 
       protected:
         TIM_HandleTypeDef* htim_;
-        InitConfig InitConfig_;
+        InitTIMConfig InitConfig_;
         uint32_t period_us_;
         uint32_t clock_freq_;
         uint32_t freq_;

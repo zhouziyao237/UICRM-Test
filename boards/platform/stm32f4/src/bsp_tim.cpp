@@ -25,6 +25,7 @@
 #include <cstring>
 
 #include "bsp_error_handler.h"
+#include "tim.h"
 
 namespace bsp {
 
@@ -50,22 +51,29 @@ namespace bsp {
         return it->second;
     }
 
-    Timer::Timer(TIM_HandleTypeDef* htim, InitConfig InitConfig, uint32_t period_us)
+    Timer::Timer(TIM_HandleTypeDef* htim, InitTIMConfig InitConfig, uint32_t period_us)
         : htim_(htim), InitConfig_(InitConfig), period_us_(period_us) {
+    }
+
+    HAL_StatusTypeDef Timer::TimerInit() {
         htim_->Init.CounterMode = InitConfig_.CounterMode;
         htim_->Init.ClockDivision = InitConfig_.ClockDivision;
         htim_->Init.AutoReloadPreload = InitConfig_.AutoReloadPreload;
-        freq_ = (1000000 / period_us);
+        freq_ = (1000000 / period_us_);
         uint32_t auto_reload = freq_ > 0 ? clock_freq_ / freq_ - 1 : 0;
         __HAL_TIM_SET_AUTORELOAD(htim_, auto_reload);
         __HAL_TIM_SET_COUNTER(htim_, 0);
-        RM_ASSERT_FALSE(HAL_TIM_Base_Init(htim_) != HAL_OK, "Htim repeated initialization False");
 
-        // 设置抢占优先级，子优先级
+        HAL_StatusTypeDef status = HAL_TIM_Base_Start_IT(htim_);
+        RM_ASSERT_FALSE(status, "Htim repeated initialization False");
+        ptr_map[htim_] = this;
+        if (status != HAL_OK)
+            return status;
+
         HAL_NVIC_SetPriority(InitConfig_.IRQn, InitConfig_.PreemptPriority,
                              InitConfig_.SubPriority);
-        // 设置中断来源
         HAL_NVIC_EnableIRQ(InitConfig_.IRQn);
+        return HAL_OK;
     }
 
     Timer::~Timer() {
