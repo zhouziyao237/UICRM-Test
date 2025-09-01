@@ -46,6 +46,8 @@ extern TIM_HandleTypeDef htim7;
 
 extern TIM_HandleTypeDef htim8;
 
+extern TIM_HandleTypeDef htim10;
+
 extern TIM_HandleTypeDef htim12;
 
 /* USER CODE BEGIN Private defines */
@@ -59,12 +61,13 @@ void MX_TIM4_Init(void);
 void MX_TIM5_Init(void);
 void MX_TIM7_Init(void);
 void MX_TIM8_Init(void);
+void MX_TIM10_Init(void);
 void MX_TIM12_Init(void);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 /* USER CODE BEGIN Prototypes */
-
+void RM_TIM_IRQHandler(TIM_HandleTypeDef *htim);
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus
