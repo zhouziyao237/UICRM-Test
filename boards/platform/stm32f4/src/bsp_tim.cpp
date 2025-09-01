@@ -69,7 +69,6 @@ namespace bsp {
     }
 
     Timer::~Timer() {
-
     }
 
     void Timer::Start_IT() {
