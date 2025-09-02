@@ -71,7 +71,6 @@ void taskUpdateRxMain(void* args) {
             // and updateSonarAltHoldState
             // updateRcCommands();
             // updateArmingStatus();
-
 #ifdef USE_USB_CDC_HID
             if (!ARMING_FLAG(ARMED)) {
                 sendRcDataToHid();

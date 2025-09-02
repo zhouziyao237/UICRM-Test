@@ -71,7 +71,7 @@ void RM_RTOS_Default_Task(const void* args) {
 
         char buf[512];
         vTaskList(buf);
-        print("vTaskList: \r\n");
+        print("vTaskList: \r\n ");
         print("%s\r\n", buf);
         osDelay(200);
     }
