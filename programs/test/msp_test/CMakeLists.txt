@@ -15,7 +15,7 @@ file(GLOB_RECURSE SOURCES
         "PG/*.cpp"
         "Task/RXTask/*cpp"
         "Task/MSPTask/*cpp"
-        "task/RFSTask/*cpp"
+        "Task/RFSTask/*cpp"
 )
 
 uicrm_add_arm_executable(${PROJECT_NAME}

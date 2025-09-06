@@ -24,9 +24,12 @@
 #define BSP_EEPROM_H
 
 #include "main.h"
+
+#if defined(STM32F4)
 #include "stm32f4xx.h"  //包含需要的头文件
 #include "stm32f4xx_hal_flash.h"
 #include "stm32f4xx_hal_flash_ex.h"
+#endif
 
 // 定义STM32F4的页大小
 #define STM32F427_437xx

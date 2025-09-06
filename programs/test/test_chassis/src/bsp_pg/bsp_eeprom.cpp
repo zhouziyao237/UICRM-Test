@@ -26,10 +26,10 @@
 
 #include "bsp_print.h"
 #include "stdio.h"
-#include "target.h"
 #include "usart.h"
 
 #if defined(STM32F4)
+#include "stm32f4xx_hal_flash.h"
 /*
 Sector 0    0x08000000 - 0x08003FFF 16 Kbytes
 Sector 1    0x08004000 - 0x08007FFF 16 Kbytes

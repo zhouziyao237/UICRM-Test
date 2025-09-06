@@ -27,7 +27,6 @@
 
 #include "bsp_print.h"
 #include "crc_check.h"
-#include "target.h"
 #include "utils.h"
 
 static uint16_t eepromConfigSize;
