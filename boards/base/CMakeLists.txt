@@ -1,5 +1,20 @@
 # generic board interface
-add_library(board_interface INTERFACE)
+add_library(board_interface INTERFACE
+        ../../programs/test/msp_test/Module/UI/OSD.cpp
+        ../../programs/test/msp_test/Module/UI/OSD.h
+        ../../programs/test/msp_test/Module/UI/config/msg_data.h
+        ../../programs/test/msp_test/Module/UI/Modeule/ChassisGUI.cpp
+        ../../programs/test/msp_test/Module/UI/Modeule/ChassisGUI.h
+        ../../programs/test/msp_test/Module/UI/Modeule/Bar.cpp
+        ../../programs/test/msp_test/Module/UI/Modeule/Bar.h
+        ../../programs/test/msp_test/Module/UI/Modeule/GimbalGUI.cpp
+        ../../programs/test/msp_test/Module/UI/Modeule/GimbalGUI.h
+        ../../programs/test/msp_test/Module/UI/Modeule/CapGUI.cpp
+        ../../programs/test/msp_test/Module/UI/Modeule/CapGUI.h
+        ../../programs/test/msp_test/Module/UI/Modeule/StringGUI.cpp
+        ../../programs/test/msp_test/Module/UI/Modeule/StringGUI.h
+        ../../programs/test/msp_test/Module/UI/Modeule/DiagGUI.cpp
+        ../../programs/test/msp_test/Module/UI/Modeule/DiagGUI.h)
 target_compile_definitions(board_interface INTERFACE USE_HAL_DRIVER)
 target_compile_options(board_interface INTERFACE
         $<$<COMPILE_LANGUAGE:ASM>:-x assembler-with-cpp>

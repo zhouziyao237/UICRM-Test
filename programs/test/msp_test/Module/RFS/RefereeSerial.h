@@ -25,7 +25,6 @@
 #include <RefereeProcessor.h>
 
 #include "Device/bsp_Serial/DeviceSerial.h"
-#include "Device/bsp_Serial/bsp_Serial.h"
 #include "bsp_error_handler.h"
 #include "bsp_thread.h"
 #include "config/feature.h"
@@ -33,31 +32,24 @@
 namespace RMFC {
     namespace RFS {
 
-        typedef struct {
-            features_e features;
-            serialPortFunction_e serialPortFunction;
-            baudrateFunctionIndex_e baudRatesIndex;
-        } RefereeProtConfig_t;
 
-        class RefereeProtocol : public RefereeProcessor {
+        class UARTProtocol : public RefereeProcessor {
           public:
-            explicit RefereeProtocol();
-            ~RefereeProtocol();
-            bool RefereeInit(RefereeProtConfig_t ProtConfig);
-            void SetThreshold(uint32_t threshold);
-            void InitTask();
-            void Transmit(int cmd_id);
+            explicit UARTProtocol(serialPort_t* uart);
+            ~UARTProtocol();
+
+            virtual int Transmit(int cmd_id);
+            virtual void Receive(void* args);
 
           protected:
             serialPort_t* UARTProt_;
 
           private:
-            uint8_t* data;
-            package_t* package;
+
             static void CallbackWrapper(void* args);
-            bsp::EventThread* callback_thread_ = nullptr;
             static void callback_thread_func_(void* args);
-            const osThreadAttr_t callback_thread_attr_ = {.name = "RefereeProtocolUpdateTask",
+            bsp::EventThread* callback_thread_ = nullptr;
+            const osThreadAttr_t callback_thread_attr_ = {.name = "RefereeTask",
                                                           .attr_bits = osThreadDetached,
                                                           .cb_mem = nullptr,
                                                           .cb_size = 0,
@@ -66,6 +58,27 @@ namespace RMFC {
                                                           .priority = (osPriority_t)osPriorityHigh,
                                                           .tz_module = 0,
                                                           .reserved = 0};
+        };
+
+        typedef struct {
+            features_e features;
+            serialPortFunction_e serialPortFunction;
+            baudrateFunctionIndex_e baudRatesIndex;
+        } RefereeProtConfig_t;
+
+        serialPort_t* FindRefereeProtocol(RefereeProtConfig_t ProtConfig);
+
+        class RefereeProtocol : public UARTProtocol{
+        public:
+            explicit RefereeProtocol(serialPort_t* Prot);
+            ~RefereeProtocol();
+
+            void Receive(void* args);
+            int Transmit(int cmd_id);
+
+        protected:
+            uint8_t data;
+            package_t package;
         };
 
     }  // namespace RFS

@@ -25,52 +25,11 @@
 #include "bsp_thread.h"
 #include "config/feature.h"
 #include "connection_driver.h"
-#include "target.h"
 
 namespace RMFC {
     namespace RFS {
 
-        RefereeProtocol::RefereeProtocol() : RefereeProcessor() {
-        }
-
-        RefereeProtocol::~RefereeProtocol() {
-            delete callback_thread_;
-        }
-
-        bool RefereeProtocol::RefereeInit(RefereeProtConfig_t ProtConfig) {
-            // todo: 没写FEATURE_RFS_MSP的设置，写完再开
-            // if (!featureIsEnabled(ProtConfig.features)) {
-            //     return false;
-            // }
-
-            const serialPortConfig_t* port = findSerialPortConfig(ProtConfig.serialPortFunction);
-            if (port == nullptr) {
-                return false;
-            }
-
-            portOptions_e options = SERIAL_NOT_INVERTED;
-
-            if ((port->identifier >= SERIAL_PORT_USART1) &&
-                (port->identifier <= SERIAL_PORT_USART8)) {
-                options = static_cast<portOptions_e>(options | SERIAL_CHECK_TX);
-            }
-
-            UARTProt_ = openSerialPort(
-                static_cast<serialPortIdentifier_e>(port->identifier),
-                ProtConfig.serialPortFunction, NULL, NULL,
-                baudRates[getBaudrateIndexByFunction(port, ProtConfig.baudRatesIndex)], MODE_RXTX,
-                options);
-
-            InitTask();
-
-            return true;
-        }
-
-        void RefereeProtocol::SetThreshold(uint32_t threshold) {
-            SetThreshold(threshold);
-        }
-
-        void RefereeProtocol::InitTask() {
+        UARTProtocol::UARTProtocol(serialPort_t* uart) : UARTProt_(uart) {
             SerialRegisterCallback(UARTProt_, CallbackWrapper, this);
             bsp::thread_init_t thread_init = {
                 .func = callback_thread_func_,
@@ -80,27 +39,95 @@ namespace RMFC {
             callback_thread_ = new bsp::EventThread(thread_init);
         }
 
-        void RefereeProtocol::CallbackWrapper(void* args) {
-            RefereeProtocol* protocol_ = reinterpret_cast<RefereeProtocol*>(args);
-            protocol_->callback_thread_->Set();
+        UARTProtocol::~UARTProtocol() {
+            delete callback_thread_;
         }
 
-        void RefereeProtocol::callback_thread_func_(void* args) {
-#if defined(DEBUG_RFS)
-            print("[RefereeSerial callback thread start]");
-#endif
-            RefereeProtocol* protocol_ = reinterpret_cast<RefereeProtocol*>(args);
-            protocol_->package->rwstatus = Read_Status;
-            uint32_t len = serialRead(protocol_->UARTProt_, &protocol_->data);
+        void UARTProtocol::CallbackWrapper(void* args) {
+            UARTProtocol* uart_protocol_ = reinterpret_cast<UARTProtocol*>(args);
+            uart_protocol_->callback_thread_->Set();
+        }
+
+        void UARTProtocol::callback_thread_func_(void* args) {
+            UARTProtocol* uart_protocol_ = reinterpret_cast<UARTProtocol*>(args);
+            uart_protocol_->Receive(nullptr);
+        }
+
+        void UARTProtocol::Receive(void* args) {
+            UNUSED(args);
+        }
+
+        int UARTProtocol::Transmit(int cmd_id) {
+            UNUSED(cmd_id);
+            return -1;
+        }
+
+        // void UARTProtocol::callback_thread_func_(void* args) {
+        //     UARTProtocol* uart_protocol_ = reinterpret_cast<UARTProtocol*>(args);
+        //     if (uart_protocol_->Interface_ && uart_protocol_->Interface_->callback_thread_func) {
+        //         uart_protocol_->Interface_->callback_thread_func(args);
+        //     }
+        // }
+        //
+        // int UARTProtocol::Transmit(int cmd_id) {
+        //     if (Interface_ && Interface_->Transmit) {
+        //         return Interface_->Transmit(cmd_id);
+        //     }
+        //     return -1;
+        // }
+
+        serialPort_t* FindRefereeProtocol(RefereeProtConfig_t ProtConfig) {
+            // todo: 没写FEATURE_RFS_MSP的设置，写完再开
+            // if (!featureIsEnabled(ProtConfig.features)) {
+            //     return false;
+            // }
+
+            const serialPortConfig_t* port = findSerialPortConfig(ProtConfig.serialPortFunction);
+            if (port == nullptr) {
+                return nullptr;
+            }
+
+            portOptions_e options = SERIAL_NOT_INVERTED;
+
+            if ((port->identifier >= SERIAL_PORT_USART1) &&
+                (port->identifier <= SERIAL_PORT_USART8)) {
+                options = static_cast<portOptions_e>(options | SERIAL_CHECK_TX);
+            }
+
+            serialPort_t* Prot = openSerialPort(
+                static_cast<serialPortIdentifier_e>(port->identifier),
+                ProtConfig.serialPortFunction, NULL, NULL,
+                baudRates[getBaudrateIndexByFunction(port, ProtConfig.baudRatesIndex)], MODE_RXTX,
+                options);
+
+            // InitTask();
+
+            return Prot;
+        }
+
+        RefereeProtocol::RefereeProtocol(serialPort_t* Prot) : UARTProtocol(Prot) {
+            // 设置100ms离线阈值
+            SetThreshold(100);
+        }
+
+        RefereeProtocol::~RefereeProtocol() {
+        }
+
+        void RefereeProtocol::Receive(void* args) {
+            UNUSED(args);
+            package.rwstatus = Read_Status;
+            uint32_t len = serialRead(UARTProt_, reinterpret_cast<uint8_t**>(data));
             if (len > 0) {
-                protocol_->ProcessReceive(*protocol_->data, *protocol_->package);
+                ProcessReceive(data, package);
             }
         }
 
-        void RefereeProtocol::Transmit(int cmd_id) {
-            package->rwstatus = Write_Status;
-            package->res->cmd = cmd_id;
-            ProcessTransmit(*package, UARTProt_);
+        int RefereeProtocol::Transmit(int cmd_id) {
+            package.rwstatus = Write_Status;
+            package.res->cmd = cmd_id;
+            ProcessTransmit(package, UARTProt_);
+            return package.length;
         }
+
     }  // namespace RFS
 }  // namespace RMFC

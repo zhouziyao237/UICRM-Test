@@ -24,7 +24,6 @@
 
 #include "connection_driver.h"
 #include "Device/bsp_Serial/DeviceSerial.h"
-#include "Device/bsp_Serial/bsp_Serial.h"
 #include "Referee.h"
 #include "RefereeParser.h"
 #include "RefereeProcessor.h"
@@ -50,10 +49,12 @@ namespace RMFC {
             RefereeMessage* msg;
             RefereeResponse* res;
             rwstatus_e rwstatus;
+            int length;
         } package_t;
 
         class RefereeProcessor : public driver::ConnectionDriver{
           public:
+            RefereeProcessor();
 
             bool ProcessReceive(char data, package_t& package);
 
@@ -67,9 +68,10 @@ namespace RMFC {
 
             void sendResponseV1(serialPort_t* SerialRFS, RefereeResponse& r);
 
+            Refereedata* Refereedata_;
+
           private:
             RefereeParser _RefereeParser;
-            Referee _Referee;
             content graph_content_ = NO_GRAPH;
         };
     }  // namespace RFS

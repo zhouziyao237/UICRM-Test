@@ -33,9 +33,9 @@ RMFC::RFS::RefereeProtConfig_t ProtConfig = {
 
 void InitRFS() {
     // Initialize Referee
-    RefereeProtocol = new RMFC::RFS::RefereeProtocol();
-    bool ret = RefereeProtocol->RefereeInit(ProtConfig);
-    if (!ret) {
+    serialPort_t* RefereeProt = FindRefereeProtocol(ProtConfig);
+    if (!RefereeProt) {
         print("Referee Init Failed\r\n");
     }
+    RefereeProtocol = new RMFC::RFS::RefereeProtocol(RefereeProt);
 }

@@ -377,7 +377,7 @@ typedef struct {
     uint8_t user_data[30];
 } __attribute__((packed)) custom_info_t;
 
-class Referee {
+class Refereedata {
   public:
     game_status_t game_status{};                            // 0x0001
     game_result_t game_result{};                            // 0x0002
