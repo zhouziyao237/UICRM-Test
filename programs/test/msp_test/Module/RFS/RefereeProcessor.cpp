@@ -23,6 +23,7 @@
 #include "RefereeProcessor.h"
 
 #include "Device/bsp_Serial/DeviceSerial.h"
+#include "Device/bsp_Serial/UARTProtocol.h"
 #include "Referee.h"
 #include "RefereeParser.h"
 #include "connection_driver.h"
@@ -32,7 +33,6 @@ namespace RMFC {
     namespace RFS {
 
         RefereeProcessor::RefereeProcessor() {
-            SetThreshold(100);
         }
 
         bool RefereeProcessor::ProcessReceive(char data, package_t& package) {
@@ -52,7 +52,7 @@ namespace RMFC {
 
             return package.msg->c_state != RFS_STATE_IDLE;
         }
-        
+
         bool RefereeProcessor::ProcessTransmit(package_t& package, serialPort_t* SerialRFS) {
             switch (package.rwstatus) {
                 case Read_Status:
@@ -289,5 +289,30 @@ namespace RMFC {
             checksum = get_crc16_check_sum(&hdr[1], 6, checksum);
             serialWriteBuf(SerialRFS, (uint8_t*)&checksum, sizeof(checksum));
         }
+
+        RefereeProtocol::RefereeProtocol(UARTProtocol* Protocol) : UARTProtocol_(Protocol) {
+            // 设置100ms离线阈值
+            SetThreshold(100);
+        }
+
+        RefereeProtocol::~RefereeProtocol() {
+        }
+
+        void RefereeProtocol::Receive(void* args) {
+            UNUSED(args);
+            package.rwstatus = Read_Status;
+            uint32_t len = serialRead(UARTProtocol_->UARTProt_, reinterpret_cast<uint8_t**>(data));
+            if (len > 0) {
+                ProcessReceive(data, package);
+            }
+        }
+
+        int RefereeProtocol::Transmit(int cmd_id) {
+            package.rwstatus = Write_Status;
+            package.res->cmd = cmd_id;
+            ProcessTransmit(package, UARTProtocol_->UARTProt_);
+            return package.length;
+        }
+
     }  // namespace RFS
 }  // namespace RMFC

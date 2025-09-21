@@ -22,8 +22,11 @@
 
 #include "refereetask.h"
 
+#include "Device/bsp_Serial/UARTProtocol.h"
 #include "Module/RFS/RefereeSerial.h"
+#include "OSD.h"
 
+RMFC::UARTProtocol* UARTProtocol_ = nullptr;
 RMFC::RFS::RefereeProtocol* RefereeProtocol = nullptr;
 RMFC::RFS::RefereeProtConfig_t ProtConfig = {
     .features = FEATURE_RFS_MSP,
@@ -37,5 +40,7 @@ void InitRFS() {
     if (!RefereeProt) {
         print("Referee Init Failed\r\n");
     }
-    RefereeProtocol = new RMFC::RFS::RefereeProtocol(RefereeProt);
+    UARTProtocol_ = new RMFC::UARTProtocol(RefereeProt);
+    RefereeProtocol = new RMFC::RFS::RefereeProtocol(UARTProtocol_);
+    // UI = new RMFC::UserInterface(RefereeProt, RefereeProtocol);
 }

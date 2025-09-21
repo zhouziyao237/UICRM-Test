@@ -3,18 +3,20 @@ add_library(board_interface INTERFACE
         ../../programs/test/msp_test/Module/UI/OSD.cpp
         ../../programs/test/msp_test/Module/UI/OSD.h
         ../../programs/test/msp_test/Module/UI/config/msg_data.h
-        ../../programs/test/msp_test/Module/UI/Modeule/ChassisGUI.cpp
-        ../../programs/test/msp_test/Module/UI/Modeule/ChassisGUI.h
-        ../../programs/test/msp_test/Module/UI/Modeule/Bar.cpp
-        ../../programs/test/msp_test/Module/UI/Modeule/Bar.h
-        ../../programs/test/msp_test/Module/UI/Modeule/GimbalGUI.cpp
-        ../../programs/test/msp_test/Module/UI/Modeule/GimbalGUI.h
-        ../../programs/test/msp_test/Module/UI/Modeule/CapGUI.cpp
-        ../../programs/test/msp_test/Module/UI/Modeule/CapGUI.h
-        ../../programs/test/msp_test/Module/UI/Modeule/StringGUI.cpp
-        ../../programs/test/msp_test/Module/UI/Modeule/StringGUI.h
-        ../../programs/test/msp_test/Module/UI/Modeule/DiagGUI.cpp
-        ../../programs/test/msp_test/Module/UI/Modeule/DiagGUI.h)
+        ../../programs/test/msp_test/Module/UI/Module/ChassisGUI.cpp
+        ../../programs/test/msp_test/Module/UI/Module/ChassisGUI.h
+        ../../programs/test/msp_test/Module/UI/Module/Bar.cpp
+        ../../programs/test/msp_test/Module/UI/Module/Bar.h
+        ../../programs/test/msp_test/Module/UI/Module/GimbalGUI.cpp
+        ../../programs/test/msp_test/Module/UI/Module/GimbalGUI.h
+        ../../programs/test/msp_test/Module/UI/Module/CapGUI.cpp
+        ../../programs/test/msp_test/Module/UI/Module/CapGUI.h
+        ../../programs/test/msp_test/Module/UI/Module/StringGUI.cpp
+        ../../programs/test/msp_test/Module/UI/Module/StringGUI.h
+        ../../programs/test/msp_test/Module/UI/Module/DiagGUI.cpp
+        ../../programs/test/msp_test/Module/UI/Module/DiagGUI.h
+        ../../programs/test/msp_test/Device/bsp_Serial/UARTProtocol.cpp
+        ../../programs/test/msp_test/Device/bsp_Serial/UARTProtocol.h)
 target_compile_definitions(board_interface INTERFACE USE_HAL_DRIVER)
 target_compile_options(board_interface INTERFACE
         $<$<COMPILE_LANGUAGE:ASM>:-x assembler-with-cpp>

@@ -22,11 +22,12 @@
 
 #pragma once
 
-#include "connection_driver.h"
 #include "Device/bsp_Serial/DeviceSerial.h"
+#include "Device/bsp_Serial/UARTProtocol.h"
 #include "Referee.h"
 #include "RefereeParser.h"
 #include "RefereeProcessor.h"
+#include "connection_driver.h"
 
 extern "C" {
 #include "config/Referee_protocol.h"
@@ -52,7 +53,7 @@ namespace RMFC {
             int length;
         } package_t;
 
-        class RefereeProcessor : public driver::ConnectionDriver{
+        class RefereeProcessor : public driver::ConnectionDriver {
           public:
             RefereeProcessor();
 
@@ -74,5 +75,20 @@ namespace RMFC {
             RefereeParser _RefereeParser;
             content graph_content_ = NO_GRAPH;
         };
+
+        class RefereeProtocol : public RefereeProcessor {
+          public:
+            explicit RefereeProtocol(UARTProtocol* Protocol);
+            ~RefereeProtocol();
+
+            void Receive(void* args);
+            int Transmit(int cmd_id);
+
+          protected:
+            uint8_t data;
+            package_t package;
+            UARTProtocol* UARTProtocol_;
+        };
+
     }  // namespace RFS
 }  // namespace RMFC
