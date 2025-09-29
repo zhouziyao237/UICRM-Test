@@ -290,7 +290,8 @@ namespace RMFC {
             serialWriteBuf(SerialRFS, (uint8_t*)&checksum, sizeof(checksum));
         }
 
-        RefereeProtocol::RefereeProtocol(UARTProtocol* Protocol) : UARTProtocol_(Protocol) {
+        RefereeProtocol::RefereeProtocol(UARTProtocol* Protocol)
+            : UARTProtocol(Protocol->UARTProt_) {
             // 设置100ms离线阈值
             SetThreshold(100);
         }
@@ -301,7 +302,7 @@ namespace RMFC {
         void RefereeProtocol::Receive(void* args) {
             UNUSED(args);
             package.rwstatus = Read_Status;
-            uint32_t len = serialRead(UARTProtocol_->UARTProt_, reinterpret_cast<uint8_t**>(data));
+            uint32_t len = serialRead(UARTProt_, reinterpret_cast<uint8_t**>(data));
             if (len > 0) {
                 ProcessReceive(data, package);
             }
@@ -310,7 +311,7 @@ namespace RMFC {
         int RefereeProtocol::Transmit(int cmd_id) {
             package.rwstatus = Write_Status;
             package.res->cmd = cmd_id;
-            ProcessTransmit(package, UARTProtocol_->UARTProt_);
+            ProcessTransmit(package, UARTProt_);
             return package.length;
         }
 

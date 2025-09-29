@@ -76,13 +76,13 @@ namespace RMFC {
             content graph_content_ = NO_GRAPH;
         };
 
-        class RefereeProtocol : public RefereeProcessor {
+        class RefereeProtocol : public RefereeProcessor, UARTProtocol {
           public:
             explicit RefereeProtocol(UARTProtocol* Protocol);
             ~RefereeProtocol();
 
-            void Receive(void* args);
-            int Transmit(int cmd_id);
+            void Receive(void* args) override;
+            int Transmit(int cmd_id) override;
 
           protected:
             uint8_t data;
