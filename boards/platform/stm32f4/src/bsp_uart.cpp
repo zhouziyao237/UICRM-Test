@@ -183,7 +183,7 @@ namespace bsp {
         if (!data)
             return -1;
         /* capture pending bytes and perform hardware buffer switch */
-        int32_t length;
+        int32_t length = 0;
         // TODO: Rx No DMA is currently not supported
         if (!rx_dma_) {
             // dma not supported
@@ -205,7 +205,18 @@ namespace bsp {
         }
 
         __HAL_DMA_DISABLE(huart_->hdmarx);
+        // 添加超时检查，防止卡死
+        uint32_t timeout = 10000; // 设置超时计数
+        while((__HAL_DMA_GET_COUNTER(huart_->hdmarx) == 0) && (timeout-- > 0)) {
+            // 等待DMA计数器更新
+        }
+        
         length = rx_size_ - __HAL_DMA_GET_COUNTER(huart_->hdmarx);
+        // 添加长度检查，防止负数或过大值
+        if (length < 0 || length > (int32_t)rx_size_) {
+            length = 0;
+        }
+        
         rx_index_ = 1 - rx_index_;
 
 #ifdef BOARD_HAS_UART_DMA_DOUBLE_BUFFER

@@ -36,6 +36,7 @@
 #include "bsp_os.h"
 #include "filter.h"
 #include "msp.h"
+#include "bsp_print.h"
 #include "platform.h"
 #include "rx.h"
 #include "rx_config.h"
@@ -232,6 +233,9 @@ namespace RMFC {
 #endif
 
         void rxInit(void) {
+            // 添加调试信息
+            print("RX Init Start\r\n");
+            
             if (featureIsEnabled(FEATURE_RX_PARALLEL_PWM)) {
                 rxRuntimeState.rxProvider = RX_PROVIDER_PARALLEL_PWM;
             } else if (featureIsEnabled(FEATURE_RX_PPM)) {
@@ -286,11 +290,13 @@ namespace RMFC {
 
             switch (rxRuntimeState.rxProvider) {
                 default:
-
+                    print("RX Provider: Default\r\n");
                     break;
 #ifdef USE_SERIALRX
                 case RX_PROVIDER_SERIAL: {
+                    print("RX Provider: Serial\r\n");
                     const bool enabled = serialRxInit(rxConfig(), &rxRuntimeState);
+                    print("Serial RX Init: %s\r\n", enabled ? "Success" : "Failed");
                     if (!enabled) {
                         rxRuntimeState.rcReadRawFn = nullReadRawRC;
                         rxRuntimeState.rcFrameStatusFn = nullFrameStatus;
@@ -302,6 +308,7 @@ namespace RMFC {
 
 #ifdef USE_RX_MSP
                 case RX_PROVIDER_MSP:
+                    print("RX Provider: MSP\r\n");
                     rxMspInit(rxConfig(), &rxRuntimeState);
 
                     break;
@@ -309,6 +316,7 @@ namespace RMFC {
 
 #ifdef USE_RX_SPI
                 case RX_PROVIDER_SPI: {
+                    print("RX Provider: SPI\r\n");
                     const bool enabled = rxSpiInit(rxSpiConfig(), &rxRuntimeState);
                     if (!enabled) {
                         rxRuntimeState.rcReadRawFn = nullReadRawRC;
@@ -321,7 +329,9 @@ namespace RMFC {
 
 #if defined(USE_RX_PWM) || defined(USE_RX_PPM)
                 case RX_PROVIDER_PPM:
+                    print("RX Provider: PPM\r\n");
                 case RX_PROVIDER_PARALLEL_PWM:
+                    print("RX Provider: PWM\r\n");
                     rxPwmInit(rxConfig(), &rxRuntimeState);
 
                     break;
@@ -358,6 +368,8 @@ namespace RMFC {
 
             rxChannelCount = min<uint8_t>(rxConfig()->max_aux_channel + NON_AUX_CHANNEL_COUNT,
                                           rxRuntimeState.channelCount);
+                                          
+            print("RX Init Complete\r\n");
         }
 
         bool rxIsReceivingSignal(void) {

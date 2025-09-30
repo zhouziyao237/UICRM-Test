@@ -85,6 +85,7 @@ static void callbackFunction(void* args) {
     UNUSED(args);
 #if defined(DEBUG_RX)
     // todo: I don't know why the program keeps stuck here
+    // todo: 应该是 TIM 的 ISR 和 UART 的 ISR 冲突了
     // print("Timer callback fired!\r\n");
 #endif
 
@@ -92,13 +93,16 @@ static void callbackFunction(void* args) {
 }
 
 bool InitRX() {
+    print("InitRX Start\r\n");
     RMFC::RX::rxInit();
+    print("RX Init Done, Creating Thread\r\n");
     bsp::thread_init_t init = {
         .func = taskUpdateRxMain,
         .args = nullptr,
         .attr = rx_thread_attr,
     };
     RXcallbackthread_ = new bsp::EventThread(init);
+    print("Thread Created, Creating Timer\r\n");
     rxTimer = new bsp::Timer(&htim10, RxTimConfig, TASK_PERIOD_HZ(33));
     HAL_StatusTypeDef status = rxTimer->TimerInit();
     rxTimer->RegisterCallback(callbackFunction, nullptr);
@@ -107,5 +111,6 @@ bool InitRX() {
         delete RXcallbackthread_;
         return false;
     }
+    print("InitRX Complete\r\n");
     return true;
 }

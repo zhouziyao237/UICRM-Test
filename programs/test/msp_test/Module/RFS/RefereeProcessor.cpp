@@ -290,8 +290,8 @@ namespace RMFC {
             serialWriteBuf(SerialRFS, (uint8_t*)&checksum, sizeof(checksum));
         }
 
-        RefereeProtocol::RefereeProtocol(UARTProtocol* Protocol)
-            : UARTProtocol(Protocol->UARTProt_) {
+        RefereeProtocol::RefereeProtocol(serialPort_t* UARTProt_)
+            : UARTProtocol(UARTProt_) {
             // 设置100ms离线阈值
             SetThreshold(100);
         }

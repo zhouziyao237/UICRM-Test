@@ -34,13 +34,14 @@ RMFC::RFS::RefereeProtConfig_t ProtConfig = {
     .baudRatesIndex = RMFC::REREFEE_BAUD_Index,
 };
 
+RMFC::UserInterface* UI = nullptr;
+
 void InitRFS() {
     // Initialize Referee
     serialPort_t* RefereeProt = FindRefereeProtocol(ProtConfig);
     if (!RefereeProt) {
         print("Referee Init Failed\r\n");
     }
-    UARTProtocol_ = new RMFC::UARTProtocol(RefereeProt);
-    RefereeProtocol = new RMFC::RFS::RefereeProtocol(UARTProtocol_);
-    // UI = new RMFC::UserInterface(RefereeProt, RefereeProtocol);
+    RefereeProtocol = new RMFC::RFS::RefereeProtocol(RefereeProt);
+    UI = new RMFC::UserInterface(RefereeProt, RefereeProtocol);
 }

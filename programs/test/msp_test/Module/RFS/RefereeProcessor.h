@@ -78,7 +78,7 @@ namespace RMFC {
 
         class RefereeProtocol : public RefereeProcessor, UARTProtocol {
           public:
-            explicit RefereeProtocol(UARTProtocol* Protocol);
+            explicit RefereeProtocol(serialPort_t* UARTProt_);
             ~RefereeProtocol();
 
             void Receive(void* args) override;
@@ -87,7 +87,7 @@ namespace RMFC {
           protected:
             uint8_t data;
             package_t package;
-            UARTProtocol* UARTProtocol_;
+            // UARTProtocol* UARTProtocol_;
         };
 
     }  // namespace RFS

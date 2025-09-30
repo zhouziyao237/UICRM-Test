@@ -23,4 +23,4 @@ file(GLOB_RECURSE SOURCES
 uicrm_add_arm_executable(${PROJECT_NAME}
         TARGET DJI_Board_TypeA_general
         SOURCES ${SOURCES}
-        INCLUDES . Common PG Module Module/Msp Module/Cli Module/UI Module/RFS Device System)
+        INCLUDES . Common PG Module Module/Msp Module/RX Module/Cli Module/UI Module/RFS Device System)

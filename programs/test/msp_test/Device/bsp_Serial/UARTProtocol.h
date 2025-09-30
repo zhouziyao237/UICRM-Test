@@ -42,7 +42,7 @@ namespace RMFC {
         static void CallbackWrapper(void* args);
         static void callback_thread_func_(void* args);
         bsp::EventThread* callback_thread_ = nullptr;
-        const osThreadAttr_t callback_thread_attr_ = {.name = "RefereeTask",
+        const osThreadAttr_t callback_thread_attr_ = {.name = "UARTProtocolTask",
                                                       .attr_bits = osThreadDetached,
                                                       .cb_mem = nullptr,
                                                       .cb_size = 0,
