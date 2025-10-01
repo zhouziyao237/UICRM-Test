@@ -103,6 +103,46 @@ namespace bsp {
     template uint32_t VirtualUSB::Read<false>(uint8_t** data);
 
     template <bool FromISR>
+    uint32_t VirtualUSB::ReadByte(uint8_t** data) {
+        static uint8_t single_byte;
+
+        UBaseType_t isrflags;
+        if (FromISR) {
+            isrflags = taskENTER_CRITICAL_FROM_ISR();
+        } else {
+            taskENTER_CRITICAL();
+        }
+
+        if (rx_pending_ > 0) {
+            single_byte = rx_write_[0];
+            *data = &single_byte;
+
+            // 移动剩余数据到缓冲区前端
+            if (rx_pending_ > 1) {
+                memmove(rx_write_, rx_write_ + 1, rx_pending_ - 1);
+            }
+            rx_pending_--;
+
+            if (FromISR) {
+                taskEXIT_CRITICAL_FROM_ISR(isrflags);
+            } else {
+                taskEXIT_CRITICAL();
+            }
+            return 1;
+        }
+
+        if (FromISR) {
+            taskEXIT_CRITICAL_FROM_ISR(isrflags);
+        } else {
+            taskEXIT_CRITICAL();
+        }
+        return 0;
+    }
+
+    template uint32_t VirtualUSB::ReadByte<true>(uint8_t** data);
+    template uint32_t VirtualUSB::ReadByte<false>(uint8_t** data);
+
+    template <bool FromISR>
     uint32_t VirtualUSB::Write(uint8_t* data, uint32_t length) {
         UBaseType_t isrflags;
         if (FromISR) {

@@ -61,6 +61,7 @@ struct serialPortVTable {
     uint32_t (*serialTotalRxWaiting)(const serialPort_t* instance);
     uint32_t (*serialTotalTxFree)(const serialPort_t* instance);
     uint32_t (*serialRead)(serialPort_t* instance, uint8_t** data);
+    uint32_t (*serialReadByte)(serialPort_t* instance, uint8_t** data);
     void (*serialSetBaudRate)(serialPort_t* instance, uint32_t baudRate);
     bool (*isSerialTransmitBufferEmpty)(const serialPort_t* instance);
     void (*setMode)(serialPort_t* instance, portMode_e mode);
@@ -95,6 +96,8 @@ uint32_t serialRxBytesWaiting(const serialPort_t* instance);
 uint32_t serialTxBytesFree(const serialPort_t* instance);
 template <bool FromISR = false>
 uint32_t serialRead(serialPort_t* instance, uint8_t** data);
+template <bool FromISR = false>
+uint32_t serialReadByte(serialPort_t* instance, uint8_t** data);
 void serialSetBaudRate(serialPort_t* instance, uint32_t baudRate);
 bool isSerialTransmitBufferEmpty(const serialPort_t* instance);
 void serialSetMode(serialPort_t* instance, portMode_e mode);

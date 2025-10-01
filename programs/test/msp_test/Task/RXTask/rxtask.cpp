@@ -49,7 +49,8 @@ bool UpdateRxMainInProgress(void) {
 
 void taskUpdateRxMain(void* args) {
     UNUSED(args);
-    // timeUs_t currentTimeUs = bsp::GetHighresTickMicroSec();
+    timeUs_t currentTimeUs = bsp::GetHighresTickMilliSec();
+    UNUSED(currentTimeUs);
 
     switch (rxState) {
         default:

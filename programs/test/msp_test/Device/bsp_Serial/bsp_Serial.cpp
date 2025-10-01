@@ -74,6 +74,18 @@ static uint32_t uartSerialRead(serialPort_t* instance, uint8_t** data) {
     return 0;
 }
 
+template <bool FromISR>
+static uint32_t uartSerialReadByte(serialPort_t* instance, uint8_t** data) {
+    uartPrivateData_t* privateData = (uartPrivateData_t*)instance->privateData;
+    if (privateData && privateData->uart_instance) {
+        uint32_t len = privateData->uart_instance->ReadByte<FromISR>(data);
+        if (len > 0) {
+            return len;
+        }
+    }
+    return 0;
+}
+
 static void uartSerialSetBaudRate(serialPort_t* instance, uint32_t baudRate) {
     // 在当前实现中无法动态更改波特率
     instance->baudRate = baudRate;
@@ -147,6 +159,18 @@ static uint32_t usbSerialRead(serialPort_t* instance, uint8_t** data) {
     return 0;
 }
 
+template <bool FromISR>
+static uint32_t usbSerialReadByte(serialPort_t* instance, uint8_t** data) {
+    uartPrivateData_t* privateData = (uartPrivateData_t*)instance->privateData;
+    if (privateData && privateData->uart_instance) {
+        uint32_t len = privateData->uart_instance->ReadByte<FromISR>(data);
+        if (len > 0) {
+            return len;
+        }
+    }
+    return 0;
+}
+
 static void usbSerialSetBaudRate(serialPort_t* instance, uint32_t baudRate) {
     // USB虚拟串口通常不需要设置波特率
     instance->baudRate = baudRate;
@@ -189,20 +213,32 @@ static void usbRegisterCallback(serialPort_t* instance, serial_rx_callback_t cal
 
 // UART VTable
 static const struct serialPortVTable uartVTable = {
-    uartSerialWrite,       uartSerialTotalRxWaiting,
-    uartSerialTotalTxFree, (uint32_t (*)(serialPort_t*, uint8_t**))uartSerialRead<false>,
-    uartSerialSetBaudRate, uartIsSerialTransmitBufferEmpty,
-    uartSetMode,           uartWriteBuf,
-    uartBeginWrite,        uartEndWrite,
+    uartSerialWrite,
+    uartSerialTotalRxWaiting,
+    uartSerialTotalTxFree,
+    (uint32_t (*)(serialPort_t*, uint8_t**))uartSerialRead<false>,
+    (uint32_t (*)(serialPort_t*, uint8_t**))uartSerialReadByte<false>,
+    uartSerialSetBaudRate,
+    uartIsSerialTransmitBufferEmpty,
+    uartSetMode,
+    uartWriteBuf,
+    uartBeginWrite,
+    uartEndWrite,
     uartRegisterCallback};
 
 // USB VTable
 static const struct serialPortVTable usbVTable = {
-    usbSerialWrite,       usbSerialTotalRxWaiting,
-    usbSerialTotalTxFree, (uint32_t (*)(serialPort_t*, uint8_t**))usbSerialRead<false>,
-    usbSerialSetBaudRate, usbIsSerialTransmitBufferEmpty,
-    usbSetMode,           usbWriteBuf,
-    usbBeginWrite,        usbEndWrite,
+    usbSerialWrite,
+    usbSerialTotalRxWaiting,
+    usbSerialTotalTxFree,
+    (uint32_t (*)(serialPort_t*, uint8_t**))usbSerialRead<false>,
+    (uint32_t (*)(serialPort_t*, uint8_t**))usbSerialReadByte<false>,
+    usbSerialSetBaudRate,
+    usbIsSerialTransmitBufferEmpty,
+    usbSetMode,
+    usbWriteBuf,
+    usbBeginWrite,
+    usbEndWrite,
     usbRegisterCallback};
 
 // 公共接口函数实现
@@ -254,6 +290,22 @@ uint32_t serialRead(serialPort_t* instance, uint8_t** data) {
 
 template uint32_t serialRead<false>(serialPort_t* instance, uint8_t** data);
 template uint32_t serialRead<true>(serialPort_t* instance, uint8_t** data);
+
+template <bool FromISR>
+uint32_t serialReadByte(serialPort_t* instance, uint8_t** data) {
+    if (!instance || !data)
+        return 0;
+
+    if (instance->vTable == &uartVTable) {
+        return uartSerialReadByte<FromISR>(instance, data);
+    } else if (instance->vTable == &usbVTable) {
+        return usbSerialReadByte<FromISR>(instance, data);
+    }
+    return 0;
+}
+
+template uint32_t serialReadByte<false>(serialPort_t* instance, uint8_t** data);
+template uint32_t serialReadByte<true>(serialPort_t* instance, uint8_t** data);
 
 void serialSetBaudRate(serialPort_t* instance, uint32_t baudRate) {
     instance->vTable->serialSetBaudRate(instance, baudRate);
