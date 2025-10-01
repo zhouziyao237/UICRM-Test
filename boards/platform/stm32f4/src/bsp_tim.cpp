@@ -26,16 +26,26 @@
 
 #include "bsp_error_handler.h"
 #include "tim.h"
+#include "cmsis_os.h"
+#include "task.h"
 
 namespace bsp {
 
     void TimerCallbackWrapper(TIM_HandleTypeDef* htim) {
+        UBaseType_t isrflags = taskENTER_CRITICAL_FROM_ISR();
+
         Timer* timer = Timer::FindInstance(htim);
         if (timer != nullptr) {
             TIM_callback_t callback = timer->callback_;
+            void* callback_args = timer->callback_args_;
+
+            taskEXIT_CRITICAL_FROM_ISR(isrflags);
+
             if (callback != nullptr) {
-                callback(timer->callback_args_);
+                callback(callback_args);
             }
+        } else {
+            taskEXIT_CRITICAL_FROM_ISR(isrflags);
         }
     }
 

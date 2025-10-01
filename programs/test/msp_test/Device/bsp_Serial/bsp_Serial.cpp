@@ -62,10 +62,11 @@ static uint32_t uartSerialTotalTxFree(const serialPort_t* instance) {
     return 1024;
 }
 
+template <bool FromISR>
 static uint32_t uartSerialRead(serialPort_t* instance, uint8_t** data) {
     uartPrivateData_t* privateData = (uartPrivateData_t*)instance->privateData;
     if (privateData && privateData->uart_instance) {
-        uint32_t len = privateData->uart_instance->Read(data);
+        uint32_t len = privateData->uart_instance->Read<FromISR>(data);
         if (len > 0) {
             return len;
         }
@@ -134,10 +135,11 @@ static uint32_t usbSerialTotalTxFree(const serialPort_t* instance) {
     return 1024;
 }
 
+template <bool FromISR>
 static uint32_t usbSerialRead(serialPort_t* instance, uint8_t** data) {
     usbPrivateData_t* privateData = (usbPrivateData_t*)instance->privateData;
     if (privateData && privateData->usb_instance) {
-        uint32_t len = privateData->usb_instance->Read(data);
+        uint32_t len = privateData->usb_instance->Read<FromISR>(data);
         if (len > 0) {
             return len;
         }
@@ -188,7 +190,7 @@ static void usbRegisterCallback(serialPort_t* instance, serial_rx_callback_t cal
 // UART VTable
 static const struct serialPortVTable uartVTable = {
     uartSerialWrite,       uartSerialTotalRxWaiting,
-    uartSerialTotalTxFree, uartSerialRead,
+    uartSerialTotalTxFree, (uint32_t (*)(serialPort_t*, uint8_t**))uartSerialRead<false>,
     uartSerialSetBaudRate, uartIsSerialTransmitBufferEmpty,
     uartSetMode,           uartWriteBuf,
     uartBeginWrite,        uartEndWrite,
@@ -197,7 +199,7 @@ static const struct serialPortVTable uartVTable = {
 // USB VTable
 static const struct serialPortVTable usbVTable = {
     usbSerialWrite,       usbSerialTotalRxWaiting,
-    usbSerialTotalTxFree, usbSerialRead,
+    usbSerialTotalTxFree, (uint32_t (*)(serialPort_t*, uint8_t**))usbSerialRead<false>,
     usbSerialSetBaudRate, usbIsSerialTransmitBufferEmpty,
     usbSetMode,           usbWriteBuf,
     usbBeginWrite,        usbEndWrite,
@@ -237,9 +239,21 @@ uint32_t serialTxBytesFree(const serialPort_t* instance) {
     return instance->vTable->serialTotalTxFree(instance);
 }
 
+template <bool FromISR>
 uint32_t serialRead(serialPort_t* instance, uint8_t** data) {
-    return instance->vTable->serialRead(instance, data);
+    if (!instance || !data)
+        return 0;
+
+    if (instance->vTable == &uartVTable) {
+        return uartSerialRead<FromISR>(instance, data);
+    } else if (instance->vTable == &usbVTable) {
+        return usbSerialRead<FromISR>(instance, data);
+    }
+    return 0;
 }
+
+template uint32_t serialRead<false>(serialPort_t* instance, uint8_t** data);
+template uint32_t serialRead<true>(serialPort_t* instance, uint8_t** data);
 
 void serialSetBaudRate(serialPort_t* instance, uint32_t baudRate) {
     instance->vTable->serialSetBaudRate(instance, baudRate);

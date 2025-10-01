@@ -119,8 +119,9 @@ namespace RMFC {
                 return;
             }
 
+            // todo: 应该是 UART 的 ISR 清除就 SerialRead 接收 数据导致ISR卡了代码直接截断了
             uint8_t* rxData;
-            uint32_t dataReceived = serialRead(sbusFrameData->sBusPort, &rxData);
+            uint32_t dataReceived = serialRead<true>(sbusFrameData->sBusPort, &rxData);
 
             // Check if we actually received data
             if (dataReceived > 0) {

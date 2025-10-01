@@ -93,6 +93,7 @@ void serialWrite(serialPort_t* instance, uint8_t ch);
 void serialWriteBuf(serialPort_t* instance, const uint8_t* data, int length);
 uint32_t serialRxBytesWaiting(const serialPort_t* instance);
 uint32_t serialTxBytesFree(const serialPort_t* instance);
+template <bool FromISR = false>
 uint32_t serialRead(serialPort_t* instance, uint8_t** data);
 void serialSetBaudRate(serialPort_t* instance, uint32_t baudRate);
 bool isSerialTransmitBufferEmpty(const serialPort_t* instance);
