@@ -22,17 +22,17 @@
 
 #include "main.h"
 
+#include "../../../boards/platform/stm32h7/include/bsp_os.h"
 #include "Common/config.h"
 #include "Device/bsp_Serial/DeviceSerial.h"
-
-#include "Task/RXTask/rxtask.h"
+#include "FreeRTOS.h"
 #include "Task/MSPTask/msptask.h"
 #include "Task/RFSTask/refereetask.h"
+#include "Task/RXTask/rxtask.h"
 #include "bsp_PG/bsp_pg.h"
 #include "bsp_print.h"
 #include "bsp_serial.h"
 #include "cmsis_os2.h"
-#include "FreeRTOS.h"
 #include "task.h"
 
 void RM_RTOS_Init() {
@@ -66,6 +66,7 @@ void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
     osDelay(50);
     while (true) {
+        rxProcessingLoop();
         set_cursor(0, 0);
         clear_screen();
 

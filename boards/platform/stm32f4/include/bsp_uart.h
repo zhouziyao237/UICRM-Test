@@ -112,29 +112,6 @@ namespace bsp {
         int32_t Read(uint8_t** data);
 
         /**
-         * @brief 读取接收到的一个字节数据
-         * @tparam FromISR  设置为 true 以在中断处理程序中调用
-         * @param data  指向字节地址的指针，该地址被设置为接收到的字节数据地址
-         * @return 读取的字节数，失败返回-1
-         *
-         * @note 为了最佳性能，不会复制内存，因此对此方法的第二次调用将使前一次调用产生的数据无效
-         */
-        /**
-         * @brief read out one byte of received data
-         *
-         * @tparam FromISR  set to true to call inside an interrupt handler
-         * @param data  pointer to a byte address that gets set to the received byte data address
-         *
-         * @return number of bytes read (1 if success), -1 if failure
-         *
-         * @note memory is not copied for optimal performance, so second call to this
-         *       method will invalidate the data produced by the previous call
-         */
-
-        template <bool FromISR = false>
-        int32_t ReadByte(uint8_t** data);
-
-        /**
          * @brief 写数据到串口
          *
          * @tparam FromISR  设置为 true 以在中断处理程序中调用

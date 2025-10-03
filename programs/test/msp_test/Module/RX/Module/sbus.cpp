@@ -1,5 +1,5 @@
 /*
-* Betaflight / Cleanflight Derivative Work
+ * Betaflight / Cleanflight Derivative Work
  * ----------------------------------------
  * Original code: Copyright (c) 2011-2025 Betaflight & Cleanflight contributors
  * Derivative work: Copyright (c) 2025 BNU-HKBU UIC RoboMaster
@@ -75,6 +75,9 @@
 #define SBUS_DIGITAL_CHANNEL_MIN 173
 #define SBUS_DIGITAL_CHANNEL_MAX 1812
 
+#define TX_LEN 1
+#define RX_LEN 1
+
 namespace RMFC {
     namespace RX {
         enum {
@@ -83,79 +86,56 @@ namespace RMFC {
             DEBUG_SBUS_FRAME_TIME,
         };
 
-        struct sbusFrame_s {
-            uint8_t syncByte;
-            sbusChannels_t channels;
-            /**
-             * The endByte is 0x00 on FrSky and some futaba RX's, on Some SBUS2 RX's the value
-             * indicates the telemetry byte that is sent after every 4th sbus frame.
-             *
-             * See https://github.com/cleanflight/cleanflight/issues/590#issuecomment-101027349
-             * and
-             * https://github.com/cleanflight/cleanflight/issues/590#issuecomment-101706023
-             */
-            uint8_t endByte;
-        } __attribute__((__packed__));
-
-        typedef union sbusFrame_u {
-            uint8_t bytes[SBUS_FRAME_SIZE];
-            struct sbusFrame_s frame;
-        } sbusFrame_t;
+        /**
+         * The endByte is 0x00 on FrSky and some futaba RX's, on Some SBUS2 RX's the value
+         * indicates the telemetry byte that is sent after every 4th sbus frame.
+         *
+         * See https://github.com/cleanflight/cleanflight/issues/590#issuecomment-101027349
+         * and
+         * https://github.com/cleanflight/cleanflight/issues/590#issuecomment-101706023
+         */
+        typedef struct sbusFrame_s {
+            uint8_t syncByte : 8;     // 帧头字节
+            sbusChannels_t channels;  // 通道数据
+            uint8_t endByte : 8;      // 帧尾字节
+        } __attribute__((__packed__)) sbusFrame_t;
 
         typedef struct sbusFrameData_s {
             sbusFrame_t frame;
             timeUs_t startAtUs;
-            uint8_t position;
             bool done;
             serialPort_t* sBusPort;
         } sbusFrameData_t;
 
         // Receive ISR callback
         static void sbusDataReceive(void* data) {
-            sbusFrameData_t* sbusFrameData = static_cast<sbusFrameData_t*>(data);
+            sbusFrameData_t* sbusFrameData = (sbusFrameData_t*)data;
 
-            // Check if the serial port is valid
-            if (sbusFrameData->sBusPort == nullptr) {
-                return;
-            }
-
-            // todo: 应该是 UART 的 ISR 清除就 SerialRead 接收 数据导致ISR卡了代码直接截断了
             uint8_t* rxData;
-            uint32_t dataReceived = serialRead<true>(sbusFrameData->sBusPort, &rxData);
+            serialRead<true>(sbusFrameData->sBusPort, &rxData);
 
-            // Check if we actually received data
-            if (dataReceived > 0) {
-                uint8_t c = rxData[0]; // Get the first byte of received data
+            sbusFrame_s* sbusFrame = reinterpret_cast<sbusFrame_s*>(rxData);
 
-                const timeUs_t nowUs = bsp::GetHighresTickMicroSec();
+            const timeUs_t nowUs = bsp::GetHighresTickMicroSec();
 
-                const timeDelta_t sbusFrameTime = cmpTimeUs(nowUs, sbusFrameData->startAtUs);
+            const timeDelta_t sbusFrameTime = cmpTimeUs(nowUs, sbusFrameData->startAtUs);
 
-                if (sbusFrameTime > (long)(SBUS_TIME_NEEDED_PER_FRAME + 500)) {
-                    sbusFrameData->position = 0;
+            if (sbusFrameTime > (long)(SBUS_TIME_NEEDED_PER_FRAME + 500)) {
+                if (sbusFrame->syncByte != SBUS_FRAME_BEGIN_BYTE) {
+                    sbusFrameData->done = false;
+                    return;
                 }
-
-                if (sbusFrameData->position == 0) {
-                    if (c != SBUS_FRAME_BEGIN_BYTE) {
-                        return;
-                    }
-                    sbusFrameData->startAtUs = nowUs;
-                }
-
-                if (sbusFrameData->position < SBUS_FRAME_SIZE) {
-                    sbusFrameData->frame.bytes[sbusFrameData->position++] = c;
-                    if (sbusFrameData->position < SBUS_FRAME_SIZE) {
-                        sbusFrameData->done = false;
-                    } else {
-                        sbusFrameData->done = true;
-                        // DEBUG_SET(DEBUG_SBUS, DEBUG_SBUS_FRAME_TIME, sbusFrameTime);
-                    }
-                }
+                sbusFrameData->startAtUs = nowUs;
             }
+
+            sbusFrameData->frame.channels = sbusFrame->channels;
+            sbusFrameData->done = true;
+            // DEBUG_SET(DEBUG_SBUS, DEBUG_SBUS_FRAME_TIME, sbusFrameTime);
         }
 
         static uint8_t sbusFrameStatus(rxRuntimeState_t* rxRuntimeState) {
-            sbusFrameData_t* sbusFrameData = static_cast<sbusFrameData_t*>(rxRuntimeState->frameData);
+            sbusFrameData_t* sbusFrameData =
+                static_cast<sbusFrameData_t*>(rxRuntimeState->frameData);
             if (!sbusFrameData->done) {
                 return RX_FRAME_PENDING;
             }
@@ -165,7 +145,7 @@ namespace RMFC {
             // sbusFrameData->frame.frame.channels.flags);
 
             const uint8_t frameStatus =
-                sbusChannelsDecode(rxRuntimeState, &sbusFrameData->frame.frame.channels);
+                sbusChannelsDecode(rxRuntimeState, &sbusFrameData->frame.channels);
 
             if (!(frameStatus & (RX_FRAME_FAILSAFE | RX_FRAME_DROPPED))) {
                 rxRuntimeState->lastRcFrameTimeUs = sbusFrameData->startAtUs;
@@ -206,15 +186,16 @@ namespace RMFC {
             bool portShared = false;
 #endif
 
+            uartSetup_t uartSetup = {SBUS_FRAME_SIZE + 1, true, TX_LEN, true};
+
             serialPort_t* sBusPort = openSerialPort(
-                static_cast<serialPortIdentifier_e>(portConfig->identifier),
-                FUNCTION_RX_SERIAL,
-                static_cast<serial_rx_callback_t>(sbusDataReceive),
-                &sbusFrameData,
-                sbusBaudRate, portShared ? MODE_RXTX : MODE_RX,
+                static_cast<serialPortIdentifier_e>(portConfig->identifier), FUNCTION_RX_SERIAL,
+                static_cast<serial_rx_callback_t>(sbusDataReceive), &sbusFrameData, sbusBaudRate,
+                portShared ? MODE_RXTX : MODE_RX,
                 static_cast<portOptions_e>(SBUS_PORT_OPTIONS |
                                            (rxConfig->serialrx_inverted ? 0 : SERIAL_INVERTED) |
-                                           (rxConfig->halfDuplex ? SERIAL_BIDIR : 0)));
+                                           (rxConfig->halfDuplex ? SERIAL_BIDIR : 0)),
+                &uartSetup);
 
             // Store the serial port reference for use in the callback
             sbusFrameData.sBusPort = sBusPort;

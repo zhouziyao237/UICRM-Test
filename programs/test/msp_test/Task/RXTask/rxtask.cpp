@@ -22,7 +22,10 @@
 
 #include "rxtask.h"
 
+#include "Device/config/runtime_config.h"
+#include "Failsafe.h"
 #include "Module/RX/rx.h"
+#include "Module/RX/rx_mode.h"
 #include "bsp_os.h"
 #include "bsp_print.h"
 #include "bsp_thread.h"
@@ -43,27 +46,65 @@ bsp::InitTIMConfig RxTimConfig = {
     .AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE,
 };
 
+bool processRx(timeUs_t currentTimeUs) {
+    // 保留核心接收机数据处理
+    if (!RMFC::RX::calculateRxChannelsAndUpdateFailsafe(currentTimeUs)) {
+        return false;
+    }
+
+    // 保留RSSI更新（如果需要）
+    RMFC::RX::updateRSSI(currentTimeUs);
+
+    // 保留失控保护初始化
+    if (currentTimeUs > FAILSAFE_POWER_ON_DELAY_US && !RMFC::failsafeIsMonitoring()) {
+        RMFC::failsafeStartMonitoring();
+    }
+
+    return true;
+}
+
+void processRxModes(timeUs_t currentTimeUs) {
+    UNUSED(currentTimeUs);
+    // 保留摇杆位置处理（如果需要）
+    if (!(RMFC::IS_RC_MODE_ACTIVE(RMFC::BOXPARALYZE) && !ARMING_FLAG(ARMED))) {
+        // processRcStickPositions();
+    }
+
+    // 保留模式更新
+    RMFC::updateActivatedModes();
+}
+
 bool UpdateRxMainInProgress(void) {
     return (rxState != RX_STATE_CHECK);
 }
 
+void rxProcessingLoop(void) {
+
+    timeUs_t currentTimeUs = bsp::GetHighresTickMicroSec();
+
+    RMFC::RX::rxFrameCheck(currentTimeUs, 1000);
+
+    // 处理通道数据
+    RMFC::RX::calculateRxChannelsAndUpdateFailsafe(currentTimeUs);
+}
+
 void taskUpdateRxMain(void* args) {
     UNUSED(args);
-    timeUs_t currentTimeUs = bsp::GetHighresTickMilliSec();
+    timeUs_t currentTimeUs = bsp::GetHighresTickMicroSec();
     UNUSED(currentTimeUs);
 
     switch (rxState) {
         default:
         case RX_STATE_CHECK:
-            // if (!processRx(currentTimeUs)) {
-            //     rxState = RX_STATE_CHECK;
-            //     break;
-            // }
+            if (!processRx(currentTimeUs)) {
+                rxState = RX_STATE_CHECK;
+                break;
+            }
             rxState = RX_STATE_MODES;
             break;
 
         case RX_STATE_MODES:
-            // processRxModes(currentTimeUs);
+            processRxModes(currentTimeUs);
             rxState = RX_STATE_UPDATE;
             break;
 

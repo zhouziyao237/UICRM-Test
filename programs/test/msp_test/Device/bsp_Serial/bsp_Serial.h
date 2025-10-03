@@ -24,6 +24,9 @@
 
 #include "usart.h"
 
+#define MAX_PRINT_LEN 1024
+#define RX_SIGNAL (1 << 0)
+
 // 前向声明
 typedef struct serialPort_s serialPort_t;
 typedef enum { MODE_RX = 1 << 0, MODE_TX = 1 << 1, MODE_RXTX = MODE_RX | MODE_TX } portMode_e;
@@ -71,6 +74,15 @@ struct serialPortVTable {
     void (*registerCallback)(serialPort_t* instance, serial_rx_callback_t callback, void* args);
 };
 
+// 配置UART串口通信参数
+typedef struct uartSetup_s{
+    uint32_t rx_buffer_size = MAX_PRINT_LEN * 2;
+    bool rx_dma = true;
+    uint32_t tx_buffer_size = MAX_PRINT_LEN * 2;
+    bool tx_dma = true;
+} uartSetup_t;
+extern uartSetup_t defaultSetup;
+
 // 串口结构体
 typedef struct serialPort_s {
     const struct serialPortVTable* vTable;
@@ -114,8 +126,10 @@ uint32_t serialPrintlnFormatted(serialPort_t* instance, const char* format, ...)
 
 // 工厂函数
 serialPort_t* newSerialPort(UART_HandleTypeDef* huart, uint32_t baudRate, portMode_e mode,
-                            portOptions_e options, serial_rx_callback_t callback, void* args);
-serialPort_t* newSerialPortUSB(serial_rx_callback_t callback, void* args);
+                            portOptions_e options, serial_rx_callback_t callback, void* args,
+                            uartSetup_t* uartSetup = &defaultSetup);
+serialPort_t* newSerialPortUSB(serial_rx_callback_t callback, void* args,
+                               uartSetup_t* uartSetup = &defaultSetup);
 void deleteSerialPort(serialPort_t* instance);
 
 // 用于缓冲写入的辅助函数

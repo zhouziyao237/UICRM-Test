@@ -187,7 +187,8 @@ namespace RMFC {
     //
     serialPort_t* openSerialPort(serialPortIdentifier_e identifier, serialPortFunction_e function,
                                  serial_rx_callback_t rxCallback, void* rxCallbackData,
-                                 uint32_t baudrate, portMode_e mode, portOptions_e options);
+                                 uint32_t baudrate, portMode_e mode, portOptions_e options,
+                                 uartSetup_t* uartSetup = &defaultSetup);
     void closeSerialPort(serialPort_t* serialPort);
     void waitForSerialPortToFinishTransmitting(serialPort_t* serialPort);
     baudRate_e lookupBaudRateIndex(uint32_t baudRate);

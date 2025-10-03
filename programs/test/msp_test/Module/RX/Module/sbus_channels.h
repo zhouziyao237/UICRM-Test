@@ -30,7 +30,6 @@
 namespace RMFC {
     namespace RX {
         typedef struct sbusChannels_s {
-            // 176 bits of data (11 bits per channel * 16 channels) = 22 bytes.
             unsigned int chan0 : 11;
             unsigned int chan1 : 11;
             unsigned int chan2 : 11;
@@ -47,10 +46,10 @@ namespace RMFC {
             unsigned int chan13 : 11;
             unsigned int chan14 : 11;
             unsigned int chan15 : 11;
-            uint8_t flags;
+            uint8_t flags : 8;
         } __attribute__((__packed__)) sbusChannels_t;
 
-#define SBUS_CHANNEL_DATA_LENGTH sizeof(sbusChannels_t)
+#define SBUS_CHANNEL_DATA_LENGTH (sizeof(sbusChannels_t))
 
         uint8_t sbusChannelsDecode(rxRuntimeState_t* rxRuntimeState,
                                    const sbusChannels_t* channels);

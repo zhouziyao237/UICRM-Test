@@ -248,46 +248,6 @@ namespace bsp {
     template int32_t UART::Read<false>(uint8_t** data);
 
     template <bool FromISR>
-    int32_t UART::ReadByte(uint8_t** data) {
-        if (!data)
-            return -1;
-
-        static uint8_t single_byte;
-
-        UBaseType_t isrflags;
-        if (FromISR) {
-            isrflags = taskENTER_CRITICAL_FROM_ISR();
-        } else {
-            taskENTER_CRITICAL();
-        }
-
-        if (rx_size_ == 0) {
-            if (FromISR) {
-                taskEXIT_CRITICAL_FROM_ISR(isrflags);
-            } else {
-                taskEXIT_CRITICAL();
-            }
-            return 0; // 没有数据
-        }
-
-        // 从接收缓冲区读取一个字节
-        single_byte = rx_data_[rx_index_][0];
-        *data = &single_byte;
-
-        // 退出临界区
-        if (FromISR) {
-            taskEXIT_CRITICAL_FROM_ISR(isrflags);
-        } else {
-            taskEXIT_CRITICAL();
-        }
-
-        return 1; // 成功读取一个字节
-    }
-
-    template int32_t UART::ReadByte<true>(uint8_t** data);
-    template int32_t UART::ReadByte<false>(uint8_t** data);
-
-    template <bool FromISR>
     int32_t UART::Write(const uint8_t* data, uint32_t length) {
         // enter critical session
         UBaseType_t isrflags;

@@ -1,3 +1,4 @@
 add_subdirectory(flash_test)
 add_subdirectory(msp_test)
 add_subdirectory(test_chassis)
+add_subdirectory(uart_test)

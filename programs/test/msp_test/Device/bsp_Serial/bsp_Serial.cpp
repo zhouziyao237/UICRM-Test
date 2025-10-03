@@ -29,9 +29,6 @@
 #include "bsp_uart.h"
 #include "bsp_usb.h"
 
-#define MAX_PRINT_LEN 1024
-#define RX_SIGNAL (1 << 0)
-
 // UART私有数据结构
 typedef struct {
     bsp::UART* uart_instance;
@@ -41,6 +38,8 @@ typedef struct {
 typedef struct {
     bsp::VirtualUSB* usb_instance;
 } usbPrivateData_t;
+
+uartSetup_t defaultSetup;
 
 // VTable函数实现
 static void uartSerialWrite(serialPort_t* instance, uint8_t ch) {
@@ -76,14 +75,9 @@ static uint32_t uartSerialRead(serialPort_t* instance, uint8_t** data) {
 
 template <bool FromISR>
 static uint32_t uartSerialReadByte(serialPort_t* instance, uint8_t** data) {
-    uartPrivateData_t* privateData = (uartPrivateData_t*)instance->privateData;
-    if (privateData && privateData->uart_instance) {
-        uint32_t len = privateData->uart_instance->ReadByte<FromISR>(data);
-        if (len > 0) {
-            return len;
-        }
-    }
-    return 0;
+    UNUSED(instance);
+    UNUSED(data);
+    return -1;
 }
 
 static void uartSerialSetBaudRate(serialPort_t* instance, uint32_t baudRate) {
@@ -161,14 +155,9 @@ static uint32_t usbSerialRead(serialPort_t* instance, uint8_t** data) {
 
 template <bool FromISR>
 static uint32_t usbSerialReadByte(serialPort_t* instance, uint8_t** data) {
-    uartPrivateData_t* privateData = (uartPrivateData_t*)instance->privateData;
-    if (privateData && privateData->uart_instance) {
-        uint32_t len = privateData->uart_instance->ReadByte<FromISR>(data);
-        if (len > 0) {
-            return len;
-        }
-    }
-    return 0;
+    UNUSED(instance);
+    UNUSED(data);
+    return -1;
 }
 
 static void usbSerialSetBaudRate(serialPort_t* instance, uint32_t baudRate) {
@@ -400,7 +389,8 @@ void serialWriteBufShim(void* instance, const uint8_t* data, int length) {
 
 // 创建UART串口实例的工厂函数
 serialPort_t* newSerialPort(UART_HandleTypeDef* huart, uint32_t baudRate, portMode_e mode,
-                            portOptions_e options, serial_rx_callback_t callback, void* args) {
+                            portOptions_e options, serial_rx_callback_t callback, void* args,
+                            uartSetup_t* uartSetup) {
     if (!huart)
         return NULL;
 
@@ -424,8 +414,11 @@ serialPort_t* newSerialPort(UART_HandleTypeDef* huart, uint32_t baudRate, portMo
     }
 
     // 初始化UART
-    privateData->uart_instance->SetupTx(MAX_PRINT_LEN * 2, true);
-    privateData->uart_instance->SetupRx(MAX_PRINT_LEN * 2, true);
+    if (!uartSetup) {
+        return NULL;
+    }
+    privateData->uart_instance->SetupTx(uartSetup->tx_buffer_size, uartSetup->tx_dma);
+    privateData->uart_instance->SetupRx(uartSetup->rx_buffer_size, uartSetup->rx_dma);
     if (baudRate != huart->Init.BaudRate) {
         privateData->uart_instance->SetBaudrate(baudRate);
     }
@@ -443,7 +436,7 @@ serialPort_t* newSerialPort(UART_HandleTypeDef* huart, uint32_t baudRate, portMo
 }
 
 // 创建USB串口实例的工厂函数
-serialPort_t* newSerialPortUSB(serial_rx_callback_t callback, void* args) {
+serialPort_t* newSerialPortUSB(serial_rx_callback_t callback, void* args, uartSetup_t* uartSetup) {
     serialPort_t* instance = (serialPort_t*)malloc(sizeof(serialPort_t));
     if (!instance)
         return NULL;
@@ -465,8 +458,11 @@ serialPort_t* newSerialPortUSB(serial_rx_callback_t callback, void* args) {
     }
 
     // 初始化USB
-    privateData->usb_instance->SetupTx(MAX_PRINT_LEN * 2);
-    privateData->usb_instance->SetupRx(MAX_PRINT_LEN * 2);
+    if (!uartSetup) {
+        return NULL;
+    }
+    privateData->usb_instance->SetupTx(uartSetup->tx_buffer_size);
+    privateData->usb_instance->SetupRx(uartSetup->rx_buffer_size);
 #else
     free(privateData);
     free(instance);

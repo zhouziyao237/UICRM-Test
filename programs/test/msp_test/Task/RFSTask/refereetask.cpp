@@ -41,6 +41,7 @@ void InitRFS() {
     serialPort_t* RefereeProt = FindRefereeProtocol(ProtConfig);
     if (!RefereeProt) {
         print("Referee Init Failed\r\n");
+        return;
     }
     RefereeProtocol = new RMFC::RFS::RefereeProtocol(RefereeProt);
     UI = new RMFC::UserInterface(RefereeProt, RefereeProtocol);

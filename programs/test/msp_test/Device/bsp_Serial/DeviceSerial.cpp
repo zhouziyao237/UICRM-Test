@@ -317,13 +317,15 @@ namespace RMFC {
 
     serialPort_t* openSerialPort(serialPortIdentifier_e identifier, serialPortFunction_e function,
                                  serial_rx_callback_t rxCallback, void* rxCallbackData,
-                                 uint32_t baudRate, portMode_e mode, portOptions_e options) {
+                                 uint32_t baudRate, portMode_e mode, portOptions_e options,
+                                 uartSetup_t* uartSetup) {
 #if !(defined(USE_UART) || defined(USE_SOFTSERIAL1) || defined(USE_SOFTSERIAL2))
         UNUSED(rxCallback);
         UNUSED(rxCallbackData);
         UNUSED(baudRate);
         UNUSED(mode);
         UNUSED(options);
+        UNUSED(uartSetup);
 #endif
 
         serialPortUsage_t* serialPortUsage = findSerialPortUsageByIdentifier(identifier);
@@ -337,57 +339,58 @@ namespace RMFC {
         switch (identifier) {
 #ifdef USEUSB_VCP
             case SERIAL_PORT_USB_VCP:
-                serialPort = newSerialPortUSB(rxCallback, rxCallbackData);
+                serialPort = newSerialPortUSB(rxCallback, rxCallbackData, uartSetup);
                 break;
 #endif
 
 #if defined(USEUART)
 #ifdef USEUART_1
             case SERIAL_PORT_USART1:
-                serialPort =
-                    newSerialPort(USEUART_1, baudRate, mode, options, rxCallback, rxCallbackData);
+                serialPort = newSerialPort(USEUART_1, baudRate, mode, options, rxCallback,
+                                           rxCallbackData, uartSetup);
                 break;
 #endif
 #ifdef USEUART_2
             case SERIAL_PORT_USART2:
-                serialPort =
-                    newSerialPort(USEUART_2, baudRate, mode, options, rxCallback, rxCallbackData);
+                serialPort = newSerialPort(USEUART_2, baudRate, mode, options, rxCallback,
+                                           rxCallbackData, uartSetup);
                 break;
 #endif
 #ifdef USEUART_3
             case SERIAL_PORT_USART3:
-                serialPort =
-                    newSerialPort(USEUART_3, baudRate, mode, options, rxCallback, rxCallbackData);
+                serialPort = newSerialPort(USEUART_3, baudRate, mode, options, rxCallback,
+                                           rxCallbackData, uartSetup);
                 break;
 #endif
 #ifdef USEUART_4
             case SERIAL_PORT_UART4:
-                serialPort =
-                    newSerialPort(USEUART_4, baudRate, mode, options, rxCallback, rxCallbackData);
+                serialPort = newSerialPort(USEUART_4, baudRate, mode, options, rxCallback,
+                                           rxCallbackData, uartSetup);
                 break;
 #endif
 #ifdef USEUART_5
             case SERIAL_PORT_UART5:
-                serialPort =
-                    newSerialPort(USEUART_5, baudRate, mode, options, rxCallback, rxCallbackData);
+                serialPort = newSerialPort(USEUART_5, baudRate, mode, options, rxCallback,
+                                           rxCallbackData, uartSetup);
                 break;
 #endif
 #endif
 #ifdef USEUART_6
             case SERIAL_PORT_USART6:
-                serialPort =
-                    newSerialPort(USEUART_6, baudRate, mode, options, rxCallback, rxCallbackData);
+                serialPort = newSerialPort(USEUART_6, baudRate, mode, options, rxCallback,
+                                           rxCallbackData, uartSetup);
                 break;
 #endif
 #ifdef USEUART_7
             case SERIAL_PORT_USART7:
-                serialPort =
-                    newSerialPort(USEUART_7, baudRate, mode, options, rxCallback, rxCallbackData);
+                serialPort = newSerialPort(USEUART_7, baudRate, mode, options, rxCallback,
+                                           rxCallbackData, uartSetup);
                 break;
 #endif
 #ifdef USEUART_8
             case SERIAL_PORT_USART8:
-                serialPort = newSerialPort(USEUART_8, baudRate, mode, options);
+                serialPort = newSerialPort(USEUART_8, baudRate, mode, options, rxCallback,
+                                           rxCallbackData, uartSetup);
                 break;
 #endif
             default:
