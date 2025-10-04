@@ -16,7 +16,11 @@ add_library(board_interface INTERFACE
         ../../programs/test/msp_test/Module/UI/Module/DiagGUI.cpp
         ../../programs/test/msp_test/Module/UI/Module/DiagGUI.h
         ../../programs/test/msp_test/Device/bsp_Serial/UARTProtocol.cpp
-        ../../programs/test/msp_test/Device/bsp_Serial/UARTProtocol.h)
+        ../../programs/test/msp_test/Device/bsp_Serial/UARTProtocol.h
+        ../../programs/test/msp_test/Module/RX/Module/dbus/dbus_channels.cpp
+        ../../programs/test/msp_test/Module/RX/Module/dbus/dbus_channels.h
+        ../../programs/test/msp_test/Module/RX/Module/dbus/dbus.cpp
+        ../../programs/test/msp_test/Module/RX/Module/dbus/dbus.h)
 target_compile_definitions(board_interface INTERFACE USE_HAL_DRIVER)
 target_compile_options(board_interface INTERFACE
         $<$<COMPILE_LANGUAGE:ASM>:-x assembler-with-cpp>

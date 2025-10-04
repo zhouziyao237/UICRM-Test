@@ -67,6 +67,7 @@ namespace RMFC {
             uint8_t srxl2_unit_id;                // Spektrum SRXL2 RX单元ID
             uint8_t srxl2_baud_fast;              // 选择Spektrum SRXL2快速波特率
             uint8_t sbus_baud_fast;               // 选择SBus快速波特率
+            uint8_t dbus_baud_fast;               // 选择SBus快速波特率
             uint32_t msp_override_channels_mask;  // 当启用MSP覆盖模式时要覆盖的通道
             uint8_t crsf_use_negotiated_baud;     // 对CRSF V3使用协商的波特率
         } __attribute__((packed)) rxConfig_t;

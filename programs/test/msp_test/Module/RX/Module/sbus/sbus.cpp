@@ -26,7 +26,7 @@
 #ifdef USE_SERIALRX_SBUS
 
 #include "Device/bsp_Serial/DeviceSerial.h"
-#include "Device/bsp_Serial/bsp_Serial.h"
+#include "Device/bsp_Serial/bsp_serial.h"
 #include "bsp_os.h"
 // #include "build/debug.h"
 #include "utils.h"
@@ -38,7 +38,7 @@
 #include "sbus.h"
 #include "sbus_channels.h"
 #include "pg/rx.h"
-#include "rx/rx.h"
+#include "RX/rx.h"
 
 /*
  * Observations
@@ -96,7 +96,7 @@ namespace RMFC {
             uint8_t syncByte : 8;     // 帧头字节
             sbusChannels_t channels;  // 通道数据
             uint8_t endByte : 8;      // 帧尾字节
-        } __attribute__((__packed__)) sbusFrame_t;
+        } __packed sbusFrame_t;
 
         typedef struct sbusFrameData_s {
             sbusFrame_t frame;

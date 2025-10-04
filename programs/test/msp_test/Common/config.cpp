@@ -23,11 +23,11 @@
 #include "config.h"
 
 #include "Device/bsp_Serial/DeviceSerial.h"
-#include "Device/bsp_Serial/bsp_Serial.h"
+#include "Device/bsp_Serial/bsp_serial.h"
 #include "Device/config/feature.h"
 #include "FreeRTOS.h"
 #include "bsp_print.h"
-#include "target.h"
+#include "Target.h"
 #include "task.h"
 
 #include "Module/RX/rx.h"

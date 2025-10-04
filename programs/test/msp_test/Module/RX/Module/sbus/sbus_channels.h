@@ -39,7 +39,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "Module/RX/rx.h"
+#include "RX/rx.h"
 
 #define SBUS_MAX_CHANNEL 18
 
@@ -66,7 +66,7 @@ namespace RMFC {
             unsigned int chan14 : 11;
             unsigned int chan15 : 11;
             uint8_t flags : 8;
-        } __attribute__((__packed__)) sbusChannels_t;
+        } __packed sbusChannels_t;
 
 #define SBUS_CHANNEL_DATA_LENGTH (sizeof(sbusChannels_t))
 
