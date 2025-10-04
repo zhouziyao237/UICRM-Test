@@ -30,7 +30,7 @@ void InitMSP();
 void UpdataMsptask(void* args);
 
 extern osThreadId_t MspTaskHandle;
-const osThreadAttr_t msp_thread_attr = {.name = "MspUpdateTask",
+const osThreadAttr_t MspUpData_thread_attr = {.name = "MspUpdateTask",
                                           .attr_bits = osThreadDetached,
                                           .cb_mem = nullptr,
                                           .cb_size = 0,

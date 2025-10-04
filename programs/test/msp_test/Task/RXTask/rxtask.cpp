@@ -46,6 +46,19 @@ bsp::InitTIMConfig RxTimConfig = {
     .AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE,
 };
 
+timeUs_t lastExecutedAtUs = 0;
+osThreadId_t RxTaskHandle;
+
+void UpdataRxTask(void* args) {
+    UNUSED(args);
+    while (true) {
+        timeUs_t currentTimeUs = bsp::GetHighresTickMicroSec();
+
+        RMFC::RX::rxFrameCheck(currentTimeUs, cmpTimeUs(currentTimeUs, lastExecutedAtUs));
+        osDelay(1);
+    }
+}
+
 bool processRx(timeUs_t currentTimeUs) {
     // 保留核心接收机数据处理
     if (!RMFC::RX::calculateRxChannelsAndUpdateFailsafe(currentTimeUs)) {
@@ -78,20 +91,10 @@ bool UpdateRxMainInProgress(void) {
     return (rxState != RX_STATE_CHECK);
 }
 
-void rxProcessingLoop(void) {
-
-    timeUs_t currentTimeUs = bsp::GetHighresTickMicroSec();
-
-    RMFC::RX::rxFrameCheck(currentTimeUs, 1000);
-
-    // 处理通道数据
-    RMFC::RX::calculateRxChannelsAndUpdateFailsafe(currentTimeUs);
-}
-
 void taskUpdateRxMain(void* args) {
     UNUSED(args);
     timeUs_t currentTimeUs = bsp::GetHighresTickMicroSec();
-    UNUSED(currentTimeUs);
+    lastExecutedAtUs = bsp::GetHighresTickMicroSec();
 
     switch (rxState) {
         default:
@@ -153,6 +156,12 @@ bool InitRX() {
         delete RXcallbackthread_;
         return false;
     }
+
+#ifdef DEBUG_RX
+    print("RX_MIN_USEC: %u\r\n", RMFC::RX::rxConfig()->rx_min_usec);
+    print("RX_MAX_USEC: %u\r\n", RMFC::RX::rxConfig()->rx_max_usec);
+#endif
+
     print("InitRX Complete\r\n");
     return true;
 }

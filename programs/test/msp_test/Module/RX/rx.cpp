@@ -34,9 +34,9 @@
 #include "System/Failsafe.h"
 #include "Task/RXTask/rxtask.h"
 #include "bsp_os.h"
+#include "bsp_print.h"
 #include "filter.h"
 #include "msp.h"
-#include "bsp_print.h"
 #include "platform.h"
 #include "rx.h"
 #include "rx_config.h"
@@ -107,6 +107,7 @@ namespace RMFC {
 
         PG_REGISTER_ARRAY_WITH_RESET_FN(rxChannelRangeConfig_t, NON_AUX_CHANNEL_COUNT,
                                         rxChannelRangeConfigs, PG_RX_CHANNEL_RANGE_CONFIG, 0);
+
         void pgResetFn_rxChannelRangeConfigs(rxChannelRangeConfig_t* rxChannelRangeConfigs,
                                              int size) {
             UNUSED(size);
@@ -140,6 +141,8 @@ namespace RMFC {
             }
         }
 
+        // --------------------------------------- 分割线 ---------------------------------------
+
         static float nullReadRawRC(const rxRuntimeState_t* rxRuntimeState, uint8_t channel) {
             UNUSED(rxRuntimeState);
             UNUSED(channel);
@@ -160,8 +163,12 @@ namespace RMFC {
         }
 
         STATIC_UNIT_TESTED bool isPulseValid(uint16_t pulseDuration) {
-            return pulseDuration >= rxConfig()->rx_min_usec &&
-                   pulseDuration <= rxConfig()->rx_max_usec;
+            // if (pulseDuration >= 1050 && pulseDuration <= 1900) {
+            if (pulseDuration >= (uint16_t)(rxConfig()->rx_min_usec) &&
+                pulseDuration <= (uint16_t)(rxConfig()->rx_max_usec)) {
+                return true;
+            }
+            return false;
         }
 
 #ifdef USE_SERIALRX
@@ -233,9 +240,6 @@ namespace RMFC {
 #endif
 
         void rxInit(void) {
-            // 添加调试信息
-            print("RX Init Start\r\n");
-            
             if (featureIsEnabled(FEATURE_RX_PARALLEL_PWM)) {
                 rxRuntimeState.rxProvider = RX_PROVIDER_PARALLEL_PWM;
             } else if (featureIsEnabled(FEATURE_RX_PPM)) {
@@ -290,13 +294,19 @@ namespace RMFC {
 
             switch (rxRuntimeState.rxProvider) {
                 default:
+#ifdef DEBUG_RX
                     print("RX Provider: Default\r\n");
+#endif
                     break;
 #ifdef USE_SERIALRX
                 case RX_PROVIDER_SERIAL: {
+#ifdef DEBUG_RX
                     print("RX Provider: Serial\r\n");
+#endif
                     const bool enabled = serialRxInit(rxConfig(), &rxRuntimeState);
+#ifdef DEBUG_RX
                     print("Serial RX Init: %s\r\n", enabled ? "Success" : "Failed");
+#endif
                     if (!enabled) {
                         rxRuntimeState.rcReadRawFn = nullReadRawRC;
                         rxRuntimeState.rcFrameStatusFn = nullFrameStatus;
@@ -368,7 +378,7 @@ namespace RMFC {
 
             rxChannelCount = min<uint8_t>(rxConfig()->max_aux_channel + NON_AUX_CHANNEL_COUNT,
                                           rxRuntimeState.channelCount);
-                                          
+
             print("RX Init Complete\r\n");
         }
 
@@ -571,6 +581,7 @@ namespace RMFC {
             const rxFailsafeChannelConfig_t* channelFailsafeConfig =
                 rxFailsafeChannelConfigs(channel);
             const bool boxFailsafeSwitchIsOn = IS_RC_MODE_ACTIVE(BOXFAILSAFE);
+            UNUSED(boxFailsafeSwitchIsOn);
 
             switch (channelFailsafeConfig->mode) {
                 case RX_FAILSAFE_MODE_AUTO:
@@ -630,7 +641,7 @@ namespace RMFC {
         static void readRxChannelsApplyRanges(void) {
             for (int channel = 0; channel < rxChannelCount; channel++) {
                 const uint8_t rawChannel =
-                    channel < RX_MAPPABLE_CHANNEL_COUNT ? rxConfig()->rcmap[channel] : channel;
+                    channel < RX_MAPPABLE_CHANNEL_COUNT ? RPYTAConfig()->rcmap[channel] : channel;
 
                 // 采样通道
                 float sample;
@@ -775,11 +786,11 @@ namespace RMFC {
             return true;
         }
 
-        void parseRcChannels(const char* input, rxConfig_t* rxConfig) {
+        void parseRcChannels(const char* input, RPYTAConfig_t* RPYTAConfig) {
             for (const char* c = input; *c; c++) {
                 const char* s = strchr(rcChannelLetters, *c);
                 if (s && (s < rcChannelLetters + RX_MAPPABLE_CHANNEL_COUNT)) {
-                    rxConfig->rcmap[s - rcChannelLetters] = c - input;
+                    RPYTAConfig->rcmap[s - rcChannelLetters] = c - input;
                 }
             }
         }

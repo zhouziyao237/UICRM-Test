@@ -34,13 +34,12 @@
 namespace RMFC {
     namespace RX {
         typedef struct rxConfig_s {
-            uint8_t rcmap[RX_MAPPABLE_CHANNEL_COUNT];  // 无线电通道到内部RPYTA+顺序的映射
             uint8_t serialrx_provider;  // 基于UART的接收机类型（0 = spek 10, 1 = spek 11, 2 =
             // sbus）。必须首先通过FEATURE_RX_SERIAL启用。
             uint8_t serialrx_inverted;  // 与默认设置相比，反转串行RX协议
             uint8_t halfDuplex;         // 允许rx在F4上以半双工模式运行，对F1和F3忽略。
-            // ioTag_t spektrum_bind_pin_override_ioTag;
-            // ioTag_t spektrum_bind_plug_ioTag;
+            // uint8_t spektrum_bind_pin_override_ioTag;
+            // uint8_t spektrum_bind_plug_ioTag;
             // uint8_t spektrum_sat_bind;            // Spektrum卫星接收机的绑定脉冲数
             // uint8_t spektrum_sat_bind_autoreset;  // 每当我们硬重启后是否重置（退出）绑定模式
             uint8_t rssi_channel;
@@ -70,8 +69,17 @@ namespace RMFC {
             uint8_t sbus_baud_fast;               // 选择SBus快速波特率
             uint32_t msp_override_channels_mask;  // 当启用MSP覆盖模式时要覆盖的通道
             uint8_t crsf_use_negotiated_baud;     // 对CRSF V3使用协商的波特率
-        } rxConfig_t;
+        } __attribute__((packed)) rxConfig_t;
 
         PG_DECLARE(rxConfig_t, rxConfig);
+
+        // --------------------------------------- 分割线 ---------------------------------------
+
+        typedef struct RPYTAConfig_s {
+            uint8_t rcmap[RX_MAPPABLE_CHANNEL_COUNT];  // 无线电通道到内部RPYTA+顺序的映射
+        } __attribute__((packed)) RPYTAConfig_t;
+
+        PG_DECLARE(RPYTAConfig_t, RPYTAConfig);
+
     }  // namespace RX
 }  // namespace RMFC

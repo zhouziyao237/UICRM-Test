@@ -42,6 +42,7 @@
 #define PG_FEATURE_CONFIG 19 // just has enabledFeatures
 
 #define PG_RX_CONFIG 24  // betaflight rxConfig_t contains different values
+#define PG_RPYTA_CONFIG 25
 
 #define PG_MODE_ACTIVATION_PROFILE 41  // array needs to be made into struct
 #define PG_RX_FAILSAFE_CHANNEL_CONFIG 43

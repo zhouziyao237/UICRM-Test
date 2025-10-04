@@ -50,6 +50,7 @@ void RM_RTOS_Init() {
     ensureEEPROMStructureIsValid();
     readEEPROM();
 
+    bsp::SetHighresClockTimer(&htim7);
     RMFC::serialInit(false, RMFC::SERIAL_PORT_NONE);
     InitRX();
     InitRFS();
@@ -59,14 +60,14 @@ void RM_RTOS_Init() {
 }
 
 void RM_RTOS_Threads_Init(void) {
-    MspTaskHandle = osThreadNew(UpdataMsptask, nullptr, &msp_thread_attr);
+    MspTaskHandle = osThreadNew(UpdataMsptask, nullptr, &MspUpData_thread_attr);
+    RxTaskHandle = osThreadNew(UpdataRxTask, nullptr, &RxUpData_thread_attr);
 }
 
 void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
     osDelay(50);
     while (true) {
-        rxProcessingLoop();
         set_cursor(0, 0);
         clear_screen();
 

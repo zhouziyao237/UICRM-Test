@@ -65,7 +65,7 @@
 // #define DEBUG_FLASH
 // #define DEBUG_MSP
 // #define DEBUG_RFS
-#define DEBUG_RX
+// #define DEBUG_RX
 
 // RC User Config
 #define USE_SERIALRX

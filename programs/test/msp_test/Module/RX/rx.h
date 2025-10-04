@@ -168,7 +168,8 @@ namespace RMFC {
             RX_PROVIDER_SERIAL,
             RX_PROVIDER_MSP,
             RX_PROVIDER_SPI,
-        } rxProvider_t;
+        } __attribute__((packed)) rxProvider_t;
+
         typedef struct rxRuntimeState_s {
             rxProvider_t rxProvider;
             SerialRXType serialrxProvider;
@@ -180,7 +181,7 @@ namespace RMFC {
             uint16_t* channelData;
             void* frameData;
             timeUs_t lastRcFrameTimeUs;
-        } rxRuntimeState_t;
+        } __attribute__((packed)) rxRuntimeState_t;
 
         typedef enum {
             RSSI_SOURCE_NONE = 0,
@@ -190,7 +191,7 @@ namespace RMFC {
             RSSI_SOURCE_MSP,
             RSSI_SOURCE_FRAME_ERRORS,
             RSSI_SOURCE_RX_PROTOCOL_CRSF,
-        } rssiSource_e;
+        } __attribute__((packed))rssiSource_e;
 
         extern rssiSource_e rssiSource;
 
@@ -198,7 +199,7 @@ namespace RMFC {
             LQ_SOURCE_NONE = 0,
             LQ_SOURCE_RX_PROTOCOL_CRSF,
             LQ_SOURCE_RX_PROTOCOL_GHST,
-        } linkQualitySource_e;
+        } __attribute__((packed))linkQualitySource_e;
 
         extern linkQualitySource_e linkQualitySource;
 
@@ -226,7 +227,7 @@ namespace RMFC {
 
         struct rxConfig_s;
 
-        void parseRcChannels(const char* input, struct rxConfig_s* rxConfig);
+        void parseRcChannels(const char* input, struct RPYTAConfig_s* RPYTAConfig);
 
 #define RSSI_MAX_VALUE 1023
 

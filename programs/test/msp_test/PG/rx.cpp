@@ -38,12 +38,12 @@ namespace RMFC {
         {
             UNUSED(size);
             RESET_CONFIG_2(rxConfig_t, rxConfig,
-                .rcmap = {0},
+                // .rcmap = {0}, // todo: 后面单独写一个结构体去这里会影响到下面的字节对其和数据
                 .serialrx_provider = SERIALRX_PROVIDER,
                 .serialrx_inverted = 0,
                 .halfDuplex = 0,
-                // .spektrum_bind_pin_override_ioTag = IO_TAG(SPEKTRUM_BIND_PIN),
-                // .spektrum_bind_plug_ioTag = IO_TAG(BINDPLUG_PIN),
+                // .spektrum_bind_pin_override_ioTag = 0,
+                // .spektrum_bind_plug_ioTag = 0,
                 // .spektrum_sat_bind = 0,
                 // .spektrum_sat_bind_autoreset = 1,
                 .rssi_channel = 0,
@@ -73,18 +73,29 @@ namespace RMFC {
                 .sbus_baud_fast = false,
                 .msp_override_channels_mask = 0,
                 .crsf_use_negotiated_baud = false,
+                );
+        }
+
+        // --------------------------------------- 分割线 ---------------------------------------
+
+        PG_REGISTER_WITH_RESET_FN(RPYTAConfig_t, RPYTAConfig, PG_RPYTA_CONFIG, 4);
+        void pgResetFn_RPYTAConfig(RPYTAConfig_t* RPYTAConfig, int size) {
+            UNUSED(size);
+            RESET_CONFIG_2(RPYTAConfig_t, RPYTAConfig,
+                .rcmap = {0},  // todo: 后面单独写一个结构体去这里会影响到下面的字节对其和数据
             );
 
             for (int i = 0; i < RX_MAPPABLE_CHANNEL_COUNT; i++) {
-                rxConfig->rcmap[i] = i;
+                RPYTAConfig->rcmap[i] = 0;
             }
 
-    #ifdef RX_CHANNELS_TAER
-            parseRcChannels("AETR1234", rxConfig);
-    #else
-            parseRcChannels("AETR1234", rxConfig);
-    #endif
-        }
+#ifdef RX_CHANNELS_TAER
+            parseRcChannels("AETR1234", RPYTAConfig);
+#else
+            parseRcChannels("AETR1234", RPYTAConfig);
+#endif
+    }
+
     }
 }
 #endif

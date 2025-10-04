@@ -40,6 +40,18 @@
 #define SBUS_DIGITAL_CHANNEL_MIN 173
 #define SBUS_DIGITAL_CHANNEL_MAX 1812
 
+/**
+* @note 遥控器的样式
+*
+* @note the style of the remote
+*
+* C4(
+* SWL*           *SWR
+*   C3-^       ^-C1
+* C2-<   >+ -<   >+C0
+*     +v       v+
+*/
+
 namespace RMFC {
     namespace RX {
         uint8_t sbusChannelsDecode(rxRuntimeState_t* rxRuntimeState,

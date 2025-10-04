@@ -26,16 +26,29 @@
 #include "bsp_tim.h"
 #include "cmsis_os2.h"
 #include "platform.h"
+#include "RX/rx.h"
 
 typedef enum { RX_STATE_CHECK, RX_STATE_MODES, RX_STATE_UPDATE, RX_STATE_COUNT } rxState_e;
 
 bool InitRX();
 bool UpdateRxMainInProgress(void);
 void taskUpdateRxMain(void* args);
-void rxProcessingLoop(void);
+void UpdataRxTask(void *args);
 
 extern bsp::Timer* rxTimer;
 extern bsp::InitTIMConfig RxTimConfig;
+extern timeUs_t lastExecutedAtUs;
+
+extern osThreadId_t RxTaskHandle;
+const osThreadAttr_t RxUpData_thread_attr = {.name = "RxUpdateTask",
+                                          .attr_bits = osThreadDetached,
+                                          .cb_mem = nullptr,
+                                          .cb_size = 0,
+                                          .stack_mem = nullptr,
+                                          .stack_size = 512,
+                                          .priority = (osPriority_t)osPriorityNormal,
+                                          .tz_module = 0,
+                                          .reserved = 0};
 
 extern bsp::EventThread* RXcallbackthread_;
 const osThreadAttr_t rx_thread_attr = {.name = "RxThread",
@@ -43,7 +56,7 @@ const osThreadAttr_t rx_thread_attr = {.name = "RxThread",
                                         .cb_mem = nullptr,  // 使用系统分配的线程控制块
                                         .cb_size = 0,       // 使用系统分配的线程控制块
                                         .stack_mem = nullptr,
-                                        .stack_size = 512,
+                                        .stack_size = 256,
                                         .priority = (osPriority_t)osPriorityNormal,
                                         .tz_module = 0,
                                         .reserved = 0};

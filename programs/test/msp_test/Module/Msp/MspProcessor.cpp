@@ -632,25 +632,25 @@ namespace RMFC {
                     break;
 
                 case MSP_RX_MAP:
-                    // for(size_t i = 0; i < INPUT_CHANNELS; i++)
-                    // {
-                    //   r.writeU8(_model.config.input.channel[i].map);
-                    // }
+                    for(size_t i = 0; i < RX_MAPPABLE_CHANNEL_COUNT; i++)
+                    {
+                      r.writeU8(RX::RPYTAConfig()->rcmap[i]);
+                    }
                     break;
 
                 case MSP_SET_RX_MAP:
-                    // for(size_t i = 0; i < 8; i++)
-                    // {
-                    //   _model.config.input.channel[i].map = m.readU8();
-                    // }
+                    for(size_t i = 0; i < RX_MAPPABLE_CHANNEL_COUNT; i++)
+                    {
+                        RX::RPYTAConfigMutable()->rcmap[i] = m.readU8();
+                    }
                     break;
 
                 case MSP_RSSI_CONFIG:
-                    // r.writeU8(_model.config.input.rssiChannel);
+                    r.writeU8(RX::rxConfig()->rssi_channel);
                     break;
 
                 case MSP_SET_RSSI_CONFIG:
-                    // _model.config.input.rssiChannel = m.readU8();
+                    RX::rxConfigMutable()->rssi_channel = m.readU8();
                     break;
 
                 case MSP_MOTOR_CONFIG:
@@ -707,12 +707,10 @@ namespace RMFC {
                     r.writeU16(RX::rxConfig()->midrc);
                     r.writeU16(RX::rxConfig()->mincheck);
                     r.writeU8(0);  // not have spektrum_sat_bind
-                    r.writeU8(0);
                     r.writeU16(RX::rxConfig()->rx_min_usec);
                     r.writeU16(RX::rxConfig()->rx_max_usec);
-                    r.writeU8(0);  // not required in API 1.44, was RX::rxConfig()->rcInterpolation
-                    r.writeU8(0);  // not required in API 1.44, was
-                                   // RX::rxConfig()->rcInterpolationInterval
+                    r.writeU8(0);  // not required in API 1.44, was rcInterpolation
+                    r.writeU8(0);  // not required in API 1.44, was rcInterpolationInterval
                     r.writeU16(RX::rxConfig()->airModeActivateThreshold * 10 + 1000);
 #ifdef USE_RX_SPI
                     r.writeU8(RX::rxSpiConfig()->rx_spi_protocol);
@@ -724,8 +722,8 @@ namespace RMFC {
                     r.writeU8(0);
 #endif
                     r.writeU8(RX::rxConfig()->fpvCamAngleDegrees);
-                    r.writeU8(
-                        0);  // not required in API 1.44, was RX::rxConfig()->rcSmoothingChannels
+                    // not required in API 1.44, was RX::rxConfig()->rcSmoothingChannels
+                    r.writeU8(2);
 #if defined(USE_RC_SMOOTHING_FILTER)
                     r.writeU8(
                         0);  // not required in API 1.44, was RX::rxConfig()->rc_smoothing_type
@@ -777,6 +775,7 @@ namespace RMFC {
                     RX::rxConfigMutable()->mincheck = m.readU16();
                     m.readU8();  // not have spektrum_sat_bind
                     if (m.remain() >= 4) {
+                        // todo: 这里接收的时候有问题
                         RX::rxConfigMutable()->rx_min_usec = m.readU16();
                         RX::rxConfigMutable()->rx_max_usec = m.readU16();
                     }
@@ -812,8 +811,7 @@ namespace RMFC {
                         configRebootUpdateCheckU8(
                             &RX::rxConfigMutable()->rc_smoothing_feedforward_cutoff, m.readU8());
                         m.readU8();  // not required in API 1.44, was rc_smoothing_input_type
-                        sbufReadU8(
-                            src);  // not required in API 1.44, was rc_smoothing_derivative_type
+                        m.readU8();  // not required in API 1.44, was rc_smoothing_derivative_type
 #else
                         m.readU8();
                         m.readU8();
@@ -888,7 +886,8 @@ namespace RMFC {
                 case MSP_RXFAIL_CONFIG:
                     for (int i = 0; i < RX::rxRuntimeState.channelCount; i++) {
                         r.writeU8(RX::rxFailsafeChannelConfigs(i)->mode);
-                        r.writeU16(RXFAIL_STEP_TO_CHANNEL_VALUE(RX::rxFailsafeChannelConfigs(i)->step));
+                        r.writeU16(
+                            RXFAIL_STEP_TO_CHANNEL_VALUE(RX::rxFailsafeChannelConfigs(i)->step));
                     }
                     break;
 
