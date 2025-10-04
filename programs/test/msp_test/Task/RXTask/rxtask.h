@@ -45,7 +45,7 @@ const osThreadAttr_t RxUpData_thread_attr = {.name = "RxUpdateTask",
                                           .cb_mem = nullptr,
                                           .cb_size = 0,
                                           .stack_mem = nullptr,
-                                          .stack_size = 512,
+                                          .stack_size = 256,
                                           .priority = (osPriority_t)osPriorityNormal,
                                           .tz_module = 0,
                                           .reserved = 0};

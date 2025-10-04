@@ -8,6 +8,7 @@ file(GLOB_RECURSE SOURCES
         "Module/RFS/*.cpp"
         "Module/RX/*.cpp"
         "Module/RX/Module/*.cpp"
+        "Module/RX/Module/sbus/*.cpp"
         "Module/Msp/*.cpp"
         "Module/Cli/*.cpp"
         "Module/UI/*.cpp"

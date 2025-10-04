@@ -30,7 +30,7 @@
 #include "Device/bsp_PG/bsp_pg.h"
 #include "Device/bsp_PG/bsp_pg_ids.h"
 #include "Device/config/feature.h"
-#include "Module/sbus.h"
+#include "Module/sbus/sbus.h"
 #include "System/Failsafe.h"
 #include "Task/RXTask/rxtask.h"
 #include "bsp_os.h"
