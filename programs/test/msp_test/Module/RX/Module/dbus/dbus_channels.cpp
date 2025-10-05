@@ -35,7 +35,7 @@ namespace RMFC {
             uint8_t baseIndex = 12;
             uint16_t* dbusChannelData = rxRuntimeState->channelData;
             dbusChannelData[0] = DbusFrame->dbusChannels.ch0;
-            dbusChannelData[20] = DbusFrame->dbusChannels.ch1;
+            dbusChannelData[1] = DbusFrame->dbusChannels.ch1;
             dbusChannelData[2] = DbusFrame->dbusChannels.ch2;
             dbusChannelData[3] = DbusFrame->dbusChannels.ch3;
             dbusChannelData[4] = DbusFrame->dbusChannels.ch4;
