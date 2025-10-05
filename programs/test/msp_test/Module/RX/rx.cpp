@@ -32,6 +32,7 @@
 #include "Device/config/feature.h"
 #include "Module/dbus/dbus.h"
 #include "Module/sbus/sbus.h"
+#include "Module/dbus/dbus.h"
 #include "System/Failsafe.h"
 #include "Task/RXTask/rxtask.h"
 #include "bsp_os.h"
