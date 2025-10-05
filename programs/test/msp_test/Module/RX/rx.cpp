@@ -31,6 +31,7 @@
 #include "Device/bsp_PG/bsp_pg_ids.h"
 #include "Device/config/feature.h"
 #include "Module/sbus/sbus.h"
+#include "Module/dbus/dbus.h"
 #include "System/Failsafe.h"
 #include "Task/RXTask/rxtask.h"
 #include "bsp_os.h"
@@ -183,6 +184,11 @@ namespace RMFC {
 #ifdef USE_SERIALRX_SBUS
                 case SERIALRX_SBUS:
                     enabled = sbusInit(rxConfig, rxRuntimeState);
+                    break;
+#endif
+#ifdef USE_SERIALRX_DBUS
+                case SERIALRX_DBUS:
+                    enabled = dbusInit(rxConfig, rxRuntimeState);
                     break;
 #endif
 #ifdef USE_SERIALRX_SUMD

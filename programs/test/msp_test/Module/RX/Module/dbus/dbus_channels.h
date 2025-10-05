@@ -32,8 +32,10 @@
 
 #define DBUS_CHANNEL (DBUS_MAX_CHANNEL + DBUS_MAX_MOUSE_CHANNEL + DBUS_MAX_KEYBOARD_CHANNEL)
 
-#define DBUS_DIGITAL_CHANNEL_MIN 364
-#define DBUS_DIGITAL_CHANNEL_MAX 1684
+/* rocker range and deadzones */
+#define RC_ROCKER_MID 1024
+#define RC_ROCKER_ZERO_DRIFT 10  // Range of possible drift around initial position
+// Range of possible drift around min or max position
 
 #define MOUSE_XY_MAX 32767.0
 
@@ -45,17 +47,6 @@ namespace RMFC {
             DOWN = 2,
             MID = 3,
         } switch_t;
-
-        typedef struct dbusChannels_s {
-            /* rocker channel information */
-            uint16_t ch0 : 11;  // S1*             *S2
-            uint16_t ch1 : 11;  //   C3-^       ^-C1
-            uint16_t ch2 : 11;  // C2-<   >+ -<   >+C0
-            uint16_t ch3 : 11;  //     +v       v+
-            /* left and right switch information */
-            uint8_t swr : 2;
-            uint8_t swl : 2;
-        } __packed dbusChannels_t;
 
         typedef struct mouseChannels_s {
             /* mouse movement and button information */
@@ -89,17 +80,24 @@ namespace RMFC {
             } __packed bit;
         } __packed keyboardChannels_t;
 
-        typedef struct DbusFrame_s {
-            dbusChannels_t channels;      // 通道数据
+        typedef struct dbusChannels_s {
+            uint16_t ch0 : 11;  // S1*             *S2
+            uint16_t ch1 : 11;  //   C3-^       ^-C1
+            uint16_t ch2 : 11;  // C2-<   >+ -<   >+C0
+            uint16_t ch3 : 11;  //     +v       v+
+            /* left and right switch information */
+            uint8_t swr : 2;
+            uint8_t swl : 2;
             mouseChannels_t mouse;        // 鼠标数据
             keyboardChannels_t keyboard;  // 键盘数据
             uint16_t ch4 : 11;            // 波轮通道
+        } __attribute__((__packed__)) dbusChannels_t;
+
+        typedef struct DbusFrame_s {
+            dbusChannels_t dbusChannels;
         } __attribute__((__packed__)) DbusFrame_t;
 
-#define SBUS_CHANNEL_DATA_LENGTH (sizeof(DbusFrame_t))
-
-        uint8_t dbusChannelsDecode(rxRuntimeState_t* rxRuntimeState,
-                                   const dbusChannels_t* channels);
+        uint8_t dbusChannelsDecode(rxRuntimeState_t* rxRuntimeState, const DbusFrame_t* DbusFrame);
 
         void dbusChannelsInit(const rxConfig_t* rxConfig, rxRuntimeState_t* rxRuntimeState);
 

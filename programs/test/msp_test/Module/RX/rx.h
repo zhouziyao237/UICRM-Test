@@ -109,7 +109,9 @@ namespace RMFC {
             SERIALRX_SUMD = 3,
             SERIALRX_SUMH = 4,
             SERIALRX_XBUS_MODE_B = 5,
-            SERIALRX_XBUS_MODE_B_RJ01 = 6,
+            // todo: 暂时用 SERIALRX_XBUS_MODE_B_RJ01 的编号来代替 SERIALRX_DBUS 的编号
+            // SERIALRX_XBUS_MODE_B_RJ01 = 6,
+            SERIALRX_DBUS = 6,
             SERIALRX_IBUS = 7,
             SERIALRX_JETIEXBUS = 8,
             SERIALRX_CRSF = 9,
@@ -191,7 +193,7 @@ namespace RMFC {
             RSSI_SOURCE_MSP,
             RSSI_SOURCE_FRAME_ERRORS,
             RSSI_SOURCE_RX_PROTOCOL_CRSF,
-        } __attribute__((packed))rssiSource_e;
+        } __attribute__((packed)) rssiSource_e;
 
         extern rssiSource_e rssiSource;
 
@@ -199,7 +201,7 @@ namespace RMFC {
             LQ_SOURCE_NONE = 0,
             LQ_SOURCE_RX_PROTOCOL_CRSF,
             LQ_SOURCE_RX_PROTOCOL_GHST,
-        } __attribute__((packed))linkQualitySource_e;
+        } __attribute__((packed)) linkQualitySource_e;
 
         extern linkQualitySource_e linkQualitySource;
 

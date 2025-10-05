@@ -70,6 +70,7 @@
 // RC User Config
 #define USE_SERIALRX
 #define USE_SERIALRX_SBUS
+#define USE_SERIALRX_DBUS
 #define USE_SBUS_CHANNELS
 
 
