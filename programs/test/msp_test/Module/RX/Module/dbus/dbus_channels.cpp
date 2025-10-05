@@ -24,22 +24,37 @@
 
 #include "RX/rx.h"
 #include "string.h"
+#include "utils.h"
 
 namespace RMFC {
     namespace RX {
 
-        uint8_t dbusChannelsDecode(rxRuntimeState_t* rxRuntimeState, const DbusFrame_t* DbusFrame) {
-            uint16_t* dbusChannelData = rxRuntimeState->channelData;
-            dbusChannelData[0] = DbusFrame->channels.ch0;
-            dbusChannelData[1] = DbusFrame->channels.ch1;
-            dbusChannelData[2] = DbusFrame->channels.ch2;
-            dbusChannelData[3] = DbusFrame->channels.ch3;
-            dbusChannelData[4] = DbusFrame->ch4;
-            dbusChannelData[5] = static_cast<switch_t>(DbusFrame->channels.swl);
-            dbusChannelData[6] = static_cast<switch_t>(DbusFrame->channels.swr);
+        Client_ChannelsData_t* Client_ChannelsData;
 
-            // memcpy(&DbusFrame->mouse, &mouse, sizeof(mouseChannels_t));
-            // memcpy(&DbusFrame->keyboard, &keyboard, sizeof(keyboardChannels_t));
+        uint8_t dbusChannelsDecode(rxRuntimeState_t* rxRuntimeState, const DbusFrame_t* DbusFrame) {
+            uint8_t baseIndex = 12;
+            uint16_t* dbusChannelData = rxRuntimeState->channelData;
+            dbusChannelData[0] = DbusFrame->dbusChannels.ch0;
+            dbusChannelData[20] = DbusFrame->dbusChannels.ch1;
+            dbusChannelData[2] = DbusFrame->dbusChannels.ch2;
+            dbusChannelData[3] = DbusFrame->dbusChannels.ch3;
+            dbusChannelData[4] = DbusFrame->dbusChannels.ch4;
+            dbusChannelData[5] = static_cast<switch_t>(DbusFrame->dbusChannels.swl);
+            dbusChannelData[6] = static_cast<switch_t>(DbusFrame->dbusChannels.swr);
+            dbusChannelData[7] = DbusFrame->dbusChannels.mouse.x;
+            dbusChannelData[8] = DbusFrame->dbusChannels.mouse.y;
+            dbusChannelData[9] = DbusFrame->dbusChannels.mouse.z;
+            dbusChannelData[10] = DbusFrame->dbusChannels.mouse.l;
+            dbusChannelData[11] = DbusFrame->dbusChannels.mouse.r;
+            uint16_t keyCode = DbusFrame->dbusChannels.keyboard.code;
+            for (uint8_t i = 0; i < DBUS_MAX_KEYBOARD_CHANNEL; i++) {
+                dbusChannelData[baseIndex + i] = (keyCode >> i) & 0x1;
+            }
+
+            memcpy(const_cast<mouseChannels_t*>(&DbusFrame->dbusChannels.mouse),
+                   &Client_ChannelsData->mouse, sizeof(mouseChannels_t));
+            memcpy(const_cast<keyboardChannels_t*>(&DbusFrame->dbusChannels.keyboard),
+                   &Client_ChannelsData->keyboard, sizeof(keyboardChannels_t));
 
             // if (DbusFrame->flags & DBUS_FLAG_FAILSAFE_ACTIVE) {
             //     // internal failsafe enabled and rx failsafe flag set
@@ -58,65 +73,77 @@ namespace RMFC {
 
         static float dbusChannelsReadRawRC(const rxRuntimeState_t* rxRuntimeState, uint8_t ch) {
             uint16_t channelData = -1;
+            UNUSED(rxRuntimeState);
+            UNUSED(ch);
 
-            if (ch <= DBUS_MAX_CHANNEL - 3) {
-                channelData = (5 * (float)rxRuntimeState->channelData[ch] / 8) + 1440;
-            } else if (ch <= DBUS_MAX_CHANNEL - 2 && ch <= DBUS_MAX_CHANNEL - 1) {
-                switch (rxRuntimeState->channelData[ch]) {
-                    case UP:
-                        channelData = rxConfig()->maxcheck;
-                        break;
-                    case MID:
-                        channelData = rxConfig()->midrc;
-                        break;
-                    case DOWN:
-                        channelData = rxConfig()->mincheck;
-                        break;
-                    default:
-                        channelData = -1;
-                        break;
-                }
-            }
-
-            if (ch >= DBUS_MAX_CHANNEL && ch <= DBUS_MAX_CHANNEL + 2) {
-                rxRuntimeState->channelData[ch] =
-                    (5 * (float)rxRuntimeState->channelData[ch] / 8) + 1500;
-            } else if (ch >= DBUS_MAX_CHANNEL + DBUS_MAX_MOUSE_CHANNEL - 2 &&
-                       ch <= DBUS_MAX_CHANNEL + DBUS_MAX_MOUSE_CHANNEL - 1) {
-                channelData = rxRuntimeState->channelData[ch] ? 2000 : 1000;
-            }
-
-            if (ch >= DBUS_MAX_CHANNEL + DBUS_MAX_MOUSE_CHANNEL) {
-                channelData = rxRuntimeState->channelData[ch] ? 2000 : 1000;
+            switch (ch) {
+                case 0 ...(DBUS_MAX_CHANNEL - 4):
+                    channelData =
+                        (5 * (float)(rxRuntimeState->channelData[ch] - RC_ROCKER_MID) / 8) + 1500;
+                    channelData =
+                        abs(channelData - 1500) <= RC_ROCKER_ZERO_DRIFT ? 1500 : channelData;
+                    break;
+                case 4:
+                    channelData =
+                        (5 * (float)(rxRuntimeState->channelData[ch] - RC_ROCKER_MID) / 8) + 1500;
+                    channelData =
+                        abs(channelData - 1500) <= RC_ROCKER_ZERO_DRIFT ? 1500 : channelData;
+                    break;
+                case (DBUS_MAX_CHANNEL - 2)...(DBUS_MAX_CHANNEL - 1):
+                    switch (rxRuntimeState->channelData[ch]) {
+                        case UP:
+                            channelData = rxConfig()->maxcheck;
+                            break;
+                        case MID:
+                            channelData = rxConfig()->midrc;
+                            break;
+                        case DOWN:
+                            channelData = rxConfig()->mincheck;
+                            break;
+                        default:
+                            channelData = -1;
+                            break;
+                    }
+                    break;
+                case DBUS_MAX_CHANNEL ...(DBUS_MAX_CHANNEL + 2):
+                    // 注意：这里原代码有副作用，修改了rxRuntimeState->channelData[ch]的值
+                    // 在switch中不建议有副作用操作，建议重构
+                    channelData = (40 * (float)rxRuntimeState->channelData[ch] / 8) + 1500;
+                    break;
+                case (DBUS_MAX_CHANNEL + 3)...(DBUS_CHANNEL - 1):
+                    channelData = rxRuntimeState->channelData[ch] ? rxConfig()->maxcheck
+                                                                  : rxConfig()->mincheck;
+                    break;
+                default:
+                    break;
             }
 
             return channelData;
         }
 
-#define RC_PWM_MAX rxConfig->maxcheck
-#define RC_PWM_MIN rxConfig->mincheck
-#define RC_PWM_MID rxConfig->midrc
-
         void dbusChannelsInit(const rxConfig_t* rxConfig, rxRuntimeState_t* rxRuntimeState) {
             rxRuntimeState->rcReadRawFn = dbusChannelsReadRawRC;
             for (uint8_t ch = 0; ch < DBUS_CHANNEL; ch++) {
-                if (ch <= DBUS_MAX_CHANNEL - 3) {
-                    rxRuntimeState->channelData[ch] = (16 * RC_PWM_MID) / 10 - 1376;
-                } else if (ch <= DBUS_MAX_CHANNEL - 2 && ch <= DBUS_MAX_CHANNEL - 1) {
-                    rxRuntimeState->channelData[ch] = RC_PWM_MID;
-                }
-
-                if (ch >= DBUS_MAX_CHANNEL && ch <= DBUS_MAX_CHANNEL + 2) {
-                    rxRuntimeState->channelData[ch] = (16 * RC_PWM_MID) / 10 - 2400;
-                } else if (ch >= DBUS_MAX_CHANNEL + DBUS_MAX_MOUSE_CHANNEL - 2 &&
-                           ch <= DBUS_MAX_CHANNEL + DBUS_MAX_MOUSE_CHANNEL - 1) {
-                    // todo: 默认没按下直接就是1000， 把0和1映射为1000与2000
-                    rxRuntimeState->channelData[ch] = RC_PWM_MIN;
-                }
-
-                if (ch >= DBUS_MAX_CHANNEL + DBUS_MAX_MOUSE_CHANNEL) {
-                    // todo: 默认没按下直接就是1000， 把0和1映射为1000与2000
-                    rxRuntimeState->channelData[ch] = RC_PWM_MIN;
+                switch (ch) {
+                    case 0 ...(DBUS_MAX_CHANNEL - 4):
+                        rxRuntimeState->channelData[ch] = (16 * rxConfig->midrc) / 10 - 2400;
+                        break;
+                    case 4:
+                        rxRuntimeState->channelData[ch] = (16 * rxConfig->midrc) / 10 - 2400;
+                        break;
+                    case (DBUS_MAX_CHANNEL - 2)...(DBUS_MAX_CHANNEL - 1):
+                        rxRuntimeState->channelData[ch] = (16 * rxConfig->midrc) / 10 - 2400;
+                        break;
+                    case DBUS_MAX_CHANNEL ...(DBUS_MAX_CHANNEL + 2):
+                        rxRuntimeState->channelData[ch] = (16 * rxConfig->midrc) / 10 - 2400;
+                        break;
+                    case (DBUS_MAX_CHANNEL + 3)...(DBUS_CHANNEL - 1):
+                        // 处理 ch >= (DBUS_MAX_CHANNEL + DBUS_MAX_MOUSE_CHANNEL) 的情况
+                        // todo: 默认没按下直接就是1000， 把0和1映射为1000与2000
+                        rxRuntimeState->channelData[ch] = rxConfig->mincheck;
+                        break;
+                    default:
+                        break;
                 }
             }
         }

@@ -27,7 +27,7 @@
 namespace RMFC {
     namespace RX {
 
-        bool dbusInit(rxConfig_t* rxConfig, rxRuntimeState_t* rxRuntimeState);
+        bool dbusInit(const rxConfig_t* rxConfig, rxRuntimeState_t* rxRuntimeState);
 
     }
 }  // namespace RMFC

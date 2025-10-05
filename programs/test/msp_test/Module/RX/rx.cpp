@@ -30,6 +30,7 @@
 #include "Device/bsp_PG/bsp_pg.h"
 #include "Device/bsp_PG/bsp_pg_ids.h"
 #include "Device/config/feature.h"
+#include "Module/dbus/dbus.h"
 #include "Module/sbus/sbus.h"
 #include "System/Failsafe.h"
 #include "Task/RXTask/rxtask.h"
@@ -46,7 +47,8 @@
 
 namespace RMFC {
     namespace RX {
-        const char rcChannelLetters[] = "AERT12345678abcdefgh";
+        // const char rcChannelLetters[] = "AERT12345678abcdefgh";
+        const char rcChannelLetters[] = "AERT1234567890abcdefghijklmn";
 
         rxfail_handlers_t rxfail_handlers = {.roll_handler = NULL,
                                              .pitch_handler = NULL,
@@ -183,6 +185,11 @@ namespace RMFC {
 #ifdef USE_SERIALRX_SBUS
                 case SERIALRX_SBUS:
                     enabled = sbusInit(rxConfig, rxRuntimeState);
+                    break;
+#endif
+#ifdef USE_SERIALRX_DBUS
+                case SERIALRX_DBUS:
+                    enabled = dbusInit(rxConfig, rxRuntimeState);
                     break;
 #endif
 #ifdef USE_SERIALRX_SUMD

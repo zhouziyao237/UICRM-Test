@@ -48,9 +48,13 @@
 #define DEFAULT_SERVO_MIDDLE 1500
 #define DEFAULT_SERVO_MAX 2000
 
+// #define MAX_SUPPORTED_RC_PPM_CHANNEL_COUNT 12
+// #define MAX_SUPPORTED_RC_PARALLEL_PWM_CHANNEL_COUNT 8
+// #define MAX_SUPPORTED_RC_CHANNEL_COUNT 18
+
 #define MAX_SUPPORTED_RC_PPM_CHANNEL_COUNT 12
 #define MAX_SUPPORTED_RC_PARALLEL_PWM_CHANNEL_COUNT 8
-#define MAX_SUPPORTED_RC_CHANNEL_COUNT 18
+#define MAX_SUPPORTED_RC_CHANNEL_COUNT 28
 
 #define NON_AUX_CHANNEL_COUNT 4
 #define MAX_AUX_CHANNEL_COUNT (MAX_SUPPORTED_RC_CHANNEL_COUNT - NON_AUX_CHANNEL_COUNT)
@@ -89,7 +93,21 @@ namespace RMFC {
         AUX9,
         AUX10,
         AUX11,
-        AUX12
+        AUX12,
+        AUX13,
+        AUX14,
+        AUX15,
+        AUX16,
+        AUX17,
+        AUX18,
+        AUX19,
+        AUX20,
+        AUX21,
+        AUX22,
+        AUX23,
+        AUX24,
+        AUX25,
+        AUX26,
     } rc_alias_e;
 
     namespace RX {
@@ -109,7 +127,9 @@ namespace RMFC {
             SERIALRX_SUMD = 3,
             SERIALRX_SUMH = 4,
             SERIALRX_XBUS_MODE_B = 5,
-            SERIALRX_XBUS_MODE_B_RJ01 = 6,
+            // todo: 暂时用 SERIALRX_XBUS_MODE_B_RJ01 的编号来代替 SERIALRX_DBUS 的编号
+            // SERIALRX_XBUS_MODE_B_RJ01 = 6,
+            SERIALRX_DBUS = 6,
             SERIALRX_IBUS = 7,
             SERIALRX_JETIEXBUS = 8,
             SERIALRX_CRSF = 9,
@@ -191,7 +211,7 @@ namespace RMFC {
             RSSI_SOURCE_MSP,
             RSSI_SOURCE_FRAME_ERRORS,
             RSSI_SOURCE_RX_PROTOCOL_CRSF,
-        } __attribute__((packed))rssiSource_e;
+        } __attribute__((packed)) rssiSource_e;
 
         extern rssiSource_e rssiSource;
 
@@ -199,7 +219,7 @@ namespace RMFC {
             LQ_SOURCE_NONE = 0,
             LQ_SOURCE_RX_PROTOCOL_CRSF,
             LQ_SOURCE_RX_PROTOCOL_GHST,
-        } __attribute__((packed))linkQualitySource_e;
+        } __attribute__((packed)) linkQualitySource_e;
 
         extern linkQualitySource_e linkQualitySource;
 

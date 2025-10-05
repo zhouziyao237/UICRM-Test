@@ -37,7 +37,7 @@
 #define DBUS_FAST_BAUDRATE 200000
 #define DBUS_FAST_RX_REFRESH_RATE 7000  // 快速模式下调整为7ms
 
-#define BUS_FRAME_SIZE (SBUS_CHANNEL_DATA_LENGTH)
+#define DBUS_FRAME_SIZE (sizeof(DbusFrame_t) + 1)
 
 #if !defined(DBUS_PORT_OPTIONS)
 #define DBUS_PORT_OPTIONS (SERIAL_STOPBITS_1 | SERIAL_PARITY_EVEN)
@@ -70,7 +70,7 @@ namespace RMFC {
             dbusFrameData_t* dbusFrameData = reinterpret_cast<dbusFrameData_t*>(data);
 
             uint8_t* rxData;
-            serialRead<true>(dbusFrameData->DBusPort, &rxData);
+            uint32_t len = serialRead<true>(dbusFrameData->DBusPort, &rxData);
 
             DbusFrame_t* dbusFrame = reinterpret_cast<DbusFrame_t*>(rxData);
 
@@ -79,14 +79,14 @@ namespace RMFC {
             const timeDelta_t sbusFrameTime = cmpTimeUs(nowUs, dbusFrameData->startAtUs);
 
             if (sbusFrameTime > (long)(DBUS_TIME_NEEDED_PER_FRAME + 500)) {
-                if (sizeof(dbusFrame) < SBUS_CHANNEL_DATA_LENGTH) {
+                if (len != sizeof(DbusFrame_t)) {
                     dbusFrameData->done = false;
                     return;
                 }
                 dbusFrameData->startAtUs = nowUs;
             }
 
-            dbusFrameData->frame.channels = dbusFrame->channels;
+            dbusFrameData->frame.dbusChannels = dbusFrame->dbusChannels;
             dbusFrameData->done = true;
         }
 
@@ -108,7 +108,7 @@ namespace RMFC {
                 return frameStatus;
             }
 
-            frameStatus = dbusChannelsDecode(rxRuntimeState, &dbusFrameData->frame.channels);
+            frameStatus = dbusChannelsDecode(rxRuntimeState, &dbusFrameData->frame);
 
             if (!(frameStatus & (RX_FRAME_FAILSAFE | RX_FRAME_DROPPED))) {
                 rxRuntimeState->lastRcFrameTimeUs = dbusFrameData->startAtUs;
@@ -117,7 +117,7 @@ namespace RMFC {
             return frameStatus;
         }
 
-        bool dbusInit(rxConfig_t* rxConfig, rxRuntimeState_t* rxRuntimeState) {
+        bool dbusInit(const rxConfig_t* rxConfig, rxRuntimeState_t* rxRuntimeState) {
             static uint16_t dbusChannelData[DBUS_CHANNEL];
             static dbusFrameData_t dbusFrameData;
             static uint32_t dbusBaudRate;
@@ -144,7 +144,7 @@ namespace RMFC {
 
             bool portShared = false;
 
-            uartSetup_t uartSetup = {BUS_FRAME_SIZE, true, TX_LEN, true};
+            uartSetup_t uartSetup = {DBUS_FRAME_SIZE, true, TX_LEN, true};
 
             serialPort_t* sBusPort = openSerialPort(
                 static_cast<serialPortIdentifier_e>(portConfig->identifier), FUNCTION_RX_SERIAL,
