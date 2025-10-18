@@ -29,10 +29,9 @@
 namespace RMFC {
     namespace RX {
 
-        Client_ChannelsData_t* Client_ChannelsData;
+        Client_ChannelsData_t* Client_ChannelsData = nullptr;
 
         uint8_t dbusChannelsDecode(rxRuntimeState_t* rxRuntimeState, const DbusFrame_t* DbusFrame) {
-            uint8_t baseIndex = 12;
             uint16_t* dbusChannelData = rxRuntimeState->channelData;
             dbusChannelData[0] = DbusFrame->dbusChannels.ch0;
             dbusChannelData[1] = DbusFrame->dbusChannels.ch1;
@@ -41,20 +40,22 @@ namespace RMFC {
             dbusChannelData[4] = DbusFrame->dbusChannels.ch4;
             dbusChannelData[5] = static_cast<switch_t>(DbusFrame->dbusChannels.swl);
             dbusChannelData[6] = static_cast<switch_t>(DbusFrame->dbusChannels.swr);
-            dbusChannelData[7] = DbusFrame->dbusChannels.mouse.x;
-            dbusChannelData[8] = DbusFrame->dbusChannels.mouse.y;
-            dbusChannelData[9] = DbusFrame->dbusChannels.mouse.z;
-            dbusChannelData[10] = DbusFrame->dbusChannels.mouse.l;
-            dbusChannelData[11] = DbusFrame->dbusChannels.mouse.r;
+
+            dbusChannelData[7] = static_cast<uint16_t>(static_cast<uint16_t>(DbusFrame->dbusChannels.mouse.x) & 0xFFFF);
+            dbusChannelData[8] = static_cast<uint16_t>(static_cast<uint16_t>(DbusFrame->dbusChannels.mouse.y) & 0xFFFF);
+            dbusChannelData[9] = static_cast<uint16_t>(static_cast<uint16_t>(DbusFrame->dbusChannels.mouse.z) & 0xFFFF);
+            dbusChannelData[10] = static_cast<uint16_t>(DbusFrame->dbusChannels.mouse.l);
+            dbusChannelData[11] = static_cast<uint16_t>(DbusFrame->dbusChannels.mouse.r);
+
             uint16_t keyCode = DbusFrame->dbusChannels.keyboard.code;
             for (uint8_t i = 0; i < DBUS_MAX_KEYBOARD_CHANNEL; i++) {
-                dbusChannelData[baseIndex + i] = (keyCode >> i) & 0x1;
+                dbusChannelData[12 + i] = (keyCode >> i) & 0x1;
             }
 
-            memcpy(const_cast<mouseChannels_t*>(&DbusFrame->dbusChannels.mouse),
-                   &Client_ChannelsData->mouse, sizeof(mouseChannels_t));
-            memcpy(const_cast<keyboardChannels_t*>(&DbusFrame->dbusChannels.keyboard),
-                   &Client_ChannelsData->keyboard, sizeof(keyboardChannels_t));
+            memcpy(&Client_ChannelsData->mouse, &DbusFrame->dbusChannels.mouse,
+                   sizeof(mouseChannels_t));
+            memcpy(&Client_ChannelsData->keyboard, &DbusFrame->dbusChannels.keyboard,
+                   sizeof(keyboardChannels_t));
 
             // if (DbusFrame->flags & DBUS_FLAG_FAILSAFE_ACTIVE) {
             //     // internal failsafe enabled and rx failsafe flag set
@@ -123,6 +124,11 @@ namespace RMFC {
 
         void dbusChannelsInit(const rxConfig_t* rxConfig, rxRuntimeState_t* rxRuntimeState) {
             rxRuntimeState->rcReadRawFn = dbusChannelsReadRawRC;
+
+            if (Client_ChannelsData == nullptr) {
+                Client_ChannelsData = new Client_ChannelsData_t;
+            }
+
             for (uint8_t ch = 0; ch < DBUS_CHANNEL; ch++) {
                 switch (ch) {
                     case 0 ...(DBUS_MAX_CHANNEL - 4):

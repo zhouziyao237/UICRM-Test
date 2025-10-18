@@ -32,7 +32,10 @@
 
 #define DBUS_BAUDRATE 100000
 #define DBUS_RX_REFRESH_RATE 14000  // 修改为14ms（14000微秒）
-#define DBUS_TIME_NEEDED_PER_FRAME 3000
+
+// todo： 有可能是因为接收超时导致后面的数据接收不到
+// #define DBUS_TIME_NEEDED_PER_FRAME 3000
+#define DBUS_TIME_NEEDED_PER_FRAME 5000
 
 #define DBUS_FAST_BAUDRATE 200000
 #define DBUS_FAST_RX_REFRESH_RATE 7000  // 快速模式下调整为7ms
@@ -79,7 +82,7 @@ namespace RMFC {
             const timeDelta_t sbusFrameTime = cmpTimeUs(nowUs, dbusFrameData->startAtUs);
 
             if (sbusFrameTime > (long)(DBUS_TIME_NEEDED_PER_FRAME + 500)) {
-                if (len != sizeof(DbusFrame_t)) {
+                if (len != sizeof(dbusChannels_t)) {
                     dbusFrameData->done = false;
                     return;
                 }

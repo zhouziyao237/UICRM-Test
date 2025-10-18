@@ -383,11 +383,11 @@ namespace RMFC {
 #ifdef USE_RX_RSNR
             PT1FilterInit(&rsnrFilter, k);
 #endif  // USE_RX_RSNR
-
+            // todo: 通道数量在这里调
             rxChannelCount = min<uint8_t>(rxConfig()->max_aux_channel + NON_AUX_CHANNEL_COUNT,
                                           rxRuntimeState.channelCount);
-
-            print("RX Init Complete\r\n");
+            print("[INFO]RX ChannelCount %d", rxChannelCount);
+            print("[INFO]RX Init Complete\r\n");
         }
 
         bool rxIsReceivingSignal(void) {

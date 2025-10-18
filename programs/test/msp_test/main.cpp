@@ -26,6 +26,7 @@
 #include "Common/config.h"
 #include "Device/bsp_Serial/DeviceSerial.h"
 #include "FreeRTOS.h"
+#include "Module/dbus/dbus_channels.h"
 #include "Task/MSPTask/msptask.h"
 #include "Task/RFSTask/refereetask.h"
 #include "Task/RXTask/rxtask.h"
@@ -75,6 +76,27 @@ void RM_RTOS_Default_Task(const void* args) {
         vTaskList(buf);
         print("vTaskList: \r\n ");
         print("%s\r\n", buf);
+
+        print("W: %d A: %d S: %d D: %d\r\n", RMFC::RX::Client_ChannelsData->keyboard.bit.W,
+              RMFC::RX::Client_ChannelsData->keyboard.bit.A,
+              RMFC::RX::Client_ChannelsData->keyboard.bit.S,
+              RMFC::RX::Client_ChannelsData->keyboard.bit.D);
+        print("Q: %d E: %d R: %d F: %d G: %d\r\n", RMFC::RX::Client_ChannelsData->keyboard.bit.Q,
+              RMFC::RX::Client_ChannelsData->keyboard.bit.E,
+              RMFC::RX::Client_ChannelsData->keyboard.bit.R,
+              RMFC::RX::Client_ChannelsData->keyboard.bit.F,
+              RMFC::RX::Client_ChannelsData->keyboard.bit.G);
+        print("Z: %d X: %d C: %d V: %d B: %d\r\n", RMFC::RX::Client_ChannelsData->keyboard.bit.Z,
+              RMFC::RX::Client_ChannelsData->keyboard.bit.X,
+              RMFC::RX::Client_ChannelsData->keyboard.bit.C,
+              RMFC::RX::Client_ChannelsData->keyboard.bit.V,
+              RMFC::RX::Client_ChannelsData->keyboard.bit.B);
+        print("SHIFT: %d CTRL: %d\r\n", RMFC::RX::Client_ChannelsData->keyboard.bit.SHIFT,
+              RMFC::RX::Client_ChannelsData->keyboard.bit.CTRL);
+        print("Mouse: x: %d y: %d z: %d l: %d r: %d\r\n", RMFC::RX::Client_ChannelsData->mouse.x,
+              RMFC::RX::Client_ChannelsData->mouse.y, RMFC::RX::Client_ChannelsData->mouse.z,
+              RMFC::RX::Client_ChannelsData->mouse.l, RMFC::RX::Client_ChannelsData->mouse.r);
+
         osDelay(200);
     }
 }
