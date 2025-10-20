@@ -23,8 +23,23 @@
 #pragma once
 
 #include "Module/RFS/RefereeSerial.h"
+#include "cmsis_os2.h"
 
 void InitRFS();
+void UpdataRefereetask(void* args);
 
-extern RMFC::RFS::RefereeProtocol* RefereeProtocol;
-extern RMFC::RFS::RefereeProtConfig_t ProtConfig;
+// todo: text Module
+
+// extern RMFC::RFS::RefereeProtocol* RefereeProtocol;
+// extern RMFC::RFS::RefereeProtConfig_t ProtConfig;
+
+extern osThreadId_t RFSTaskHandle;
+const osThreadAttr_t RefereeUpData_thread_attr = {.name = "RFSUpdateTask",
+                                          .attr_bits = osThreadDetached,
+                                          .cb_mem = nullptr,
+                                          .cb_size = 0,
+                                          .stack_mem = nullptr,
+                                          .stack_size = 256 * 4,
+                                          .priority = (osPriority_t)osPriorityNormal,
+                                          .tz_module = 0,
+                                          .reserved = 0};

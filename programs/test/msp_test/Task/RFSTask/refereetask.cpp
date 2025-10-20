@@ -26,23 +26,38 @@
 #include "Module/RFS/RefereeSerial.h"
 #include "OSD.h"
 
-RMFC::UARTProtocol* UARTProtocol_ = nullptr;
-RMFC::RFS::RefereeProtocol* RefereeProtocol = nullptr;
-RMFC::RFS::RefereeProtConfig_t ProtConfig = {
-    .features = FEATURE_RFS_MSP,
-    .serialPortFunction = RMFC::FUNCTION_RFS_MSP,
-    .baudRatesIndex = RMFC::REREFEE_BAUD_Index,
-};
+// todo: text Module
 
-RMFC::UserInterface* UI = nullptr;
+// RMFC::UARTProtocol* UARTProtocol_ = nullptr;
+// RMFC::RFS::RefereeProtocol* RefereeProtocol = nullptr;
+// RMFC::RFS::RefereeProtConfig_t ProtConfig = {
+//     .features = FEATURE_RFS_MSP,
+//     .serialPortFunction = RMFC::FUNCTION_RFS_MSP,
+//     .baudRatesIndex = RMFC::REREFEE_BAUD_Index,
+// };
+//
+// RMFC::UserInterface* UI = nullptr;
+
+osThreadId_t RFSTaskHandle;
 
 void InitRFS() {
     // Initialize Referee
-    serialPort_t* RefereeProt = FindRefereeProtocol(ProtConfig);
-    if (!RefereeProt) {
-        print("Referee Init Failed\r\n");
-        return;
+    // serialPort_t* RefereeProt = FindRefereeProtocol(ProtConfig);
+    // if (!RefereeProt) {
+    //     print("Referee Init Failed\r\n");
+    //     return;
+    // }
+    // RefereeProtocol = new RMFC::RFS::RefereeProtocol(RefereeProt);
+    // UI = new RMFC::UserInterface(RefereeProt, RefereeProtocol);
+
+    RMFC::RFS::RefereeSerialInit();
+}
+
+void UpdataRefereetask(void* args) {
+    UNUSED(args);
+    while (true) {
+
+        RMFC::RFS::RefereeSerialProcess();
+        osDelay(1);
     }
-    RefereeProtocol = new RMFC::RFS::RefereeProtocol(RefereeProt);
-    UI = new RMFC::UserInterface(RefereeProt, RefereeProtocol);
 }

@@ -32,6 +32,7 @@
 #define USEUART
 #define SERIAL_PORT_COUNT 6
 #define MAX_MSP_PORT_COUNT 3
+#define MAX_RFS_PORT_COUNT 3
 
 #define USE_DEBUGUART &huart8
 

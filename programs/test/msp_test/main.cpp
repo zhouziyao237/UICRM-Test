@@ -57,11 +57,12 @@ void RM_RTOS_Init() {
     InitRFS();
     InitMSP();
 
-    osDelay(100);
+    osDelay(500);
 }
 
 void RM_RTOS_Threads_Init(void) {
     MspTaskHandle = osThreadNew(UpdataMsptask, nullptr, &MspUpData_thread_attr);
+    RFSTaskHandle = osThreadNew(UpdataRefereetask, nullptr, &RefereeUpData_thread_attr);
     RxTaskHandle = osThreadNew(UpdataRxTask, nullptr, &RxUpData_thread_attr);
 }
 

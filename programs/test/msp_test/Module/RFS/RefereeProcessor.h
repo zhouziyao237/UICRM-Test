@@ -78,8 +78,10 @@ namespace RMFC {
 
         class RefereeProtocol : public RefereeProcessor, UARTProtocol {
           public:
-            explicit RefereeProtocol(serialPort_t* UARTProt_);
+            explicit RefereeProtocol(serialPort_t* UARTProt_, bool startThread = true);
             ~RefereeProtocol();
+
+            void SetThread();
 
             void Receive(void* args) override;
             int Transmit(int cmd_id) override;

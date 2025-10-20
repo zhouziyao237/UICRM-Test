@@ -24,7 +24,11 @@
 
 namespace RMFC {
 
-    UARTProtocol::UARTProtocol(serialPort_t* uart) : UARTProt_(uart) {
+    UARTProtocol::UARTProtocol(serialPort_t* uart, bool startThread) : UARTProt_(uart) {
+        if (uart == nullptr)
+            return;
+        if (!startThread)
+            return;
         SerialRegisterCallback(UARTProt_, CallbackWrapper, this);
         bsp::thread_init_t thread_init = {
             .func = callback_thread_func_,
@@ -35,7 +39,8 @@ namespace RMFC {
     }
 
     UARTProtocol::~UARTProtocol() {
-        delete callback_thread_;
+        if (callback_thread_ != nullptr)
+            delete callback_thread_;
     }
 
     void UARTProtocol::CallbackWrapper(void* args) {

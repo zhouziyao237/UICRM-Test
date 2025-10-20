@@ -290,13 +290,19 @@ namespace RMFC {
             serialWriteBuf(SerialRFS, (uint8_t*)&checksum, sizeof(checksum));
         }
 
-        RefereeProtocol::RefereeProtocol(serialPort_t* UARTProt_)
-            : UARTProtocol(UARTProt_) {
+// ---------------------------------------------- 分割线 ----------------------------------------------
+
+        RefereeProtocol::RefereeProtocol(serialPort_t* UARTProt_, bool startThread)
+            : UARTProtocol(UARTProt_, startThread) {
             // 设置100ms离线阈值
             SetThreshold(100);
         }
 
         RefereeProtocol::~RefereeProtocol() {
+        }
+
+        void RefereeProtocol::SetThread(){
+
         }
 
         void RefereeProtocol::Receive(void* args) {

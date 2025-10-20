@@ -30,7 +30,7 @@ namespace RMFC {
 
     class UARTProtocol {
       public:
-        explicit UARTProtocol(serialPort_t* uart);
+        explicit UARTProtocol(serialPort_t* uart, bool startThread = true);
         ~UARTProtocol();
 
         virtual int Transmit(int cmd_id);

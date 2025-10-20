@@ -25,7 +25,7 @@
 #include <string.h>
 
 #include "Device/bsp_Serial/DeviceSerial.h"
-#include "Device/bsp_Serial/bsp_Serial.h"
+#include "bsp_Serial.h"
 #include "MspProcessor.h"
 #include "PG/msp.h"
 #include "Target.h"
