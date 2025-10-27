@@ -24,7 +24,7 @@
 
 #include "OSD.h"
 #include "PG/Referee.h"
-#include "Target.h"
+#include "target.h"
 #include "bsp_os.h"
 #include "cmsis_os.h"
 
@@ -81,7 +81,7 @@ namespace RMFC {
 
         void RefereeSerialAllocatePorts(void) {
             uint8_t portIndex = 0;
-            const serialPortConfig_t* portConfig = findSerialPortConfig(FUNCTION_RFS_MSP);
+            const serialPortConfig_t* portConfig = findSerialPortConfig(FUNCTION_RefereeHost);
             // todo:允许最大MAX_MSP_PORT_COUNT个msp端口，实际上默认分配N个，还有MAX_MSP_PORT_COUNT-N个是在地面站配置才生效
             while (portConfig && portIndex < MAX_MSP_PORT_COUNT) {
                 RefereePort_t* RFSPort = &RefereePort[portIndex];
@@ -102,7 +102,7 @@ namespace RMFC {
 
                 serialPort_t* serialPort = openSerialPort(
                     static_cast<serialPortIdentifier_e>(portConfig->identifier),
-                    FUNCTION_RFS_MSP,
+                    FUNCTION_RefereeHost,
                     NULL,
                     NULL,
                     baudRates[portConfig->referee_baudrateIndex],
@@ -117,7 +117,7 @@ namespace RMFC {
                 RFSPort->Referee_protocol = new RefereeProtocol(serialPort, false);
                 RFSPort->UI = new UserInterface(serialPort, RFSPort->Referee_protocol);
 
-                portConfig = findNextSerialPortConfig(FUNCTION_RFS_MSP);
+                portConfig = findNextSerialPortConfig(FUNCTION_RefereeHost);
             }
         }
 
@@ -173,6 +173,10 @@ namespace RMFC {
         }
 
         void RefereeSerialInit(void) {
+            // todo: 没写FEATURE_REF_PC_MSP的设置，写完再开
+            // if (!featureIsEnabled(FEATURE_REF_PC_MSP)) {
+            //     return false;
+            // }
             *RefereePort = RefereePort_t{};
             RefereeSerialAllocatePorts();
             print("[INFO] Referee Init!");

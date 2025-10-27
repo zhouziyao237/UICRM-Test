@@ -31,8 +31,8 @@
 // RMFC::UARTProtocol* UARTProtocol_ = nullptr;
 // RMFC::RFS::RefereeProtocol* RefereeProtocol = nullptr;
 // RMFC::RFS::RefereeProtConfig_t ProtConfig = {
-//     .features = FEATURE_RFS_MSP,
-//     .serialPortFunction = RMFC::FUNCTION_RFS_MSP,
+//     .features = FEATURE_REF_PC_MSP,
+//     .serialPortFunction = RMFC::FUNCTION_RefereeHost,
 //     .baudRatesIndex = RMFC::REREFEE_BAUD_Index,
 // };
 //

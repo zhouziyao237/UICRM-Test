@@ -35,7 +35,7 @@ typedef enum {
     FEATURE_SOFTSERIAL = 1 << 6,
     FEATURE_GPS = 1 << 7,
     FEATURE_RANGEFINDER = 1 << 9,
-    FEATURE_RFS_MSP = 1 << 10,
+    FEATURE_REF_PC_MSP = 1 << 10,
     FEATURE_3D = 1 << 12,
     FEATURE_RX_PARALLEL_PWM = 1 << 13,
     FEATURE_RX_MSP = 1 << 14,

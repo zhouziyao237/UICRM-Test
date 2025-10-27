@@ -49,8 +49,8 @@ namespace RMFC {
         FUNCTION_MSP = (1 << 0),                  // 1
         FUNCTION_GPS = (1 << 1),                  // 2
         FUNCTION_TELEMETRY_FRSKY_HUB = (1 << 2),  // 4
-        FUNCTION_RFS_MSP = (1 << 3),              // 8
-        FUNCTION_TELEMETRY_LTM = (1 << 4),        // 16
+        FUNCTION_RefereeHost = (1 << 3),          // 8
+        FUNCTION_MiniPCHost = (1 << 4),           // 16
         FUNCTION_TELEMETRY_SMARTPORT = (1 << 5),  // 32
         FUNCTION_RX_SERIAL = (1 << 6),            // 64
         FUNCTION_BLACKBOX = (1 << 7),             // 128

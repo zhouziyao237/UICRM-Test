@@ -50,5 +50,6 @@
 
 #define PG_MSP_CONFIG 557
 #define PG_RFS_CONFIG 558
+#define PG_MiniPC_CONFIG 559
 
 #endif //BSP_PG_IDS_H
