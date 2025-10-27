@@ -145,7 +145,7 @@ namespace RMFC {
             // }
             *MiniPCPort = MiniPCPort_t{};
             MiniPCSerialAllocatePorts();
-            print("[INFO] Referee Init!");
+            print("[INFO] MiniPC Init!");
         }
 
         int MiniPCSerialPush(serialPortIdentifier_e portId, uint8_t cmd, uint8_t* data, int datalen) {
