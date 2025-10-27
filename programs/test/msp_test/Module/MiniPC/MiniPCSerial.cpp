@@ -102,7 +102,7 @@ namespace RMFC {
          *
          * Called periodically by the scheduler.
          */
-        void RefereeSerialProcess() {
+        void MiniPCSerialProcess() {
             for (uint8_t portIndex = 0; portIndex < MAX_MSP_PORT_COUNT; portIndex++) {
                 MiniPCPort_t* const RFSPort = &MiniPCPort[portIndex];
                 if (!RFSPort->port) {
@@ -124,7 +124,7 @@ namespace RMFC {
             }
         }
 
-        bool RefereeSerialWaiting(void) {
+        bool MiniPCSerialWaiting(void) {
             for (uint8_t portIndex = 0; portIndex < MAX_MSP_PORT_COUNT; portIndex++) {
                 MiniPCPort_t* const RFSPort = &MiniPCPort[portIndex];
                 if (!RFSPort->port) {
@@ -138,7 +138,7 @@ namespace RMFC {
             return false;
         }
 
-        void RefereeSerialInit(void) {
+        void MiniPCSerialInit(void) {
             // todo: 没写FEATURE_REF_PC_MSP的设置，写完再开
             // if (!featureIsEnabled(FEATURE_REF_PC_MSP)) {
             //     return false;
@@ -148,7 +148,7 @@ namespace RMFC {
             print("[INFO] Referee Init!");
         }
 
-        int RefereeSerialPush(serialPortIdentifier_e portId, uint8_t cmd, uint8_t* data, int datalen) {
+        int MiniPCSerialPush(serialPortIdentifier_e portId, uint8_t cmd, uint8_t* data, int datalen) {
             UNUSED(cmd);
             int ret = 0;
 
@@ -174,7 +174,7 @@ namespace RMFC {
             return ret;
         }
 
-        uint32_t RefereeSerialTxBytesFree(void) {
+        uint32_t MiniPCSerialTxBytesFree(void) {
             uint32_t ret = UINT32_MAX;
 
             for (int portIndex = 0; portIndex < MAX_MSP_PORT_COUNT; portIndex++) {
