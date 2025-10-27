@@ -6,6 +6,7 @@ file(GLOB_RECURSE SOURCES
         "Common/*.cpp"
         "Module/*.cpp"
         "Module/RFS/*.cpp"
+        "Module/MiniPC/*.cpp"
         "Module/RX/*.cpp"
         "Module/RX/Module/*.cpp"
         "Module/RX/Module/sbus/*.cpp"
@@ -24,4 +25,4 @@ file(GLOB_RECURSE SOURCES
 uicrm_add_arm_executable(${PROJECT_NAME}
         TARGET DJI_Board_TypeA_general
         SOURCES ${SOURCES}
-        INCLUDES . Common PG Module Module/Msp Module/RX Module/Cli Module/UI Module/RFS Device System)
+        INCLUDES . Common PG Module Module/Msp Module/MiniPC Module/RX Module/Cli Module/UI Module/RFS Device System)

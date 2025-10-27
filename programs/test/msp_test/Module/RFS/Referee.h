@@ -56,7 +56,7 @@ namespace RMFC {
             RFS_STATE_RECEIVED,
         };
 
-        struct RfsHeader {
+        struct Header {
             uint8_t SOF;
             uint16_t data_length;
             uint8_t seq;
@@ -64,7 +64,7 @@ namespace RMFC {
         } __attribute__((packed));
 
         // 裁判系统完整帧头结构
-        struct RfsFrameHeader {
+        struct FrameHeader {
             uint8_t SOF;
             uint16_t data_length;
             uint8_t seq;
