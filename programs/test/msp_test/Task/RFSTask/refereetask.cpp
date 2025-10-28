@@ -56,6 +56,11 @@ void InitRFS() {
 void UpdataRefereetask(void* args) {
     UNUSED(args);
     while (true) {
+        // RMFC::RefereePort_t Refereetest = RMFC::RFS::RefereePort[0];
+        // Refereetest.UI->SetID(1);
+        // graphic_data_t lineGraphic;
+        // Refereetest.UI->LineDraw(&lineGraphic, "LN1", UI_Graph_Add, 1, UI_Color_Purplish_red, 2,
+        // 100, 100, 200, 200); Refereetest.UI->GraphRefresh(1, lineGraphic);
 
         RMFC::RFS::RefereeSerialProcess();
         osDelay(1);

@@ -6,7 +6,7 @@ set(MCU_LINE STM32F407xx)
 set(MCU_ARCH cortex-m4)
 set(MCU_FLOAT_ABI hard)
 set(MCU_FPU fpv4-sp-d16)
-set(MCU_LINKER_SCRIPT STM32F407IGHx_FLASH.ld)
+set(MCU_LINKER_SCRIPT STM32F407XX_FLASH.ld)
 set(MCU_OPTIONS -mcpu=${MCU_ARCH} -mthumb -mthumb-interwork
         -mfpu=${MCU_FPU} -mfloat-abi=${MCU_FLOAT_ABI})
 
