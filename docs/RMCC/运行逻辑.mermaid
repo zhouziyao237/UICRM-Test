@@ -1,0 +1,68 @@
+sequenceDiagram
+    participant Main as main()
+    participant MSP as MSP Task
+    participant RX as RX Task
+    participant RFS as RFS Task
+    participant MiniPC as MiniPC Task
+    participant Hardware as 硬件设备
+    participant BSP as BSP驱动层
+    participant PG as 参数配置系统
+    participant Common as 通用工具库
+    participant System as 系统模块
+
+    Main->>PG: pgResetAll() 初始化参数配置
+    Main->>BSP: 初始化串口、I2C、SPI等外设
+    Main->>System: systemInit() 系统初始化
+
+    Main->>MSP: 初始化MSP任务
+    Main->>RX: 初始化RX任务
+    Main->>RFS: 初始化RFS任务
+    Main->>MiniPC: 初始化MiniPC任务
+
+    loop 系统运行循环
+        MSP->>BSP: 通过bsp_Serial读取串口数据
+        BSP-->>MSP: 返回串口接收字符
+        MSP->>MSP: MspParser::parse() 解析字符
+        MSP->>MSP: MspProcessor::processCommand() 处理命令
+        MSP->>Common: 调用config、utils等通用工具
+        MSP->>PG: 读取/更新mspConfig配置
+        MSP->>BSP: 通过bsp_Serial发送响应数据
+        BSP->>Hardware: 发送到硬件串口
+
+        RX->>Hardware: 接收遥控器信号
+        Hardware-->>RX: 通过串口/SBUS/DBUS接收数据
+        RX->>BSP: bsp_Serial/bsp_PG等驱动支持
+        RX->>RX: sbus/dbus解码遥控数据
+        RX->>Common: 使用filter进行信号滤波
+        RX->>PG: 读取rxConfig配置
+        RX->>RX: 更新通道值
+
+        RFS->>Hardware: 接收裁判系统数据
+        Hardware-->>RFS: 通过串口接收数据
+        RFS->>BSP: bsp_Serial驱动支持
+        RFS->>RFS: RefereeParser解析数据包
+        RFS->>Common: 使用utils、bitarray等工具
+        RFS->>PG: 读取referee配置
+        RFS->>RFS: 更新游戏状态
+        RFS->>RFS: UI图形数据生成
+        RFS->>BSP: 通过bsp_Serial发送UI数据
+        BSP->>Hardware: 发送到裁判系统串口
+
+        MiniPC->>Hardware: 接收MiniPC数据
+        Hardware-->>MiniPC: 通过串口接收数据
+        MiniPC->>BSP: bsp_Serial驱动支持
+        MiniPC->>MiniPC: MiniPCHostParser解析数据
+        MiniPC->>Common: 使用utils等工具
+        MiniPC->>PG: 读取minipc配置
+        MiniPC->>MiniPC: 更新状态信息
+    end
+
+    Note over Main,Hardware: 所有模块共享BSP驱动层、PG参数配置系统和Common通用工具库
+
+    Note over BSP: 包含bsp_Serial、bsp_I2C、bsp_SPI等驱动
+    Note over Common: 包含config、utils、filter、bitarray等工具
+    Note over PG: 包含msp、rx、referee、minipc等配置模块
+    Note over MSP: 依赖MspParser、MspProcessor等模块
+    Note over RX: 依赖sbus、dbus解码模块
+    Note over RFS: 依赖RefereeParser、UI生成模块
+    Note over MiniPC: 依赖MiniPCHostParser等模块
