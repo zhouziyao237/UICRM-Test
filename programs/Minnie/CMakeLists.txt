@@ -1,0 +1,2 @@
+add_subdirectory(Minnie_chassis)
+add_subdirectory(Minnie_gimbal_TypeC)
