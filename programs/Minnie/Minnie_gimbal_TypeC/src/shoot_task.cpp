@@ -126,14 +126,11 @@ void init_shoot(){
 
 void shootTask(void* arg){
     UNUSED(arg);
-    osDelay(1000);
     motor_Disable();
+    osDelay(500);
 
-    while (protect_wraning_flag) {
-        osDelay(PROTECT_OS_DELAY);
-    }
-
-    while(remote_mode == REMOTE_MODE_KILL) {
+    while(remote_mode == REMOTE_MODE_KILL || protect_wraning_flag) {
+        motor_Disable();
         osDelay(SHOOT_OS_DELAY);
     }
 
@@ -147,7 +144,7 @@ void shootTask(void* arg){
     Ease* flywheel_speed_ease = new Ease(0, 0.3);
     while (true) {
 
-        if (remote_mode != REMOTE_MODE_KILL) {
+        if (remote_mode != REMOTE_MODE_KILL && shoot_flywheel_mode == SHOOT_FRIC_MODE_STOP) {
             switch (magazine_Mode) {
 
                 case Magazine_MODE_ON:
@@ -161,7 +158,11 @@ void shootTask(void* arg){
             }
         }
 
+#ifdef HAS_REFEREE
         while(remote_mode == REMOTE_MODE_KILL || !referee->game_robot_status.mains_power_shooter_output) {
+#else
+        while (remote_mode == REMOTE_MODE_KILL){
+#endif
             shoot_kill();
             osDelay(SHOOT_OS_DELAY);
         }
@@ -194,6 +195,7 @@ void shootTask(void* arg){
         flywheel_left->SetTarget(flywheel_speed_ease->GetOutput());
         flywheel_right->SetTarget(-flywheel_speed_ease->GetOutput());
 
+#ifdef HAS_REFEREE
         uint8_t game_progress = referee->game_status.game_progress;
         uint16_t game_progress_shifted = game_progress >> 3;
         uint8_t game_progress_bit = game_progress_shifted & 0x01;
@@ -226,6 +228,7 @@ void shootTask(void* arg){
         UNUSED(heat_buffer);
         UNUSED(bullet_speed);
 
+#endif
 
         switch (shoot_load_mode){
             case SHOOT_MODE_STOP:

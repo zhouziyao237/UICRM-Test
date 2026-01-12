@@ -35,74 +35,90 @@ INS_Angle_t INS_Angle;
 
 control::gimbal_t gimbal_data;
 
-bool LAST_REMOTE_MODE = false;
-bool init_flag = false;
-
-void Gimbal_Righting() {
-    gimbal->TargetAbs(0, 0);
-    gimbal->Update();
-}
+bool GimbalInitFlag = false;
+bool Gimbal_Enable_Flag = false;
 
 template <typename T>
 T map(T value, T in_min, T in_max, T out_min, T out_max) {
     return out_min + (value - in_min) * (out_max - out_min) / (in_max - in_min);
 }
 
-void debug_gimbal_init(){
-    #ifdef GINBAL_DEBUG
-        print("GIMBAL_INIT_OK\n");
-    #endif
+void GimbalEnableModel(bool Model) {
+
+    // 添加空指针检查，确保电机对象已正确初始化
+    if (pitch_motor == nullptr || yaw_motor == nullptr) {
+        return; // 或者记录错误日志，根据具体需求决定处理方式
+    }
+
+    Gimbal_Enable_Flag = Model;
+    if (Model) {
+        if (!pitch_motor->IsEnable())
+            pitch_motor->Enable();
+        if (!yaw_motor->IsEnable())
+            yaw_motor->Enable();
+        return;
+    }
+
+    pitch_motor->Disable();
+    yaw_motor->Disable();
+}
+
+void Gimbal_Righting() {
+    gimbal->TargetAbs(0, 0);
+    gimbal->Update();
 }
 
 void debug_gimbal(bool newline){
     (void)newline;
     #ifdef GINBAL_DEBUG
-        print("Gimbal pitch: %.2f, Gimbal yaw: %.2f\r\n", -INS_Angle.pitch, INS_Angle.yaw);
-        print("Gimbal pitch diff: %.2f, Gimbal yaw diff: %.2f\r\n", -pitch_diff, yaw_diff);
+        print("Gimbal pitch: %.2f, Gimbal yaw: %.2f\r\n", INS_Angle.pitch, INS_Angle.yaw);
+        print("Gimbal pitch: %.2f, Gimbal yaw: %.2f\r\n", pitch_motor->GetOutputShaftTheta(), yaw_motor->GetOutputShaftTheta());
         if(newline){print("\r\n");}
     #endif
 }
 
 void check_kill() {
+
+#ifdef HAS_REFEREE
     if (remote_mode == REMOTE_MODE_KILL || !referee->game_robot_status.mains_power_gimbal_output) {
-        yaw_motor->Disable();
-        pitch_motor->Disable();
+#else
+    if (remote_mode == REMOTE_MODE_KILL) {
+#endif
+
+        GimbalEnableModel(false);
         while (remote_mode == REMOTE_MODE_KILL) {
             osDelay(GIMBAL_OS_DELAY);
         }
-        if (!init_flag) {
+        if (!Gimbal_Enable_Flag) {
+            GimbalEnableModel(true);
             Gimbal_Righting();
-            init_flag = true;
         }
     }
-    yaw_motor->Enable();
-    pitch_motor->Enable();
 }
 
 void gimbalTask(void* arg) {
     UNUSED(arg);
     // 任务启动时先关掉两个电机，然后等待遥控器连接
-    pitch_motor->Disable();
-    yaw_motor->Disable();
-    osDelay(1500);
+    GimbalEnableModel(false);
+    osDelay(500);
 
-    while (protect_wraning_flag) {
+    while (remote_mode != REMOTE_MODE_KILL && protect_wraning_flag) {
+        GimbalEnableModel(false);
         osDelay(PROTECT_OS_DELAY);
     }
 
-    // 遥控器连接后等待一段时间，等云台完全复位
+    GimbalEnableModel(true);
+
     int i;
     for (i = 0; i < 5000; i++) {
-        check_kill();
+        // check_kill();
         Gimbal_Righting();
         osDelay(1);
     }
 
     // 云台复位完成后，播放一段音乐，代表开始校准陀螺仪
     // 校准陀螺仪会对陀螺仪进行2000次的读取，然后取平均值作为校准值
-    // buzzer->SingTone(bsp::BuzzerNote::La6M);
     Buzzer_Sing(SingCaliStart);
-    // reset_yaw();
 
     ahrs->Cailbrate();
     i = 0;
@@ -116,16 +132,16 @@ void gimbalTask(void* arg) {
 
     // 校准完成后播放一段音乐
     Buzzer_Sing(SingCaliDone);
+    GimbalInitFlag = true;
     osDelay(100);
 
     // 初始化当前陀螺仪角度、遥控器输入转换的角度、目标角度
     // float pitch_ratio, yaw_ratio;
-    INS_Angle.pitch = ahrs->INS_angle[2];
+    INS_Angle.pitch = -ahrs->INS_angle[2];
     INS_Angle.yaw = ahrs->INS_angle[0];
 
-    // pitch_curr = witimu->INS_angle[0];
-    // yaw_curr = wrap<float>(witimu->INS_angle[2]-yaw_offset, -PI, PI);
     float pitch_target = 0, yaw_target = 0;
+    float actural_chassis_turn_speed = chassis_vz / 6.0f;
     Gimbal_Righting();
     osDelay(100);
 
@@ -134,11 +150,9 @@ void gimbalTask(void* arg) {
         check_kill();
 
         // 获取当前陀螺仪角度
-        INS_Angle.pitch = ahrs->INS_angle[2];
+        INS_Angle.pitch = -ahrs->INS_angle[2];
         INS_Angle.yaw = ahrs->INS_angle[0];
 
-        //        pitch_curr = witimu->INS_angle[0];
-        //        yaw_curr = wrap<float>(witimu->INS_angle[2]-yaw_offset, -PI, PI);
         // if (dbus->swr == remote::UP) {
         //   gimbal->TargetAbs(0, 0);
         //   gimbal->Update();
@@ -147,7 +161,6 @@ void gimbalTask(void* arg) {
         //   control::MotorCANBase::TransmitOutput(gimbal_motors, 3);
         //   osDelay(1);
         //   continue;
-
         // }
 
         auto[pitch_ratio, yaw_ratio] = gimbal_remote_mode();
@@ -165,38 +178,38 @@ void gimbalTask(void* arg) {
         // }
 
         // 根据运动模式选择不同的控制方式
-        const float ratio = 0.1875;
-        float speed_offset = chassis_vt * ratio * 0.25;
-        yaw_motor->SetSpeedOffset(speed_offset);
+        float yaw_speed_offset = actural_chassis_turn_speed + yaw_ratio;
+        float pitch_speed_offset = pitch_ratio;
+        yaw_motor->SetSpeedOffset(yaw_speed_offset);
+        pitch_motor->SetSpeedOffset(pitch_speed_offset);
         if (is_autoaim && minipc->IsOnline() && minipc->target_angle.target_robot_id != 0) {
             gimbal->TargetAbs(-minipc->target_angle.target_pitch, -minipc->target_angle.target_yaw);
-            gimbal->UpdateIMU(-INS_Angle.pitch, INS_Angle.yaw);
+            gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
         } else {
             switch (remote_mode) {
                 case REMOTE_MODE_SPIN:
-                    gimbal->TargetRel(-pitch_diff, yaw_diff);
-                    gimbal->UpdateIMU(-INS_Angle.pitch, INS_Angle.yaw);
+                    gimbal->TargetRel(pitch_diff, yaw_diff);
+                    gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
                     break;
                 case REMOTE_MODE_FOLLOW:
                     // // 如果是跟随模式或者旋转模式，将IMU作为参考系
-                    gimbal->TargetRel(-pitch_diff, yaw_diff);
-                    gimbal->UpdateIMU(-INS_Angle.pitch, INS_Angle.yaw);
+                    gimbal->TargetRel(pitch_diff, yaw_diff);
+                    gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
                     break;
                 case REMOTE_MODE_ADVANCED:
                     // 如果是高级模式，将电机获取的云台当前角度作为参考系
-                    gimbal->TargetRel(-pitch_diff, yaw_diff);
+                    gimbal->TargetRel(pitch_diff, yaw_diff);
                     gimbal->Update();
                     break;
                 case REMOTE_MODE_AUTOAIM:
                     gimbal->TargetAbs(minipc->target_angle.target_pitch,
-                                      -minipc->target_angle.target_yaw);
+                                      minipc->target_angle.target_yaw);
                     gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
                     break;
                 case REMOTE_MODE_PREPARE_HAND_MOVEMENT:
                     // 遥控器手动控制模式，将电机获取的云台当前角度作为参考系，直接通过遥控控制
 
-                    gimbal->TargetRel(-pitch_diff, yaw_diff);
-                    print("pitch_motor: %.2f pitch_diff: %.2f\r\n", map<float>(pitch_motor->GetTheta(), 0, 2 * PI, -PI, PI));
+                    gimbal->TargetRel(pitch_diff, yaw_diff);
                     gimbal->Update();
                     break;
 
@@ -304,7 +317,6 @@ void init_gimbal() {
     gimbal_data.data = gimbal_init_data;
     gimbal = new control::Gimbal(gimbal_data);
     gimbal_param = gimbal->GetData();
-    debug_gimbal_init();
 }
 
 Gimbal_Ratio_data gimbal_remote_mode() {
@@ -319,11 +331,11 @@ Gimbal_Ratio_data gimbal_remote_mode() {
             Gimbal_Ratio.yaw_ratio_ratio = (float)dbus->mouse.x / mouse_xy_max * mouse_ratio;
         } else {
             Gimbal_Ratio.pitch_ratio_ratio = (float)dbus->ch3 / dbus->ROCKER_MAX * remote_ratio;
-            Gimbal_Ratio.yaw_ratio_ratio = (float)dbus->ch2 / dbus->ROCKER_MAX * remote_ratio;
+            Gimbal_Ratio.yaw_ratio_ratio = -(float)dbus->ch2 / dbus->ROCKER_MAX * remote_ratio;
         }
     } else if (refereerc->IsOnline()) {
         Gimbal_Ratio.pitch_ratio_ratio = -refereerc->remote_control.mouse.y / mouse_xy_max * mouse_ratio;
-        Gimbal_Ratio.yaw_ratio_ratio = -refereerc->remote_control.mouse.x / mouse_xy_max * mouse_ratio;
+        Gimbal_Ratio.yaw_ratio_ratio = refereerc->remote_control.mouse.x / mouse_xy_max * mouse_ratio;
     } else {
         Gimbal_Ratio.pitch_ratio_ratio = 0;
         Gimbal_Ratio.yaw_ratio_ratio = 0;

@@ -22,15 +22,20 @@
 #include "gimbal.h"
 #include "pid.h"
 
-// basic information of gimbal
+/**
+ * @brief 云台初始化数据结构体实例
+ *
+ * 定义了云台系统的初始配置参数，包括偏移量、运动范围限制、方向设置等关键参数
+ * 用于在系统启动时初始化云台控制模块的状态
+ */
 const control::gimbal_data_t gimbal_init_data = {
-    .pitch_offset_ = pitch_bisa,
-    .yaw_offset_ = yaw_bisa,
-    .pitch_max_ = 0.45f,
-    .yaw_max_ = PI,
-    .yaw_circle_ = true,
-    .pitch_inverted = false,
-    .yaw_inverted = true,
-    .pitch_eposition = 0,
-    .yaw_eposition = 0,
+    .pitch_offset_ = pitch_bisa,      // 俯仰轴偏移量，使用预定义的俯仰偏差值
+    .yaw_offset_ = yaw_bisa,          // 偏航轴偏移量，使用预定义的偏航偏差值
+    .pitch_max_ = 0.45f,              // 俯仰轴最大运动角度限制（弧度）
+    .yaw_max_ = PI,                   // 偏航轴最大运动角度限制（弧度）
+    .yaw_circle_ = true,               // 偏航轴是否支持连续旋转功能
+    .pitch_inverted = true,           // 俯仰轴运动方向是否反转
+    .yaw_inverted = false,              // 偏航轴运动方向是否反转
+    .pitch_eposition = 0,              // 俯仰轴期望位置初始值
+    .yaw_eposition = 0,              // 偏航轴期望位置初始值
 };

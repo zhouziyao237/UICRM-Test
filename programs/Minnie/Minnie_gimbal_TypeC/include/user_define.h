@@ -44,8 +44,9 @@
 
 #define UART_PRINT_LOG
 
-#define pitch_bisa -2.6
-#define yaw_bisa -3
+// 过低就会直接导致在pitch轴上过2PI了, 值在边界就会抖超过边界
+#define pitch_bisa -0.5
+#define yaw_bisa -3.0
 
 #define singleShotDivider 3.5f
 
@@ -58,8 +59,7 @@
 #define dbus_uart_post huart3
 #define sbus_uart_post huart3
 
-// #define CHASSIS_DEBUG
-// #define GINBAL_DEBUG
+#define GINBAL_DEBUG
 // #define AI_AUTO_MODE
 // #define SHOOT_REAT_CONTROL
 

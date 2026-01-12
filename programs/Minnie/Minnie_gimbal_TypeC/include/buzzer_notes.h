@@ -62,3 +62,6 @@ const driver::BuzzerNoteDelayed SingCaliDone[] = {
 
 const driver::BuzzerNoteDelayed ProtectWarning[] = {
     {Note::Mi3M, 100}, {Note::Re2M, 100}, {Note::Mi3M, 100}, {Note::Finish, 0}};
+
+const driver::BuzzerNoteDelayed RemoteOfflineWarning[] = {
+    {Note::Re2M, 200}, {Note::Silent, 100}, {Note::Re2M, 200}, {Note::Silent, 100}, {Note::Re2M, 200}, {Note::Finish, 0}};

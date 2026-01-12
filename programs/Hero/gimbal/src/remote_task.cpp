@@ -29,7 +29,7 @@ RemoteMode remote_mode = REMOTE_MODE_FOLLOW;
 RemoteMode last_remote_mode = REMOTE_MODE_FOLLOW;
 RemoteMode available_remote_mode[] = {REMOTE_MODE_FOLLOW, REMOTE_MODE_SPIN, REMOTE_MODE_ADVANCED};
 const int8_t remote_mode_max = 2;
-const int8_t remote_mode_min = 1;
+const int8_t remote_mode_min = 0;
 ShootFricMode shoot_flywheel_mode = SHOOT_FRIC_MODE_STOP;
 ShootMode shoot_load_mode = SHOOT_MODE_STOP;
 bool is_killed = false;
@@ -41,7 +41,6 @@ void init_dbus() {
 osThreadId_t remoteTaskHandle;
 void remoteTask(void* arg) {
     UNUSED(arg);
-    osDelay(1000);
     bool mode_switch = false;
     bool shoot_fric_switch = false;
     bool shoot_switch = false;
@@ -139,13 +138,15 @@ void remoteTask(void* arg) {
                 }
                 break;
             case remote::MID:
-                if (shift_edge->posEdge()) {
-                    mode_switch = true;
-                }
                 break;
             case remote::DOWN:
                 break;
         }
+
+        if (shift_edge->posEdge()) {
+            mode_switch = true;
+        }
+
         if (mode_switch) {
             mode_switch = false;
             RemoteMode next_mode = (RemoteMode)(remote_mode + 1);

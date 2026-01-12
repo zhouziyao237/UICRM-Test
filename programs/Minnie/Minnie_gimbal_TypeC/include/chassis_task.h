@@ -48,20 +48,15 @@ void chassis_remote_mode();
 void init_chassis();
 void kill_chassis();
 
-void updateCarVelocity(float& car_vx, float& car_vy, float& car_vt, float deltaTime, const float acceleration = 0.1f);
-void Slow_start(float& in_val, float deltaTime, const float acceleration = 0.1f);
+void ADVANCEDMODE();
+void AUTOAIMMODE();
+void FOLLOWMODE();
+void SPINMODE();
+void MOVEMENTMODE();
 
-void chassis_ADVANCED();
-void chassis_AUTOAIM();
-void chassis_FOLLOW(float chassis_yaw_diff);
-void chassis_SPIN();
-void chassis_PREPARE_HAND_MOVEMENT();
-
-extern float chassis_vx;
-extern float chassis_vy;
-extern float chassis_vt;
+extern float chassis_vx, chassis_vy, chassis_vz;
 extern bool chassis_boost_flag;
-extern float car_vx, car_vy, car_vt;
 
-extern const float chassis_max_xy_speed;
-extern const float chassis_max_t_speed;
+const float chassis_vx_max = 660.0f;
+const float chassis_vy_max = 660.0f;
+const float chassis_vz_max = 660.0f;
