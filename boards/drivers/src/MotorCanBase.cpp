@@ -121,11 +121,11 @@ namespace driver {
         omega_pid_ = control::ConstrainedPID();
         theta_pid_ = control::ConstrainedPID();
 
-        power_on_angle_ = -1;  // Wait for Update to initialize
-        relative_angle_ = 0;
-        cumulated_turns_ = 0;
-        output_relative_angle_ = 0;
-        output_cumulated_turns_ = 0;
+        align_angle_ = -1;  // Wait for Update to initialize
+        motor_angle_ = 0;
+        offset_angle_ = 0;
+        servo_angle_ = 0;
+        cumulated_angle_ = 0;
         inner_wrap_detector_ = new FloatEdgeDetector(0, PI);
         outer_wrap_detector_ = new FloatEdgeDetector(0, PI);
 
@@ -182,6 +182,16 @@ namespace driver {
     uint16_t MotorCANBase::GetTemp() const {
         return 0;
     }
+
+    float MotorCANBase::GetOuttheta() const {
+        return 0;
+    }
+
+    float MotorCANBase::GetOutomega() const {
+        return 0;
+    }
+
+
     void MotorCANBase::CanMotorThread(void* args) {
         UNUSED(args);
         // 后台线程，用于持续输出电机指令
@@ -210,32 +220,33 @@ namespace driver {
         if (mode_ & REVERSE_MOTOR_OPERATE) {
             target = -target;
         }
-
         if (override == false && !holding_) {
             // 如果电机没有在hold状态，则不修改目标值
             return;
         }
         target_ = target;
-
-        // ABSOLUTE模式下，认为输出轴只有一圈。
-        if ((mode_ & SPEED_LOOP_CONTROL) && (mode_ & ABSOLUTE)) {
+        if ((mode_ & ANGLE_LOOP_CONTROL) && (mode_ & ABSOLUTE)) {
             target_ = wrap<float>(target_, -PI, PI);
         }
 
-        // 重新计算是否Holding
-        if (mode_ & SPEED_LOOP_CONTROL) {
-            float diff = target_ - GetOutputShaftTheta();
-            if (mode_ & ABSOLUTE)
-                diff = wrap<float>(diff, -PI, PI);
-
-            holding_ = abs(diff) < proximity_in_;
+        if (mode_ & ANGLE_LOOP_CONTROL) {
+            if (!(mode_ & ABSOLUTE)) {
+                if (!holding_ && abs(target_ - GetOutputShaftTheta()) <= proximity_in_) {
+                    holding_ = true;
+                } else if (holding_ && abs(target_ - GetOutputShaftTheta()) > proximity_out_) {
+                    holding_ = false;
+                }
+            } else {
+                if (!holding_ &&
+                    abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) <= proximity_in_) {
+                    holding_ = true;
+                } else if (holding_ && abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) >
+                                           proximity_out_) {
+                    holding_ = false;
+                }
+            }
         }
     }
-
-    /*
-     * [ 目标角度 → [角度PID] → 期望速度 → [速度PID] → 期望电流 → 电机输出 ]
-     */
-
     void MotorCANBase::CalcOutput() {
         if (!enable_) {
             // 如果电机被禁用，则清空PID积分项并输出0
@@ -244,45 +255,40 @@ namespace driver {
             omega_pid_.ResetIntegral();
             return;
         }
-
-        float target = target_;
-
-        // 处理角度环PID，输入角度差，输出速度值
-        if (mode_ & SPEED_LOOP_CONTROL) {
-            if (mode_ & ABSOLUTE) {
-                // 在ABSOLUTE模式下，如果输出轴到目标要转动大于半圈，则从另一侧转过去
-                if (target - output_shaft_theta_ > PI)
-                    target = target - 2 * PI;
-                if (target - output_shaft_theta_ < -PI)
-                    target = target + 2 * PI;
-            }
-            target = theta_pid_.ComputeOutput(target, output_shaft_theta_);
-        }
-
-        // 对速度加上偏移量，前馈时使用
-        target += speed_offset_;
-
-        // 处理速度环PID，输入速度差，输出电流值
+        float output = target_;
         if (mode_ & ANGLE_LOOP_CONTROL) {
-            target = omega_pid_.ComputeOutput(target, GetOutputShaftOmega());
+            // 如果电机启动了角度环PID，则计算角度环PID输出
+            float theta = GetOutputShaftTheta();
+            if (mode_ & ABSOLUTE) {
+                // 如果电机启动了绝对控制模式，则直接使用角度环PID输出
+                if (abs(output - theta) > PI) {
+                    // 超过半圈，反方向走
+                    output = output > theta ? output - 2 * PI : output + 2 * PI;
+                }
+                output = theta_pid_.ComputeOutput(output, theta);
+            } else {
+                output = theta_pid_.ComputeOutput(output, theta);
+            }
         }
-
-        // 输出
+        if (mode_ & SPEED_LOOP_CONTROL) {
+            output += speed_offset_;
+            output = omega_pid_.ComputeOutput(output, GetOutputShaftOmega());
+        }
         if (mode_ != NONE) {
-            SetOutput((int16_t)target);
+            SetOutput((int16_t)output);
         }
     }
     void MotorCANBase::ReInitPID(control::ConstrainedPID::PID_Init_t pid_init, uint8_t mode) {
-        if (mode & ANGLE_LOOP_CONTROL) {
+        if (mode & SPEED_LOOP_CONTROL) {
             omega_pid_.Reinit(pid_init);
-        } else if (mode & SPEED_LOOP_CONTROL) {
+        } else if (mode & ANGLE_LOOP_CONTROL) {
             theta_pid_.Reinit(pid_init);
         }
     }
     control::ConstrainedPID::PID_State_t MotorCANBase::GetPIDState(uint8_t mode) const {
-        if (mode & ANGLE_LOOP_CONTROL && mode_ & ANGLE_LOOP_CONTROL) {
+        if (mode & SPEED_LOOP_CONTROL && mode_ & SPEED_LOOP_CONTROL) {
             return omega_pid_.State();
-        } else if (mode & SPEED_LOOP_CONTROL && mode_ & SPEED_LOOP_CONTROL) {
+        } else if (mode & ANGLE_LOOP_CONTROL && mode_ & ANGLE_LOOP_CONTROL) {
             return theta_pid_.State();
         }
         return control::ConstrainedPID::PID_State_t();
@@ -291,58 +297,72 @@ namespace driver {
     void MotorCANBase::SetMode(uint8_t mode) {
         mode_ = mode;
     }
-
     void MotorCANBase::UpdateData(const uint8_t* data) {
         UNUSED(data);
 
-        // 上电第一次获取到角度，则记录下来
-        if (power_on_angle_ < 0)
-            power_on_angle_ = theta_;
+        // 角度速度环控制且非绝对控制模式时，需要使用统计总角度值
+        // 获取初始化时的角度值
+        if (align_angle_ < 0)
+            align_angle_ = theta_;
 
         // 如果电机角度从接近 2PI 跳到接近
         // 0，则回绕检测器将检测到下降沿，这意味着电机在穿过编码器边界时正向正方向转动。
         // 反之亦然，电机角度从接近 0 跃升至接近 2PI
 
-        relative_angle_ = theta_ - power_on_angle_;
-        if (transmission_ratio_ == 1) {
-            output_relative_angle_ = wrap<float>(relative_angle_, 0, 2 * PI);
-        } else {
-            // 电机屁股的角度给到边界检测器
-            inner_wrap_detector_->input(relative_angle_);
-
-            // 记录编码器累计转过几圈
+        motor_angle_ = theta_ - align_angle_;
+        if (transmission_ratio_ != 1) {
+            // 获得实际的电机屁股角度
+            inner_wrap_detector_->input(motor_angle_);
+            // 输入电机屁股的角度到边界检测器
             if (inner_wrap_detector_->negEdge())
-                cumulated_turns_ += 2 * PI / transmission_ratio_;
+                // 检测到下降沿，代表电机正向转动了一整圈
+                offset_angle_ =
+                    wrap<float>(offset_angle_ + 2 * PI / transmission_ratio_, 0, 2 * PI);
+            // 更新实际的输出轴角度偏差
             else if (inner_wrap_detector_->posEdge())
-                cumulated_turns_ -= 2 * PI / transmission_ratio_;
-            cumulated_turns_ =
-                wrap<float>(cumulated_turns_, -transmission_ratio_, transmission_ratio_);
+                // 检测到上升沿，代表电机反向转动了一整圈
+                offset_angle_ =
+                    wrap<float>(offset_angle_ - 2 * PI / transmission_ratio_, 0, 2 * PI);
+            // 更新实际的输出轴角度偏差
 
-            output_relative_angle_ =
-                wrap<float>(cumulated_turns_ + relative_angle_ / transmission_ratio_, 0, 2 * PI);
+            servo_angle_ =
+                wrap<float>(offset_angle_ + motor_angle_ / transmission_ratio_, 0, 2 * PI);
+        } else {
+            servo_angle_ = wrap<float>(motor_angle_, 0, 2 * PI);
         }
+        // 更新实际输出轴角度
+        outer_wrap_detector_->input(servo_angle_);
+        // 输入实际输出轴角度到边界检测器
 
-        // 输出轴角度给到边界检测器
-        outer_wrap_detector_->input(output_relative_angle_);
-
-        // 绝对模式认为输出轴只有一圈，不累计圈数
+        // 绝对模式下不需要累积角度
         if (!(mode_ & ABSOLUTE)) {
-            // 记录输出轴累计转过几圈
             if (outer_wrap_detector_->negEdge())
-                output_cumulated_turns_ += 2 * PI;
+                cumulated_angle_ += 2 * PI;
+            // 检测到下降沿，代表电机输出轴正向转动了一整圈
             else if (outer_wrap_detector_->posEdge())
-                output_cumulated_turns_ -= 2 * PI;
+                cumulated_angle_ -= 2 * PI;
+            // 检测到上升沿，代表电机输出轴反向转动了一整圈
         }
 
-        output_shaft_theta_ = output_relative_angle_ + output_cumulated_turns_;
+        output_shaft_theta_ = servo_angle_ + cumulated_angle_;
         output_shaft_omega_ = omega_ / transmission_ratio_;
 
-        // 重新计算是否Holding
-        if (mode_ & SPEED_LOOP_CONTROL) {
-            float diff = target_ - GetOutputShaftTheta();
-            if (mode_ & ABSOLUTE)
-                diff = wrap<float>(diff, -PI, PI);
-            holding_ = abs(diff) < proximity_in_;
+        if (mode_ & ANGLE_LOOP_CONTROL) {
+            if (!(mode_ & ABSOLUTE)) {
+                if (!holding_ && abs(target_ - GetOutputShaftTheta()) <= proximity_in_) {
+                    holding_ = true;
+                } else if (holding_ && abs(target_ - GetOutputShaftTheta()) > proximity_out_) {
+                    holding_ = false;
+                }
+            } else {
+                if (!holding_ &&
+                    abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) <= proximity_in_) {
+                    holding_ = true;
+                } else if (holding_ && abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) >
+                                           proximity_out_) {
+                    holding_ = false;
+                }
+            }
         }
         Heartbeat();
     }
@@ -372,7 +392,7 @@ namespace driver {
     void MotorCANBase::RegisterErrorCallback(MotorCANBase::callback_t callback, void* instance) {
         error_callback_ = callback;
         error_callback_instance_ = instance;
-        if (!(mode_ & ANGLE_LOOP_CONTROL)) {
+        if (!(mode_ & SPEED_LOOP_CONTROL)) {
             // 角度环才需要注册错误回调
             RM_ASSERT_TRUE(false, "Only theta mode motor can register error callback");
         } else {
@@ -391,7 +411,7 @@ namespace driver {
     }
 
     void MotorCANBase::Hold(bool override) {
-        if (!IsHolding() && mode_ & SPEED_LOOP_CONTROL) {
+        if (!IsHolding() && mode_ & ANGLE_LOOP_CONTROL) {
             SetTarget(GetOutputShaftTheta(), override);
         }
     }
@@ -411,7 +431,20 @@ namespace driver {
         post_output_callback_instance_ = instance;
     }
 
-    Motor3508::Motor3508(CAN* can, uint16_t rx_id) : MotorCANBase(can, rx_id) {
+    /**
+     * @brief Motor3508类的构造函数
+     *
+     * 初始化Motor3508电机对象，继承自MotorCANBase类。
+     *
+     * @param can  指向CAN通信接口的指针，用于与电机进行通信。
+     * @param rx_id 接收CAN消息的ID，用于标识接收到的电机数据。
+     *
+     * 构造函数首先调用基类MotorCANBase的构造函数进行初始化，
+     * 然后注册一个CAN接收回调函数can_motor_callback，当接收到指定ID的CAN消息时，
+     * 该回调函数将被调用以处理接收到的电机数据。
+     */
+    Motor3508::Motor3508(CAN* can, uint16_t rx_id, uint16_t tx_id)
+        : MotorCANBase(can, rx_id, tx_id){
         can->RegisterRxCallback(rx_id, can_motor_callback, this);
     }
 
@@ -431,19 +464,12 @@ namespace driver {
 
     void Motor3508::PrintData() const {
         print("online: %s ", (IsOnline() ? "true" : "false"));
-        print("\r\n");
         print("theta: % .4f ", GetTheta());
-        print("\r\n");
         print("output shaft theta: % .4f ", GetOutputShaftTheta());
-        print("\r\n");
         print("omega: % .4f ", GetOmega());
-        print("\r\n");
         print("output shaft omega: % .4f ", GetOutputShaftOmega());
-        print("\r\n");
         print("raw temperature: %3d ", raw_temperature_);
-        print("\r\n");
-        print("raw current get: % d ", raw_current_get_);
-        print("\r\n");
+        print("raw current get: % d \r\n", raw_current_get_);
     }
 
     void Motor3508::SetOutput(int16_t val) {
@@ -459,10 +485,33 @@ namespace driver {
         return raw_temperature_;
     }
 
+    float Motor3508::GetOuttheta() const {
+        return theta_;
+    }
+
+    float Motor3508::GetOutomega() const {
+        return omega_;
+    }
+
+    /**
+     * @brief Motor6020类的构造函数
+     *
+     * 初始化Motor6020电机对象，继承自MotorCANBase类。
+     *
+     * @param can 指向CAN通信接口的指针，用于与Motor6020电机进行通信。
+     * @param rx_id 接收CAN消息的ID，用于接收来自Motor6020电机的数据。
+     * @param tx_id 发送CAN消息的ID，用于向Motor6020电机发送数据。
+     *
+     * 构造函数首先调用基类MotorCANBase的构造函数进行初始化，
+     * 由于Motor6020是绝对位置电机，因此不需要初始化align_angle_（对齐角度），
+     * 将其设置为0。
+     * 接着，使用CAN接口注册一个接收回调函数can_motor_callback，
+     * 当接收到指定rx_id的CAN消息时，该函数将被调用以处理接收到的电机数据。
+     */
     Motor6020::Motor6020(CAN* can, uint16_t rx_id, uint16_t tx_id)
         : MotorCANBase(can, rx_id, tx_id) {
         // 绝对位置电机不需要初始化align_angle_
-        power_on_angle_ = 0;
+        align_angle_ = 0;
         can->RegisterRxCallback(rx_id, can_motor_callback, this);
     }
 
@@ -475,7 +524,7 @@ namespace driver {
         constexpr float THETA_SCALE = 2 * PI / 8192;  // digital -> rad
         constexpr float OMEGA_SCALE = 2 * PI / 60;    // rpm -> rad / sec
         theta_ = raw_theta * THETA_SCALE;
-        omega_ = (raw_omega * OMEGA_SCALE) * input_speed_filter_ + omega_ * (1 - input_speed_filter_);
+        omega_ = raw_omega * OMEGA_SCALE;
 
         MotorCANBase::UpdateData(data);
     }
@@ -503,18 +552,22 @@ namespace driver {
         return raw_temperature_;
     }
 
-    void Motor6020::SetSpeedFilter(float ratio) {
-        input_speed_filter_ = ratio;
+    float Motor6020::GetOuttheta() const {
+        return theta_;
     }
 
-    Motor2006::Motor2006(CAN* can, uint16_t rx_id) : MotorCANBase(can, rx_id) {
+    float Motor6020::GetOutomega() const {
+        return omega_;
+    }
+
+    Motor2006::Motor2006(CAN* can, uint16_t rx_id, int16_t tx_id) : MotorCANBase(can, rx_id, tx_id) {
         can->RegisterRxCallback(rx_id, can_motor_callback, this);
     }
 
     void Motor2006::UpdateData(const uint8_t data[]) {
         const int16_t raw_theta = data[0] << 8 | data[1];
         const int16_t raw_omega = data[2] << 8 | data[3];
-        raw_current_get_ = (data[4] << 8 | data[5]) * 5.f/16384.f; // todo: 是电流嘛?官方手册写的是扭矩
+        raw_current_get_ = data[4] << 8 | data[5];
 
         constexpr float THETA_SCALE = 2 * PI / 8192;  // digital -> rad
         constexpr float OMEGA_SCALE = 2 * PI / 60;    // rpm -> rad / sec
@@ -530,7 +583,7 @@ namespace driver {
         print("output shaft theta: % .4f ", GetOutputShaftTheta());
         print("omega: % .4f ", GetOmega());
         print("output shaft omega: % .4f ", GetOutputShaftOmega());
-        print("raw current get: %f \r\n", raw_current_get_);
+        print("raw current get: % d \r\n", raw_current_get_);
     }
 
     void Motor2006::SetOutput(int16_t val) {
@@ -542,10 +595,18 @@ namespace driver {
         return raw_current_get_;
     }
 
+    float Motor2006::GetOuttheta() const {
+        return theta_;
+    }
+
+    float Motor2006::GetOutomega() const {
+        return omega_;
+    }
+
     MotorDM4310::MotorDM4310(CAN* can, uint16_t rx_id, uint16_t tx_id)
         : MotorCANBase(can, rx_id, tx_id) {
         // 绝对位置电机不需要初始化align_angle_
-        power_on_angle_ = 0;
+        align_angle_ = 0;
         can->RegisterRxCallback(rx_id, can_motor_callback, this);
     }
 
@@ -585,6 +646,14 @@ namespace driver {
 
     uint16_t MotorDM4310::GetTemp() const {
         return raw_temperature_;
+    }
+
+    float MotorDM4310::GetOuttheta() const {
+        return theta_;
+    }
+
+    float MotorDM4310::GetOutomega() const {
+        return omega_;
     }
 
     /**

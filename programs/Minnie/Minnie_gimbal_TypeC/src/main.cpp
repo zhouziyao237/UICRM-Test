@@ -150,10 +150,13 @@ void RM_RTOS_Default_Task(const void* arg) {
     UNUSED(arg);
     osDelay(3000);
 
-    // while (!referee->game_robot_status.mains_power_gimbal_output) {
-    //     print("Waiting model to go online\r\n");
-    //     osDelay(WAIT_CHASSIS_ONLINE_OS_DELAY);
-    // }
+#ifdef HAS_REFEREE
+    while (!referee->game_robot_status.mains_power_gimbal_output) {
+        print("Waiting model to go online\r\n");
+        osDelay(WAIT_CHASSIS_ONLINE_OS_DELAY);
+    }
+#endif
+
     while (remote_mode != REMOTE_MODE_KILL) {
         Buzzer_Sing(ProtectWarning);
         osDelay(PROTECT_OS_DELAY);
@@ -168,12 +171,12 @@ void RM_RTOS_Default_Task(const void* arg) {
         // } else {
         //     gimbal_power->High();
         // }
-
+        set_cursor(0, 0);
+        clear_screen();
         RM_Car_main_remote_mode();
         shoot_remote_mode();
         RM_Car_main_data(false);
         debug_gimbal(false);
-        debug_chassis(true);
         IMU_print();
         osDelay(100);
     }

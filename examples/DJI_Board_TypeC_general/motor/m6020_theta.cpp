@@ -33,9 +33,9 @@ static bsp::CAN* can1 = nullptr;
 static driver::Motor6020* motor1 = nullptr;
 
 void RM_RTOS_Init() {
-    print_use_uart(&huart1);
+    print_use_uart(&huart6, true, 115200);
     can1 = new bsp::CAN(&hcan1, true);
-    motor1 = new driver::Motor6020(can1, 0x209, 0x2fe);
+    motor1 = new driver::Motor6020(can1, 0x206, 0x1FF);
     motor1->SetTransmissionRatio(1);
     control::ConstrainedPID::PID_Init_t theta_pid_init = {
         .kp = 20,
@@ -82,20 +82,20 @@ void RM_RTOS_Default_Task(const void* args) {
     while (true) {
         set_cursor(0, 0);
         clear_screen();
-        if (key.Read() == 0) {
-            osDelay(30);
-            if (key.Read() == 1)
-                continue;
-            while (key.Read() == 0) {
-                osDelay(30);
-            }
-            if (motor1->GetTarget() > PI) {
-                motor1->SetTarget(motor1->GetTarget() - 1.0f / 2 * PI);
-            } else {
-                motor1->SetTarget(motor1->GetTarget() + 1.0f / 2 * PI);
-            }
-            osDelay(20);
-        }
+        // if (key.Read() == 0) {
+        //     osDelay(30);
+        //     if (key.Read() == 1)
+        //         continue;
+        //     while (key.Read() == 0) {
+        //         osDelay(30);
+        //     }
+        //     if (motor1->GetTarget() > PI) {
+        //         motor1->SetTarget(motor1->GetTarget() - 1.0f / 2 * PI);
+        //     } else {
+        //         motor1->SetTarget(motor1->GetTarget() + 1.0f / 2 * PI);
+        //     }
+        //     osDelay(20);
+        // }
         motor1->PrintData();
         osDelay(20);
     }

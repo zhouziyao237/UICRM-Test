@@ -33,10 +33,10 @@ remote::SBUS* sbus = nullptr;
 
 RemoteMode remote_mode = REMOTE_MODE_SPIN;
 RemoteMode last_remote_mode = REMOTE_MODE_ADVANCED;
-RemoteMode available_remote_mode[] = {REMOTE_MODE_FOLLOW, REMOTE_MODE_SPIN, REMOTE_MODE_ADVANCED,
+RemoteMode available_remote_mode[] = {REMOTE_MODE_STOP, REMOTE_MODE_FOLLOW, REMOTE_MODE_SPIN, REMOTE_MODE_ADVANCED,
                                       REMOTE_MODE_AUTOAIM, REMOTE_MODE_PREPARE_HAND_MOVEMENT};
 const int8_t remote_mode_max = 2;
-const int8_t remote_mode_min = 1;
+const int8_t remote_mode_min = 0;
 ShootFricMode shoot_flywheel_mode = SHOOT_FRIC_MODE_STOP;
 ShootFricMode last_shoot_flywheel_mode = SHOOT_FRIC_MODE_PREPARING;
 ShootMode shoot_load_mode = SHOOT_MODE_STOP;
@@ -44,12 +44,16 @@ ShootMode last_shoot_load_mode = SHOOT_MODE_RELOADING;
 
 MagazineMode magazine_Mode = Magazine_MODE_OFF;
 
+RobotStatus is_robot_dead = ROBOT_MOLDE_NONE;
+
 ShootSpeed shoot_speed = SHOOT_FREQUENCY_NORMAL;
 const int8_t shoot_speed_min = 1;
 const int8_t shoot_speed_max = 2;
 
 bool is_killed = false;
 bool robot_iskill = false;
+bool is_dbus_offline = false;
+bool is_shoot_available = false;
 
 bool is_autoaim = false;
 
@@ -98,37 +102,34 @@ void remoteTask(void* arg) {
     BoolEdgeDetector* keyboard_X_edge = new BoolEdgeDetector(false);
 #endif
 
-    bool is_dbus_offline;
-    bool is_robot_dead;
-    bool is_shoot_available;
-
     while (1) {
         // 检测遥控器是否离线，或者遥控器是否在安全模式下
-        is_dbus_offline = (!dbus->IsOnline()) || dbus->swr == remote::DOWN;
+        is_dbus_offline = (dbus->IsOnline() || refereerc->IsOnline());
 #ifdef HAS_REFEREE
-        // Kill Detection
-        is_robot_dead = referee->game_robot_status.remain_HP == 0;
-        is_shoot_available =
-            referee->bullet_remaining.bullet_remaining_num_17mm > 0 && ahrs->IsCailbrated();
+        if (referee != nullptr) {
+            is_robot_dead = (referee->game_robot_status.remain_HP == 0) ?
+                            ROBOT_DEAD_WITH_REFEREE : ROBOT_ALIVE_WITH_REFEREE;
+        } else {
+            is_robot_dead = is_dbus_offline ? ROBOT_ALIVE_NO_REFEREE : ROBOT_ALIVE_NO_REFEREE;  // 裁判系统离线时执行
+        }
 #else
-        is_robot_dead = false;
-        is_shoot_available = true;
+        is_robot_dead = is_dbus_offline ? ROBOT_ALIVE_NO_REFEREE : ROBOT_ALIVE_NO_REFEREE;
 #endif
-        if (is_dbus_offline || is_robot_dead) {
+
+        if (is_robot_dead == ROBOT_DEAD_WITH_REFEREE || is_robot_dead == ROBOT_DEAD_NO_REFEREE || dbus->swr == remote::DOWN) {
             if (!is_killed) {
                 // 如果遥控器离线或者机器人死亡，则进入安全模式
                 last_remote_mode = remote_mode;
                 remote_mode = REMOTE_MODE_KILL;
-                // last_shoot_flywheel_mode = shoot_flywheel_mode;
-                // shoot_flywheel_mode = SHOOT_FRIC_MODE_STOP;
+                is_shoot_available = false;
                 is_killed = true;
             }
         } else {
             if (is_killed) {
                 // 如果遥控器重新连接或者机器人复活，则恢复上一次的遥控模式
-                // shoot_flywheel_mode = last_shoot_flywheel_mode;
                 remote_mode = last_remote_mode;
                 shoot_load_mode = SHOOT_MODE_STOP;
+                is_shoot_available = true;
                 is_killed = false;
             }
         }
@@ -176,6 +177,8 @@ void remoteTask(void* arg) {
         keyboard_R_edge->input(keyboard.bit.R);
         keyboard_F_edge->input(keyboard.bit.F);
 
+#ifdef HAS_REFEREE
+
         uint16_t remain_HP = referee->game_robot_status.remain_HP;
 
         if (remain_HP == 0 && robot_iskill == false) {
@@ -189,6 +192,7 @@ void remoteTask(void* arg) {
             shoot_load_mode = SHOOT_MODE_STOP;
             robot_iskill = false;
         }
+#endif
 
         if (keyboard_F_edge->posEdge()) {
             osDelay(REMOTE_MODE_OS_DELAY);

@@ -34,6 +34,15 @@ extern remote::SBUS* sbus;
 */
 void init_controller();
 
+enum RobotStatus {
+    ROBOT_MOLDE_NONE,
+    ROBOT_ALIVE_WITH_REFEREE,      // 有裁判系统时存活
+    ROBOT_DEAD_WITH_REFEREE,       // 有裁判系统时死亡
+    ROBOT_ALIVE_NO_REFEREE,        // 无裁判系统时存活
+    ROBOT_DEAD_NO_REFEREE          // 无裁判系统时死亡
+};
+extern RobotStatus is_robot_dead;
+
 enum MagazineMode {
    Magazine_MODE_OFF = 0,
    Magazine_MODE_ON = 1,
