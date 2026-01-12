@@ -231,6 +231,11 @@ namespace driver {
             holding_ = abs(diff) < proximity_in_;
         }
     }
+
+    /*
+     * [ 目标角度 → [角度PID] → 期望速度 → [速度PID] → 期望电流 → 电机输出 ]
+     */
+
     void MotorCANBase::CalcOutput() {
         if (!enable_) {
             // 如果电机被禁用，则清空PID积分项并输出0

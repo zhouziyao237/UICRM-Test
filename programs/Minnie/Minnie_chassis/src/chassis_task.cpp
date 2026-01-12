@@ -35,25 +35,6 @@ bsp::CAN* can2 = nullptr;
 driver::SuperCap* super_cap = nullptr;
 communication::CanBridge* can_bridge = nullptr;
 
-float ch0 = 0;
-float ch1 = 0;
-float ch2 = 0;
-float ch3 = 0;
-
-void update_channel_data(communication::can_bridge_ext_id_t ext_id,
-                         communication::can_bridge_data_t data, void* args) {
-    UNUSED(args);
-    if (ext_id.data.tx_id == 0x51) {
-        if (ext_id.data.type == communication::CAN_BRIDGE_TYPE_FOUR_INT16) {
-            ch0 = data.data_four_int16.data[0];
-            ch1 = data.data_four_int16.data[1];
-            ch2 = data.data_four_int16.data[2];
-            ch3 = data.data_four_int16.data[3];
-
-        }
-    }
-}
-
 void init_chassis() {
 
     // 初始化CAN
@@ -143,32 +124,16 @@ void init_chassis() {
     can_bridge->RegisterRxCallback(0x71, chassis->CanBridgeUpdateEventTurnWrapper, chassis);
     can_bridge->RegisterRxCallback(0x72, chassis->CanBridgeUpdateEventPowerLimitWrapper, chassis);
     can_bridge->RegisterRxCallback(0x73, chassis->CanBridgeUpdateEventCurrentPowerWrapper, chassis);
-    chassisDebug();
-    #ifdef CHASSIS_DEBUG
-        can_bridge->RegisterRxCallback(0x74, update_channel_data, nullptr);
-        print("DEBUG_ING\r\n");
-    #endif
 
     HAL_Delay(300);
 }
 
 void chassisMain() {
-    #ifdef CHASSIS_DEBUG
-        print("CH0:%d CH1:%d CH2:%d CH3:%d\r\n", ch0, ch1, ch2, ch3);
-    #endif
 
     chassis->Update();
     osDelay(10);
 }
 
-void chassisDebug() {
-    #ifdef CHASSIS_DEBUG
-        print("RM_CHASSIS_DEBUG_RING\r\n");
-    #else
-        print("RM_CHASSIS_RING\r\n");
-    #endif
-
-}
 
 void kill_chassis() {
     fl_motor->Disable();

@@ -36,7 +36,6 @@ typedef enum {
 
 void chassisMain();
 void init_chassis();
-void chassisDebug();
 void kill_chassis();
 
 void update_channel_data(communication::can_bridge_ext_id_t ext_id,

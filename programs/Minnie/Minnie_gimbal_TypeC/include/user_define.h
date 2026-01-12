@@ -42,7 +42,7 @@
 #define Control_true 1
 #define Control_false 0
 
-#define UART_PRINT_LOGO
+#define UART_PRINT_LOG
 
 #define pitch_bisa -2.6
 #define yaw_bisa -3
@@ -51,9 +51,9 @@
 
 #define REMOTE_MODE_OS_DELAY 0.5
 
-#define referee_uart_post huart6
+#define referee_uart_post huart1
 #define refereerc_uart_post huart1
-#define debug_uart_post huart1
+#define debug_uart_post huart6
 
 #define dbus_uart_post huart3
 #define sbus_uart_post huart3

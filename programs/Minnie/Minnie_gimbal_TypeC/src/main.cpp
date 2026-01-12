@@ -106,10 +106,9 @@ void RM_MODEL_INIT(void) {
     IMU_Init();
     // 初始化蜂鸣器，蜂鸣器在需要的时候会在后台播放音乐
     init_buzzer();
-    // 初始化裁判系统，裁判系统类能够读取裁判系统的数据
-    init_referee();
     // todo:minipc卡住串口跑不了，暂时不用注释掉
-    init_minipc();
+    init_referee();
+    // init_minipc();
     // 初始化遥控器与远程模式选择，遥控器类能够读取遥控器的数据
     init_remote();
     // 初始化发射机构，发射机构类能够控制发射机构的动作
@@ -126,9 +125,8 @@ void RM_MODEL_INIT(void) {
 
 void RM_RTOS_Init(void){
     // 设置高精度定时器以能够获取微秒级别的精度的运行时间数据
-    bsp::SetHighresClockTimer(&htim8);
+    bsp::SetHighresClockTimer(&htim5);
     // 初始化调试串口，使print()函数能够输出调试信息
-    // print_use_uart(&huart2, true, 115200);
     print("RM_RTOS_UART_INIT\n");
     // 初始化LED灯，LED灯在需要的时候会在后台点亮
 
@@ -152,10 +150,10 @@ void RM_RTOS_Default_Task(const void* arg) {
     UNUSED(arg);
     osDelay(3000);
 
-    while (!referee->game_robot_status.mains_power_gimbal_output) {
-        print("Waiting model to go online\r\n");
-        osDelay(WAIT_CHASSIS_ONLINE_OS_DELAY);
-    }
+    // while (!referee->game_robot_status.mains_power_gimbal_output) {
+    //     print("Waiting model to go online\r\n");
+    //     osDelay(WAIT_CHASSIS_ONLINE_OS_DELAY);
+    // }
     while (remote_mode != REMOTE_MODE_KILL) {
         Buzzer_Sing(ProtectWarning);
         osDelay(PROTECT_OS_DELAY);
@@ -177,6 +175,6 @@ void RM_RTOS_Default_Task(const void* arg) {
         debug_gimbal(false);
         debug_chassis(true);
         IMU_print();
-        osDelay(50);
+        osDelay(100);
     }
 }

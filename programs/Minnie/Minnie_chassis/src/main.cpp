@@ -28,7 +28,7 @@
 
 void RM_RTOS_Init(void) {
    // 初始化串口
-   print_use_uart(&huart1, true, 115200);
+   print_use_uart(&huart6, true, 115200);
 
    init_chassis();
    init_buzzer();

@@ -85,6 +85,57 @@ namespace error {
 
     uint8_t count_near(float *data, uint8_t size, float target, float tolerance_percent);
     DropDetectionResult detect_all_drops(float* data, uint8_t size, DropDetectionConfig config);
+
+    // ---------------------------------- 摩擦轮 ----------------------------------
+
+    // 添加双电机状态信息结构
+    typedef struct {
+        float speed;              // 当前速度 (rad/s)
+        float position;           // 当前位置 (rad)
+        float timestamp;          // 时间戳 (s)
+    } MotorSample;
+
+    typedef struct {
+        MotorSample motor1_samples[50];   // 电机1采样数据
+        MotorSample motor2_samples[50];   // 电机2采样数据
+        uint8_t sample_count;             // 当前采样数量
+        uint8_t max_samples;              // 最大采样数量
+        float sample_period;              // 采样周期 (s)
+        float decel_threshold;            // 减速度阈值 (rad/s²)
+        float speed_drop_ratio;           // 速度下降比例阈值 (0-1)
+        uint32_t last_check_time_ms;      // 上次检查时间 (ms)
+        bool motor1_decel_detected;       // 电机1减速检测标志
+        bool motor2_decel_detected;       // 电机2减速检测标志
+        bool both_decel_detected;         // 双电机同时减速检测标志
+    } DualMotorDecelDetector;
+
+    // 添加结果结构
+    typedef struct {
+        bool motor1_rapid_decel;          // 电机1是否骤减
+        bool motor2_rapid_decel;          // 电机2是否骤减
+        bool dual_motor_sync_decel;       // 双电机同步骤减
+        float motor1_current_accel;       // 电机1当前加速度
+        float motor2_current_accel;       // 电机2当前加速度
+        float time_since_last_sample;     // 自上次采样的时间
+    } DualMotorDecelResult;
+
+    // 初始化双电机骤减检测器
+    void init_dual_motor_decel_detector(DualMotorDecelDetector* detector,
+                                       float sample_period,
+                                       float decel_threshold,
+                                       float speed_drop_ratio);
+
+    // 非阻塞采样更新函数
+    bool update_dual_motor_decel_detection(DualMotorDecelDetector* detector,
+                                          float motor1_speed,
+                                          float motor1_position,
+                                          float motor2_speed,
+                                          float motor2_position,
+                                          uint32_t current_time_ms);
+
+    // 获取检测结果
+    DualMotorDecelResult get_dual_motor_decel_result(DualMotorDecelDetector* detector);
+
 }
 
 #endif //MOTOR_ERROR_H
