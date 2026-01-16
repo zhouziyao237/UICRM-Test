@@ -31,15 +31,21 @@ namespace RMFC {
     namespace MiniPC {
 
         typedef int MiniPCDescriptor_t;
-        typedef struct MiniPCPort_s {
-            serialPort_t* port;  // null when port unused.
-            timeUs_t lastActivityMs;
-            MiniPCDescriptor_t descriptor;
-            MiniPCProtocol* MiniPC_protocol;
+        class MiniPCPort_t {
+        public:
+            timeUs_t lastActivityMs = 0;
+            MiniPCDescriptor_t descriptor = 0;
+            MiniPCProtocol* MiniPC_protocol = nullptr;
 
-            uint8_t data;
-            package_t package;
-        } MiniPCPort_t;
+            bool EnableFunction = false;
+
+            package_t SerialRxpackage = {};
+
+            serialPort_t* getPort() const {
+                return MiniPC_protocol ? MiniPC_protocol->getUARTPort() : nullptr;
+            }
+        };
+
 
         typedef struct {
             features_e features;
@@ -59,7 +65,7 @@ namespace RMFC {
 
         serialPort_t* FindRefereeProtocol(MiniPCProtConfig_t ProtConfig);
 
-        void resetRefereePort(MiniPCPort_t* RFSPortToReset, MiniPCPort_t* serialPort);
+        void resetRefereePort(MiniPCPort_t* MiniPCPortToReset, MiniPCPort_t* serialPort);
         void MiniPCSerialReleasePortIfAllocated(serialPort_t* serialPort);
         void MiniPCSerialAllocatePorts(void);
         MiniPCDescriptor_t getMiniPCSerialPortDescriptor(const uint8_t portIdentifier);

@@ -41,6 +41,8 @@ namespace RMFC {
                         msg.read = 0;
                         msg.checksum = 0;
                         msg.checksum2 = 0;
+                        memset(msg.buffer, 0, sizeof(msg.buffer));
+                        msg.buffer[msg.received++] = c;
                     }
                     break;
 
@@ -49,8 +51,8 @@ namespace RMFC {
                     if (msg.received == FRAME_HEADER_LEN) {
                         // check to handle the frame
                         if (verify_crc8_check_sum(msg.buffer, FRAME_HEADER_LEN)) {
-                            msg.expected = (msg.buffer[1] << 8) | msg.buffer[2];  // data length
-                            msg.seq = msg.buffer[3];                              // sequence number
+                            msg.expected = (msg.buffer[2] << BYTE) | (msg.buffer[1]);  // data length
+                            msg.seq = (uint32_t)msg.buffer[3];                      // sequence number
 
                             if (msg.expected > MiniPC_BUF_SIZE) {
                                 msg.c_state = MiniPC_STATE_IDLE;
@@ -65,10 +67,10 @@ namespace RMFC {
                     break;
 
                 case MiniPC_STATE_HEADER_CMD_ID:
-                    msg.buffer[msg.received++] = c;
+                    msg.buffer[FRAME_HEADER_LEN + msg.received++] = c;
                     if (msg.received == CMD_ID_LEN) {
                         // 解析命令ID
-                        msg.cmd = (msg.buffer[1] << 8) | msg.buffer[0];
+                        msg.cmd = msg.buffer[FRAME_HEADER_LEN] << BYTE | msg.buffer[FRAME_HEADER_LEN + 1];
                         msg.received = 0;
                         msg.c_state =
                             (msg.expected > 0) ? MiniPC_STATE_PAYLOAD : MiniPC_STATE_CHECKSUM_CRC16;
@@ -90,10 +92,9 @@ namespace RMFC {
                         msg.received++;
 
                         if (msg.received == FRAME_TAIL_LEN) {
-                            uint8_t* frame = msg.buffer;
                             int frame_len =
                                 FRAME_HEADER_LEN + CMD_ID_LEN + msg.expected + FRAME_TAIL_LEN;
-                            if (verify_crc16_check_sum(frame, frame_len)) {
+                            if (verify_crc16_check_sum(msg.buffer, frame_len)) {
                                 msg.c_state = MiniPC_STATE_RECEIVED;
                             } else {
                                 msg.c_state = MiniPC_STATE_IDLE;

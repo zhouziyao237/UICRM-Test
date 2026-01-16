@@ -41,7 +41,7 @@ namespace RMFC {
         static const int FRAME_TAIL_LEN = 2;
         static const int BYTE = 8;
 
-        static const size_t MiniPC_BUF_SIZE = 300;
+        static const size_t MiniPC_BUF_SIZE = 100;
 
         enum MiniPCState {
             MiniPC_STATE_IDLE,
@@ -78,13 +78,13 @@ namespace RMFC {
             }
             MiniPCState c_state;
             uint16_t cmd;
-            uint16_t expected;
+            size_t expected;
             uint16_t received;
             uint16_t read;
-            uint8_t seq;
+            uint32_t seq;
             uint8_t checksum;    // CRC8
             uint16_t checksum2;  // CRC16
-            uint8_t buffer[MiniPC_BUF_SIZE];
+            uint8_t buffer[MiniPC_BUF_SIZE] = {0};
 
             int remain();
 

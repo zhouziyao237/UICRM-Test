@@ -38,69 +38,70 @@ namespace RMFC {
             switch (package.rwstatus) {
                 case Read_Status: {
                     Heartbeat();
-                    _MiniPCParser.parse(data, *package.msg);
-                    if (package.msg->c_state == MiniPC_STATE_RECEIVED) {
-                        ReceiveCommand(*package.msg);
-                        package.msg = (MiniPCMessage*){};
-                        package.res = (MiniPCResponse*){};
+                    _MiniPCParser.parse(data, package.msg);
+                    if (package.msg.c_state == MiniPC_STATE_RECEIVED) {
+                        ReceiveCommand(package.msg);
+                        package.msg = MiniPCMessage();
+                        package.res = MiniPCResponse();
                     }
                 } break;
                 default:
                     return false;
             }
 
-            return package.msg->c_state != MiniPC_STATE_IDLE;
+            return package.msg.c_state != MiniPC_STATE_IDLE;
         }
 
         bool MiniPCProcessor::ProcessTransmit(package_t& package, serialPort_t* SerialMiniPC) {
             switch (package.rwstatus) {
                 case Read_Status:
                 case Write_Status: {
-                    SendCommand(*package.msg, *package.res);
-                    sendResponseV1(SerialMiniPC, *package.res);
-                    package.length = sizeof(*package.res);
-                    package.msg = (MiniPCMessage*){};
-                    package.res = (MiniPCResponse*){};
+                    SendCommand(package.msg, package.res);
+                    sendResponseV1(SerialMiniPC, package.res);
+                    package.length = sizeof(package.res);
+                    package.msg = MiniPCMessage();
+                    package.res = MiniPCResponse();
                 } break;
                 default:
                     return false;
             }
 
-            return package.msg->c_state != MiniPC_STATE_IDLE;
+            return package.msg.c_state != MiniPC_STATE_IDLE;
         }
 
         MiniPCResult_e MiniPCProcessor::ReceiveCommand(MiniPCMessage& m) {
+            int len = FRAME_HEADER_LEN + CMD_ID_LEN;
             switch (m.cmd) {
                 case PACK:
-                    memcpy(&MiniPCdata_->pack, m.buffer, m.expected);
+                    memcpy(&MiniPCdata_->pack, m.buffer + len, m.expected);
                     break;
                 case TARGET_ANGLE:
                     // memset(&target_angle, 0, sizeof(target_angle));
-                    memcpy(&MiniPCdata_->target_angle, m.buffer, m.expected);
+                    memcpy(&MiniPCdata_->target_angle, m.buffer + len, m.expected);
                     break;
                 case NO_TARGET_FLAG:
-                    memcpy(&MiniPCdata_->no_target_flag, m.buffer, m.expected);
+                    memcpy(&MiniPCdata_->no_target_flag, m.buffer + len, m.expected);
                     break;
                 case SHOOT_CMD:
-                    memcpy(&MiniPCdata_->shoot_cmd, m.buffer, m.expected);
+                    memcpy(&MiniPCdata_->shoot_cmd, m.buffer + len, m.expected);
                     break;
                 case ROBOT_MOVE_SPEED:
-                    memcpy(&MiniPCdata_->robot_move, m.buffer, m.expected);
+                    memcpy(&MiniPCdata_->robot_move, m.buffer + len, m.expected);
                     break;
                 case ROBOT_POWER_HEAT_HP_UPLOAD:
-                    memcpy(&MiniPCdata_->robot_power_heat_hp_upload, m.buffer, m.expected);
+                    memcpy(&MiniPCdata_->robot_power_heat_hp_upload, m.buffer + len, m.expected);
                     break;
                 case GIMBAL_CURRENT_STATUS:
-                    memcpy(&MiniPCdata_->gimbal_current_status, m.buffer, m.expected);
+                    memcpy(&MiniPCdata_->gimbal_current_status, m.buffer + len, m.expected);
                     break;
                 case CHASSIS_CURRENT_STATUS:
-                    memcpy(&MiniPCdata_->chassis_current_status, m.buffer, m.expected);
+                    memcpy(&MiniPCdata_->chassis_current_status, m.buffer + len, m.expected);
                     break;
                 case AUTOAIM_ENABLE:
-                    memcpy(&MiniPCdata_->autoaim_enable, m.buffer, m.expected);
+                    memcpy(&MiniPCdata_->autoaim_enable, m.buffer + len, m.expected);
                     break;
                 case ROBOT_STATUS_UPLOAD:
-                    memcpy(&MiniPCdata_->robot_status_upload, m.buffer, m.expected);
+                    memcpy(&MiniPCdata_->robot_status_upload, m.buffer + len, m.expected);
                     break;
 
                 default:
@@ -197,20 +198,32 @@ namespace RMFC {
         void MiniPCProtocol::SetThread() {
         }
 
+        void MiniPCProtocol::setUARTPort(serialPort_t* SetUARTProt) {
+            UARTProt_ = SetUARTProt;  // 设置内部UARTProt_值
+        }
+
+        serialPort_t* MiniPCProtocol::getUARTPort() const {
+            return UARTProt_;  // 返回内部的串口指针
+        }
+
+        bool MiniPCProtocol::isValid() const {
+            return UARTProt_ != nullptr;  // 检查串口指针是否有效
+        }
+
         void MiniPCProtocol::Receive(void* args) {
             UNUSED(args);
-            package.rwstatus = Read_Status;
-            uint32_t len = serialRead(UARTProt_, reinterpret_cast<uint8_t**>(data));
+            BufferPackage.rwstatus = Read_Status;
+            uint32_t len = serialRead(UARTProt_, reinterpret_cast<uint8_t**>(BufferRxdata));
             if (len > 0) {
-                ProcessReceive(data, package);
+                ProcessReceive(BufferRxdata, BufferPackage);
             }
         }
 
         int MiniPCProtocol::Transmit(int cmd_id) {
-            package.rwstatus = Write_Status;
-            package.res->cmd = cmd_id;
-            ProcessTransmit(package, UARTProt_);
-            return package.length;
+            BufferPackage.rwstatus = Write_Status;
+            BufferPackage.res.cmd = cmd_id;
+            ProcessTransmit(BufferPackage, UARTProt_);
+            return BufferPackage.length;
         }
 
     }  // namespace MiniPC

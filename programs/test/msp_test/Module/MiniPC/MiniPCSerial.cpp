@@ -31,67 +31,27 @@ namespace RMFC {
     namespace MiniPC {
         MiniPCPort_t MiniPCPort[MAX_RFS_PORT_COUNT];
 
-        void resetMiniPCPort(MiniPCPort_t* RFSPortToReset, serialPort_t* serialPort) {
-            *RFSPortToReset = MiniPCPort_t{};
-            RFSPortToReset->port = serialPort;
+        void resetMiniPCPort(MiniPCPort_t* MiniPCPortToReset, serialPort_t* serialPort) {
+            *MiniPCPortToReset = MiniPCPort_t{};
+            MiniPCPortToReset->MiniPC_protocol->setUARTPort(serialPort);
         }
 
         void MiniPCSerialReleasePortIfAllocated(serialPort_t* serialPort) {
             for (uint8_t portIndex = 0; portIndex < MAX_MSP_PORT_COUNT; portIndex++) {
                 MiniPCPort_t* candidateRefereePort = &MiniPCPort[portIndex];
-                if (candidateRefereePort->port == serialPort) {
+                if (candidateRefereePort->MiniPC_protocol->getUARTPort() == serialPort) {
                     closeSerialPort(serialPort);
                     *candidateRefereePort = MiniPCPort_t{};
                 }
             }
         }
 
-        void MiniPCSerialAllocatePorts(void) {
-            uint8_t portIndex = 0;
-            const serialPortConfig_t* portConfig = findSerialPortConfig(FUNCTION_MiniPCHost);
-            // todo:允许最大MAX_MSP_PORT_COUNT个msp端口，实际上默认分配N个，还有MAX_MSP_PORT_COUNT-N个是在地面站配置才生效
-            while (portConfig && portIndex < MAX_MSP_PORT_COUNT) {
-                MiniPCPort_t* minipcPort = &MiniPCPort[portIndex];
-
-                if (minipcPort->port) {
-                    portIndex++;
-                    continue;
-                }
-
-                portOptions_e options = SERIAL_NOT_INVERTED;
-
-                if (MiniPCConfig()->halfDuplex) {
-                    options = static_cast<portOptions_e>(options | SERIAL_CHECK_TX);
-                } else if ((portConfig->identifier >= SERIAL_PORT_USART1) &&
-                           (portConfig->identifier <= SERIAL_PORT_USART8)) {
-                    options = static_cast<portOptions_e>(options | SERIAL_CHECK_TX);
-                           }
-
-                serialPort_t* serialPort = openSerialPort(
-                    static_cast<serialPortIdentifier_e>(portConfig->identifier),
-                    FUNCTION_MiniPCHost,
-                    NULL,
-                    NULL,
-                    baudRates[portConfig->referee_baudrateIndex],
-                    MODE_RXTX,
-                    options);
-
-                if (serialPort) {
-                    resetMiniPCPort(minipcPort, serialPort);
-                    portIndex++;
-                }
-
-                minipcPort->MiniPC_protocol = new MiniPCProtocol(serialPort, false);
-
-                portConfig = findNextSerialPortConfig(FUNCTION_MiniPCHost);
-            }
-        }
-
         MiniPCDescriptor_t getMiniPCSerialPortDescriptor(const uint8_t portIdentifier) {
             for (uint8_t portIndex = 0; portIndex < MAX_MSP_PORT_COUNT; portIndex++) {
-                MiniPCPort_t* candidateRefereePort = &MiniPCPort[portIndex];
-                if (candidateRefereePort->port->identifier == portIdentifier) {
-                    return candidateRefereePort->descriptor;
+                MiniPCPort_t* candidateMiniPCPort = &MiniPCPort[portIndex];
+                serialPort_t* port = candidateMiniPCPort->getPort();  // 使用便捷方法
+                if (port && port->identifier == portIdentifier) {
+                    return candidateMiniPCPort->descriptor;
                 }
             }
             return -1;
@@ -104,34 +64,95 @@ namespace RMFC {
          */
         void MiniPCSerialProcess() {
             for (uint8_t portIndex = 0; portIndex < MAX_MSP_PORT_COUNT; portIndex++) {
-                MiniPCPort_t* const RFSPort = &MiniPCPort[portIndex];
-                if (!RFSPort->port) {
+                MiniPCPort_t* const MiniPCProt = &MiniPCPort[portIndex];
+                if (!MiniPCProt->MiniPC_protocol->getUARTPort()) {
                     continue;
                 }
 
-                // There are bytes incoming - abort pending request
-                RFSPort->lastActivityMs = bsp::GetHighresTickMilliSec();
-                RFSPort->package.rwstatus = Read_Status;
+                // if (!MiniPCProt->EnableFunction) {
+                //     continue;
+                // }
 
-                uint32_t len = serialRead(RFSPort->port, reinterpret_cast<uint8_t**>(RFSPort->data));
+                // There are bytes incoming - abort pending request
+                MiniPCProt->lastActivityMs = bsp::GetHighresTickMilliSec();
+
+                MiniPCProt->SerialRxpackage.rwstatus = Read_Status;
+
+                uint8_t* SerialRxdata = nullptr;
+                uint32_t len = serialRead(MiniPCProt->MiniPC_protocol->getUARTPort(), &SerialRxdata);
                 if (len > 0) {
-                    char* str = reinterpret_cast<char*>(RFSPort->data);
+                    char* str = reinterpret_cast<char*>(SerialRxdata);
                     for (uint32_t i = 0; i < len; i++) {
-                        RFSPort->MiniPC_protocol->ProcessReceive(*str, RFSPort->package);
+                        MiniPCProt->MiniPC_protocol->ProcessReceive(*str, MiniPCProt->SerialRxpackage);
                         str++;
                     }
                 }
             }
         }
 
-        bool MiniPCSerialWaiting(void) {
-            for (uint8_t portIndex = 0; portIndex < MAX_MSP_PORT_COUNT; portIndex++) {
-                MiniPCPort_t* const RFSPort = &MiniPCPort[portIndex];
-                if (!RFSPort->port) {
+        void MiniPCSerialAllocatePorts(void) {
+            uint8_t portIndex = 0;
+            const serialPortConfig_t* portConfig = findSerialPortConfig(FUNCTION_MiniPCHost);
+            while (portConfig && portIndex < MAX_MSP_PORT_COUNT) {
+                MiniPCPort_t* minipcPort = &MiniPCPort[portIndex];
+
+                // 检查当前端口是否已被占用
+                if (minipcPort->getPort()) {  // 使用新添加的方法
+                    portIndex++;
                     continue;
                 }
 
-                if (serialRxBytesWaiting(RFSPort->port)) {
+                portOptions_e options = SERIAL_NOT_INVERTED;
+
+                if (MiniPCConfig()->halfDuplex) {
+                    options = static_cast<portOptions_e>(options | SERIAL_CHECK_TX);
+                } else if ((portConfig->identifier >= SERIAL_PORT_USART1) &&
+                           (portConfig->identifier <= SERIAL_PORT_USART8)) {
+                    options = static_cast<portOptions_e>(options | SERIAL_CHECK_TX);
+                }
+
+                serialPort_t* serialPort = openSerialPort(
+                    static_cast<serialPortIdentifier_e>(portConfig->identifier),
+                    FUNCTION_MiniPCHost,
+                    NULL,
+                    NULL,
+                    baudRates[portConfig->referee_baudrateIndex],
+                    MODE_RXTX,
+                    options);
+
+                if (serialPort) {
+                    // 创建临时协议对象
+                    MiniPCProtocol* tempProtocol = new MiniPCProtocol(serialPort, false);
+
+                    // 检查配置是否正确
+                    if (tempProtocol && tempProtocol->isValid()) {  // 假设有这样的验证方法
+                        // 释放原有的协议对象（如果存在）
+                        if (minipcPort->MiniPC_protocol) {
+                            delete minipcPort->MiniPC_protocol;
+                        }
+
+                        // 赋值新创建的对象
+                        minipcPort->MiniPC_protocol = tempProtocol;
+                        portIndex++;  // 只有成功创建后才增加索引
+                    } else {
+                        // 如果配置不正确，删除临时对象
+                        delete tempProtocol;
+                        closeSerialPort(serialPort);  // 关闭已打开的串口
+                    }
+                }
+
+                portConfig = findNextSerialPortConfig(FUNCTION_MiniPCHost);
+            }
+        }
+
+        bool MiniPCSerialWaiting(void) {
+            for (uint8_t portIndex = 0; portIndex < MAX_MSP_PORT_COUNT; portIndex++) {
+                MiniPCPort_t* const MiniPCProt = &MiniPCPort[portIndex];
+                if (!MiniPCProt->MiniPC_protocol->getUARTPort()) {
+                    continue;
+                }
+
+                if (serialRxBytesWaiting(MiniPCProt->MiniPC_protocol->getUARTPort())) {
                     return true;
                 }
             }
@@ -153,21 +174,21 @@ namespace RMFC {
             int ret = 0;
 
             for (int portIndex = 0; portIndex < MAX_MSP_PORT_COUNT; portIndex++) {
-                MiniPCPort_t* const RFSPort = &MiniPCPort[portIndex];
+                MiniPCPort_t* const MiniPCProt = &MiniPCPort[portIndex];
 
                 // XXX Kludge!!! Avoid zombie VCP port (avoid VCP entirely for now)
-                if (!RFSPort->port
+                if (!MiniPCProt->MiniPC_protocol->getUARTPort()
 #ifndef USE_MSP_PUSH_OVER_VCP
-                    || RFSPort->port->identifier == SERIAL_PORT_USB_VCP
+                    || MiniPCProt->MiniPC_protocol->getUARTPort()->identifier == SERIAL_PORT_USB_VCP
 #endif
-                    || (portId != SERIAL_PORT_ALL && RFSPort->port->identifier != portId)) {
+                    || (portId != SERIAL_PORT_ALL && MiniPCProt->MiniPC_protocol->getUARTPort()->identifier != portId)) {
                     continue;
                 }
 
                 // 直接发送数据
-                serialBeginWrite(RFSPort->port);
-                serialWriteBuf(RFSPort->port, data, datalen);
-                serialEndWrite(RFSPort->port);
+                serialBeginWrite(MiniPCProt->MiniPC_protocol->getUARTPort());
+                serialWriteBuf(MiniPCProt->MiniPC_protocol->getUARTPort(), data, datalen);
+                serialEndWrite(MiniPCProt->MiniPC_protocol->getUARTPort());
 
                 ret = datalen;
             }
@@ -178,17 +199,17 @@ namespace RMFC {
             uint32_t ret = UINT32_MAX;
 
             for (int portIndex = 0; portIndex < MAX_MSP_PORT_COUNT; portIndex++) {
-                MiniPCPort_t* const RFSPort = &MiniPCPort[portIndex];
-                if (!RFSPort->port) {
+                MiniPCPort_t* const MiniPCProt = &MiniPCPort[portIndex];
+                if (!MiniPCProt->MiniPC_protocol->getUARTPort()) {
                     continue;
                 }
 
                 // XXX Kludge!!! Avoid zombie VCP port (avoid VCP entirely for now)
-                if (RFSPort->port->identifier == SERIAL_PORT_USB_VCP) {
+                if (MiniPCProt->MiniPC_protocol->getUARTPort()->identifier == SERIAL_PORT_USB_VCP) {
                     continue;
                 }
 
-                const uint32_t bytesFree = serialTxBytesFree(RFSPort->port);
+                const uint32_t bytesFree = serialTxBytesFree(MiniPCProt->MiniPC_protocol->getUARTPort());
                 if (bytesFree < ret) {
                     ret = bytesFree;
                 }

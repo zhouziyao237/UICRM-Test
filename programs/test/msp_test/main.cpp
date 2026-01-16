@@ -101,6 +101,10 @@ void RM_RTOS_Default_Task(const void* args) {
         //       RMFC::RX::Client_ChannelsData->mouse.y, RMFC::RX::Client_ChannelsData->mouse.z,
         //       RMFC::RX::Client_ChannelsData->mouse.l, RMFC::RX::Client_ChannelsData->mouse.r);
 
+        if (RMFC::MiniPC::MiniPCPort[0].MiniPC_protocol->MiniPCdata_ != nullptr) {
+            print("MiniPC pack data: %s\r\n", RMFC::MiniPC::MiniPCPort[0].MiniPC_protocol->MiniPCdata_->pack.chars);
+        }
+
         osDelay(200);
     }
 }

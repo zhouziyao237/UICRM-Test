@@ -47,8 +47,8 @@ namespace RMFC {
         typedef enum { Read_Status = 0, Write_Status = 1 } rwstatus_e;
 
         typedef struct {
-            MiniPCMessage* msg;
-            MiniPCResponse* res;
+            MiniPCMessage msg;
+            MiniPCResponse res;
             rwstatus_e rwstatus;
             int length;
         } package_t;
@@ -80,13 +80,16 @@ namespace RMFC {
 
             void SetThread();
 
+            void setUARTPort(serialPort_t* SetUARTProt);
+            serialPort_t* getUARTPort() const;
+            bool isValid() const;
+
             void Receive(void* args) override;
             int Transmit(int cmd_id) override;
 
-          protected:
-            uint8_t data;
-            package_t package;
-            // UARTProtocol* UARTProtocol_;
+        private:
+            uint8_t BufferRxdata;
+            package_t BufferPackage;
         };
 
     }  // namespace MiniPC
