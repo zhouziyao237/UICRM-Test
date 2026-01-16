@@ -103,6 +103,12 @@ void RM_Car_main_data(bool newline = false){
           ahrs->INS_angle[2]);
     print("Vision Target: %.3f %.3f\r\n", minipc->target_angle.target_pitch,
           minipc->target_angle.target_yaw);
+
+    char buf[512];
+    vTaskList(buf);
+    print("vTaskList: \r\n");
+    print("%s\r\n", buf);
+
     if(newline){print("\r\n");}
 }
 

@@ -87,6 +87,8 @@ namespace communication {
         append_crc16_check_sum(data, length);
     }
 
+    // ---------------------------------- UARTProtocol Code ---------------------------------
+
     UARTProtocol::UARTProtocol(bsp::UART* uart) : Protocol() {
         uart_ = uart;
         uart_->SetupRxData(&read_ptr_, &read_len_);
@@ -115,6 +117,8 @@ namespace communication {
         uart_->Write(package.data, package.length);
         return package;
     }
+
+    // ------------------------------------ Referee Code -----------------------------------
 
     Referee::Referee(bsp::UART* uart) : UARTProtocol(uart) {
         // 设置100ms离线阈值
@@ -232,6 +236,8 @@ namespace communication {
     void Referee::PrepareUIContent(content graph_content) {
         graph_content_ = graph_content;
     }
+
+    // ------------------------------------ MiniPC Code -----------------------------------
 
     Host::Host(bsp::UART* uart) : UARTProtocol(uart) {
     }

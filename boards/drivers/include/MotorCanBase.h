@@ -32,6 +32,14 @@
 
 namespace driver {
 
+    typedef void (*ErrorCallback_t)(void* instance);
+
+    struct MotorErrorConfig{
+        uint16_t thershold_Curr = 0;
+        uint16_t Duration_Time = 0;
+        ErrorCallback_t callback = nullptr;
+    };
+
     /**
      * @brief 带有CAN通信的DJI通用电机的标准接口
      */
@@ -40,6 +48,16 @@ namespace driver {
      */
     class MotorCANBase : public MotorBase, public ConnectionDriver {
       public:
+
+        // 在 MotorCANBase 类中添加
+        enum MotorState {
+            DISABLED = 0x00,  // 失能态 - 电机被禁用
+            IDLE = 0x01,       // 空闲态 - 电机已停止或稳定
+            WAITING = 0x02,     // 等待状态 - 已设置目标但尚未开始运动
+            MOVING = 0x03,      // 运动状态 - 正在执行运动
+            STABLE = 0x04       // 稳定状态 - 已到达目标或稳定
+         };
+
         enum motor_mode {
             // 未使用
             NONE = 0x00,
@@ -49,12 +67,15 @@ namespace driver {
             SPEED_LOOP_CONTROL = 0x02,
             // 启用速度环控制
             ANGLE_LOOP_CONTROL = 0x04,
+            // 电机堵转检测(基于控制电流的百分之x和卡尔曼滤波来)
+            STALL_MOTOR_CONTROL = 0x20,
             // 反转电机方向
             REVERSE_MOTOR_OPERATE = 0x40,
             // ABSOLUTE模式下，认为输出轴只有一圈。电机输出轴角度不会累计，被限制在[0,
             // 2PI]之间，如果目标在相反的半圈，则从另一侧绕过去
             ABSOLUTE = 0x80,
         };
+
 
         /**
          * @brief 堵转回调函数模板
@@ -76,7 +97,7 @@ namespace driver {
          * @param can    CAN instance
          * @param rx_id  CAN rx id
          */
-        MotorCANBase(bsp::CAN* can, uint16_t rx_id, uint16_t tx_id = 0x00);
+        MotorCANBase(bsp::CAN* can, uint16_t rx_id, uint16_t tx_id = 0x00, const MotorErrorConfig &motor_error_config = MotorErrorConfig());
 
         static void SetFrequency(uint32_t freq = 1000);
 
@@ -314,6 +335,10 @@ namespace driver {
          */
         void SetSpeedOffset(float offset);
 
+        bsp::CAN* GetCan() const { return can_; }
+        uint16_t GetRxId() const { return rx_id_; }
+        uint16_t GetTxId() const { return tx_id_; }
+
       protected:
         volatile float theta_;
         volatile float omega_;
@@ -344,6 +369,9 @@ namespace driver {
         bsp::CAN* can_;
         uint16_t rx_id_;
         uint16_t tx_id_;
+
+        MotorErrorConfig MotorErrorConfig_;
+        MotorState current_state_;
 
         uint8_t mode_ = 0;
         control::ConstrainedPID omega_pid_;

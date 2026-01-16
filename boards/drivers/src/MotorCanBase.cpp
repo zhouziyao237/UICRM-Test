@@ -54,7 +54,7 @@ namespace driver {
     void* MotorCANBase::pre_output_callback_instance_ = nullptr;
     void* MotorCANBase::post_output_callback_instance_ = nullptr;
 
-    MotorCANBase::MotorCANBase(bsp::CAN* can, uint16_t rx_id, uint16_t tx_id)
+    MotorCANBase::MotorCANBase(bsp::CAN* can, uint16_t rx_id, uint16_t tx_id, const MotorErrorConfig& motor_error_config)
         : ConnectionDriver(delay_time * 30),
           theta_(0),
           omega_(0),
@@ -62,7 +62,9 @@ namespace driver {
           output_shaft_omega_(0),
           can_(can),
           rx_id_(rx_id),
-          speed_offset_(0) {
+          MotorErrorConfig_(motor_error_config),
+          current_state_(DISABLED),
+          speed_offset_(0){
         // 大疆的电机，自动识别TX_ID
         if (tx_id == 0x00) {
             constexpr uint16_t GROUP_SIZE = 4;
@@ -225,6 +227,10 @@ namespace driver {
             return;
         }
         target_ = target;
+        if (mode_ != NONE && mode_&STALL_MOTOR_CONTROL) {
+            current_state_ = WAITING;
+        }
+
         if ((mode_ & ANGLE_LOOP_CONTROL) && (mode_ & ABSOLUTE)) {
             target_ = wrap<float>(target_, -PI, PI);
         }
@@ -250,11 +256,24 @@ namespace driver {
     void MotorCANBase::CalcOutput() {
         if (!enable_) {
             // 如果电机被禁用，则清空PID积分项并输出0
+            if (mode_ != NONE && mode_&STALL_MOTOR_CONTROL)
+                current_state_ = DISABLED;
+
             SetOutput(0);
             theta_pid_.ResetIntegral();
             omega_pid_.ResetIntegral();
             return;
         }
+
+        // [电机状态监测 → 特征提取 → 卡尔曼滤波 → 堵转检测 → 保护动作]
+
+        if (mode_ != NONE && mode_&STALL_MOTOR_CONTROL) {
+            UNUSED(output_);
+            if (current_state_ == STABLE) {
+                current_state_ = IDLE;
+            }
+        }
+
         float output = target_;
         if (mode_ & ANGLE_LOOP_CONTROL) {
             // 如果电机启动了角度环PID，则计算角度环PID输出
@@ -276,6 +295,9 @@ namespace driver {
         }
         if (mode_ != NONE) {
             SetOutput((int16_t)output);
+
+            if (mode_&STALL_MOTOR_CONTROL)
+                current_state_ = MOVING;
         }
     }
     void MotorCANBase::ReInitPID(control::ConstrainedPID::PID_Init_t pid_init, uint8_t mode) {
@@ -365,6 +387,10 @@ namespace driver {
             }
         }
         Heartbeat();
+
+        if (mode_ != NONE && mode_&STALL_MOTOR_CONTROL)
+            current_state_ = STABLE;
+
     }
     void MotorCANBase::SetTransmissionRatio(float ratio) {
         // 设置电机的传动比
