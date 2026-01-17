@@ -44,10 +44,9 @@ T map(T value, T in_min, T in_max, T out_min, T out_max) {
 }
 
 void GimbalEnableModel(bool Model) {
-
     // 添加空指针检查，确保电机对象已正确初始化
     if (pitch_motor == nullptr || yaw_motor == nullptr) {
-        return; // 或者记录错误日志，根据具体需求决定处理方式
+        return;  // 或者记录错误日志，根据具体需求决定处理方式
     }
 
     Gimbal_Enable_Flag = Model;
@@ -68,17 +67,19 @@ void Gimbal_Righting() {
     gimbal->Update();
 }
 
-void debug_gimbal(bool newline){
+void debug_gimbal(bool newline) {
     (void)newline;
-    #ifdef GINBAL_DEBUG
-        print("Gimbal pitch: %.2f, Gimbal yaw: %.2f\r\n", INS_Angle.pitch, INS_Angle.yaw);
-        print("Gimbal pitch: %.2f, Gimbal yaw: %.2f\r\n", pitch_motor->GetOutputShaftTheta(), yaw_motor->GetOutputShaftTheta());
-        if(newline){print("\r\n");}
-    #endif
+#ifdef GINBAL_DEBUG
+    print("Gimbal pitch: %.2f, Gimbal yaw: %.2f\r\n", INS_Angle.pitch, INS_Angle.yaw);
+    print("Gimbal pitch: %.2f, Gimbal yaw: %.2f\r\n", pitch_motor->GetOutputShaftTheta(),
+          yaw_motor->GetOutputShaftTheta());
+    if (newline) {
+        print("\r\n");
+    }
+#endif
 }
 
 void check_kill() {
-
 #ifdef HAS_REFEREE
     if (remote_mode == REMOTE_MODE_KILL || !referee->game_robot_status.mains_power_gimbal_output) {
 #else
@@ -163,7 +164,7 @@ void gimbalTask(void* arg) {
         //   continue;
         // }
 
-        auto[pitch_ratio, yaw_ratio] = gimbal_remote_mode();
+        auto [pitch_ratio, yaw_ratio] = gimbal_remote_mode();
 
         // 根据遥控器输入计算目标角度，并且进行限幅
         pitch_target =
@@ -182,41 +183,35 @@ void gimbalTask(void* arg) {
         float pitch_speed_offset = pitch_ratio;
         yaw_motor->SetSpeedOffset(yaw_speed_offset);
         pitch_motor->SetSpeedOffset(pitch_speed_offset);
-        if (is_autoaim && minipc->IsOnline() && minipc->target_angle.target_robot_id != 0) {
-            gimbal->TargetAbs(-minipc->target_angle.target_pitch, -minipc->target_angle.target_yaw);
-            gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
-        } else {
-            switch (remote_mode) {
-                case REMOTE_MODE_SPIN:
-                    gimbal->TargetRel(pitch_diff, yaw_diff);
-                    gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
-                    break;
-                case REMOTE_MODE_FOLLOW:
-                    // // 如果是跟随模式或者旋转模式，将IMU作为参考系
-                    gimbal->TargetRel(pitch_diff, yaw_diff);
-                    gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
-                    break;
-                case REMOTE_MODE_ADVANCED:
-                    // 如果是高级模式，将电机获取的云台当前角度作为参考系
-                    gimbal->TargetRel(pitch_diff, yaw_diff);
-                    gimbal->Update();
-                    break;
-                case REMOTE_MODE_AUTOAIM:
-                    gimbal->TargetAbs(minipc->target_angle.target_pitch,
-                                      minipc->target_angle.target_yaw);
-                    gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
-                    break;
-                case REMOTE_MODE_PREPARE_HAND_MOVEMENT:
-                    // 遥控器手动控制模式，将电机获取的云台当前角度作为参考系，直接通过遥控控制
+        switch (remote_mode) {
+            case REMOTE_MODE_SPIN:
+                gimbal->TargetRel(pitch_diff, yaw_diff);
+                gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
+                break;
+            case REMOTE_MODE_FOLLOW:
+                // // 如果是跟随模式或者旋转模式，将IMU作为参考系
+                gimbal->TargetRel(pitch_diff, yaw_diff);
+                gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
+                break;
+            case REMOTE_MODE_ADVANCED:
+                // 如果是高级模式，将电机获取的云台当前角度作为参考系
+                gimbal->TargetRel(pitch_diff, yaw_diff);
+                gimbal->Update();
+                break;
+            case REMOTE_MODE_AUTOAIM:
+                gimbal->TargetAbs(-minipc->target_angle.target_pitch,
+                                  minipc->target_angle.target_yaw);
+                gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
+                break;
+            case REMOTE_MODE_PREPARE_HAND_MOVEMENT:
+                // 遥控器手动控制模式，将电机获取的云台当前角度作为参考系，直接通过遥控控制
 
-                    gimbal->TargetRel(pitch_diff, yaw_diff);
-                    gimbal->Update();
-                    break;
+                gimbal->TargetRel(pitch_diff, yaw_diff);
+                gimbal->Update();
+                break;
 
-                default:
-                    break;
-            }
-
+            default:
+                break;
         }
 
         osDelay(GIMBAL_OS_DELAY);
@@ -252,22 +247,22 @@ void init_gimbal() {
         .kd = 500,
         .max_out = 16384,  // 最大电流输出，参考说明书
         .max_iout = 2000,
-        .deadband = 0,                          // 死区
-        .A = 1.5 * PI,                          // 变速积分所能达到的最大值为A+B
-        .B = 1 * PI,                            // 启动变速积分的死区
-        .output_filtering_coefficient = 0.1,    // 输出滤波系数
-        .derivative_filtering_coefficient = 0,  // 微分滤波系数
-        .mode = control::ConstrainedPID::Integral_Limit |             // 积分限幅
-                control::ConstrainedPID::OutputFilter |               // 输出滤波
-                control::ConstrainedPID::Trapezoid_Intergral |        // 梯形积分
-                control::ConstrainedPID::ChangingIntegralRate |       // 变速积分
+        .deadband = 0,                                           // 死区
+        .A = 1.5 * PI,                                           // 变速积分所能达到的最大值为A+B
+        .B = 1 * PI,                                             // 启动变速积分的死区
+        .output_filtering_coefficient = 0.1,                     // 输出滤波系数
+        .derivative_filtering_coefficient = 0,                   // 微分滤波系数
+        .mode = control::ConstrainedPID::Integral_Limit |        // 积分限幅
+                control::ConstrainedPID::OutputFilter |          // 输出滤波
+                control::ConstrainedPID::Trapezoid_Intergral |   // 梯形积分
+                control::ConstrainedPID::ChangingIntegralRate |  // 变速积分
                 control::ConstrainedPID::Derivative_On_Measurement |  // 微分在测量值上
                 control::ConstrainedPID::DerivativeFilter             // 微分在测量值上
     };
     pitch_motor->ReInitPID(pitch_motor_omega_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
     // 给电机启动角度环和速度环，并且这是一个绝对角度电机，需要启动绝对角度模式
-    pitch_motor->SetMode(driver::MotorCANBase::ANGLE_LOOP_CONTROL | driver::MotorCANBase::SPEED_LOOP_CONTROL |
-                         driver::MotorCANBase::ABSOLUTE);
+    pitch_motor->SetMode(driver::MotorCANBase::ANGLE_LOOP_CONTROL |
+                         driver::MotorCANBase::SPEED_LOOP_CONTROL | driver::MotorCANBase::ABSOLUTE);
 
     /**
      * yaw motor
@@ -294,22 +289,22 @@ void init_gimbal() {
         .kd = 500,
         .max_out = 16384,  // 最大电流输出，参考说明书
         .max_iout = 2000,
-        .deadband = 0,                            // 死区
-        .A = 0.5 * PI,                            // 变速积分所能达到的最大值为A+B
-        .B = 0.5 * PI,                            // 启动变速积分的死区
-        .output_filtering_coefficient = 0.03,     // 输出滤波系数
-        .derivative_filtering_coefficient = 0.1,  // 微分滤波系数
-        .mode = control::ConstrainedPID::Integral_Limit |             // 积分限幅
-                control::ConstrainedPID::OutputFilter |               // 输出滤波
-                control::ConstrainedPID::Trapezoid_Intergral |        // 梯形积分
-                control::ConstrainedPID::ChangingIntegralRate |       // 变速积分
+        .deadband = 0,                                           // 死区
+        .A = 0.5 * PI,                                           // 变速积分所能达到的最大值为A+B
+        .B = 0.5 * PI,                                           // 启动变速积分的死区
+        .output_filtering_coefficient = 0.03,                    // 输出滤波系数
+        .derivative_filtering_coefficient = 0.1,                 // 微分滤波系数
+        .mode = control::ConstrainedPID::Integral_Limit |        // 积分限幅
+                control::ConstrainedPID::OutputFilter |          // 输出滤波
+                control::ConstrainedPID::Trapezoid_Intergral |   // 梯形积分
+                control::ConstrainedPID::ChangingIntegralRate |  // 变速积分
                 control::ConstrainedPID::Derivative_On_Measurement |  // 微分在测量值上
                 control::ConstrainedPID::DerivativeFilter             // 微分在测量值上
     };
     yaw_motor->ReInitPID(yaw_motor_omega_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
     // 给电机启动角度环和速度环，并且这是一个绝对角度电机，需要启动绝对角度模式
-    yaw_motor->SetMode(driver::MotorCANBase::ANGLE_LOOP_CONTROL | driver::MotorCANBase::SPEED_LOOP_CONTROL |
-                       driver::MotorCANBase::ABSOLUTE);
+    yaw_motor->SetMode(driver::MotorCANBase::ANGLE_LOOP_CONTROL |
+                       driver::MotorCANBase::SPEED_LOOP_CONTROL | driver::MotorCANBase::ABSOLUTE);
 
     // 初始化云台对象
     gimbal_data.pitch_motor = pitch_motor;
@@ -334,8 +329,10 @@ Gimbal_Ratio_data gimbal_remote_mode() {
             Gimbal_Ratio.yaw_ratio_ratio = -(float)dbus->ch2 / dbus->ROCKER_MAX * remote_ratio;
         }
     } else if (refereerc->IsOnline()) {
-        Gimbal_Ratio.pitch_ratio_ratio = -refereerc->remote_control.mouse.y / mouse_xy_max * mouse_ratio;
-        Gimbal_Ratio.yaw_ratio_ratio = refereerc->remote_control.mouse.x / mouse_xy_max * mouse_ratio;
+        Gimbal_Ratio.pitch_ratio_ratio =
+            -refereerc->remote_control.mouse.y / mouse_xy_max * mouse_ratio;
+        Gimbal_Ratio.yaw_ratio_ratio =
+            refereerc->remote_control.mouse.x / mouse_xy_max * mouse_ratio;
     } else {
         Gimbal_Ratio.pitch_ratio_ratio = 0;
         Gimbal_Ratio.yaw_ratio_ratio = 0;

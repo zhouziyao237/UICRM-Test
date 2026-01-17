@@ -82,6 +82,7 @@ void RM_RTOS_Default_Task(const void* args) {
     while (true) {
         set_cursor(0, 0);
         clear_screen();
+        motor1->SetTarget(0);
         // if (key.Read() == 0) {
         //     osDelay(30);
         //     if (key.Read() == 1)

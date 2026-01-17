@@ -60,7 +60,7 @@
 #define sbus_uart_post huart3
 
 #define GINBAL_DEBUG
-// #define AI_AUTO_MODE
+#define AI_AUTO_MODE
 // #define SHOOT_REAT_CONTROL
 
 // #define SBUS_MODE
