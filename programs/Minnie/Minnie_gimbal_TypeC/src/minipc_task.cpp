@@ -27,7 +27,14 @@
 #include "protocol.h"
 #include "referee_task.h"
 
-bsp::UART* minipc_uart = nullptr;
+bsp::VirtualUSB* minipc_usb = nullptr;
+
+communication::Protocol_t protocol_t = {
+    .uart = nullptr,
+    .usb = nullptr,
+};
+
+communication::ProtocolAdapterManager *MiniPCPort = nullptr;
 communication::Host* minipc = nullptr;
 
 bsp::Thread* minipc_thread = nullptr;
@@ -50,11 +57,11 @@ const bsp::thread_init_t thread_init = {
 };
 
 void init_minipc() {
-    minipc_uart = new bsp::UART(&huart6);
-    minipc_uart->SetBaudrate(921600);
-    minipc_uart->SetupRx(300);
-    minipc_uart->SetupTx(300);
-    minipc = new communication::Host(minipc_uart);
+    minipc_usb = new bsp::VirtualUSB();
+    minipc_usb->SetupRx(300);
+    minipc_usb->SetupTx(300);
+    protocol_t.usb = minipc_usb;
+    minipc = new communication::Host(protocol_t);
     minipc_thread = new bsp::Thread(thread_init);
     minipc_thread->Start();
 }

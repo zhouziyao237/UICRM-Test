@@ -20,9 +20,12 @@
 
 #pragma once
 
+#include <memory>
+
 #include "bsp_error_handler.h"
 #include "bsp_thread.h"
 #include "bsp_uart.h"
+#include "bsp_usb.h"
 #include "connection_driver.h"
 #include "dbus_package.h"
 
@@ -116,7 +119,9 @@ namespace communication {
         virtual int ProcessDataTx(int cmd_id, uint8_t* data) = 0;
     };
 
-    class UARTProtocol : public Protocol {
+    class UARTProtocol : public virtual Protocol {
+        friend class ProtocolAdapterManager;
+
       public:
         explicit UARTProtocol(bsp::UART* uart);
         ~UARTProtocol();
@@ -134,6 +139,105 @@ namespace communication {
         static void callback_thread_func_(void* args);
 
         const osThreadAttr_t callback_thread_attr_ = {.name = "ProtocolUpdateTask",
+                                                      .attr_bits = osThreadDetached,
+                                                      .cb_mem = nullptr,
+                                                      .cb_size = 0,
+                                                      .stack_mem = nullptr,
+                                                      .stack_size = 256 * 4,
+                                                      .priority = (osPriority_t)osPriorityHigh,
+                                                      .tz_module = 0,
+                                                      .reserved = 0};
+
+      protected:
+        bool ProcessDataRx(int cmd_id, const uint8_t* data, int length) override;
+        int ProcessDataTx(int cmd_id, uint8_t* data) override;
+    };
+
+    class USBProtocol : public virtual Protocol {
+        friend class ProtocolAdapterManager;
+
+      public:
+        explicit USBProtocol(bsp::VirtualUSB* USB);
+        ~USBProtocol();
+
+        package_t Transmit(int cmd_id) override;
+
+      protected:
+        bsp::VirtualUSB* usb_;
+
+      private:
+        uint8_t* read_ptr_ = nullptr;
+        uint32_t read_len_ = 0;
+        static void CallbackWrapper(void* args);
+        bsp::EventThread* callback_thread_ = nullptr;
+        static void callback_thread_func_(void* args);
+
+        const osThreadAttr_t callback_thread_attr_ = {.name = "ProtocolUpdateTask",
+                                                      .attr_bits = osThreadDetached,
+                                                      .cb_mem = nullptr,
+                                                      .cb_size = 0,
+                                                      .stack_mem = nullptr,
+                                                      .stack_size = 256 * 4,
+                                                      .priority = (osPriority_t)osPriorityHigh,
+                                                      .tz_module = 0,
+                                                      .reserved = 0};
+
+      protected:
+        bool ProcessDataRx(int cmd_id, const uint8_t* data, int length) override;
+        int ProcessDataTx(int cmd_id, uint8_t* data) override;
+    };
+
+    /* ProtocolAdapterManager for Mode */
+
+    enum ProtocolType {
+        NONE = -1,
+        UART_ONLY = 0,
+        USB_ONLY = 1,
+    };
+
+    struct Protocol_t {
+        bsp::UART* uart = nullptr;
+        bsp::VirtualUSB* usb = nullptr;
+    };
+
+    class ProtocolAdapterManager {
+      public:
+        ProtocolAdapterManager(Protocol_t protocol_t);
+        ~ProtocolAdapterManager();
+
+        // 统一的传输接口
+        package_t Transmit(int cmd_id);
+
+        // 从通信接口接收数据的统一入口
+        void HandleReceivedData(package_t package, ProtocolType source);
+
+        // 协议类型查询
+        ProtocolType GetCurrentProtocol() const {
+            return protocoltype;
+        }
+
+      private:
+        // 协议实例
+        std::unique_ptr<UARTProtocol> uart_protocol_;
+        std::unique_ptr<USBProtocol> usb_protocol_;
+
+        // 当前活跃的协议类型
+        ProtocolType protocoltype = NONE;
+
+        // 回调线程管理
+        bsp::EventThread* uart_callback_thread_ = nullptr;
+        bsp::EventThread* usb_callback_thread_ = nullptr;
+
+        // 回调函数包装器
+        static void UARTCallbackWrapper(void* args);
+        static void USBCallbackWrapper(void* args);
+
+        // 回调处理线程函数
+        static void uart_callback_thread_func_(void* args);
+        static void usb_callback_thread_func_(void* args);
+
+        // 回调线程属性
+        const osThreadAttr_t callback_thread_attr_ = {.name = "ProtocolAdapterTask",
                                                       .attr_bits = osThreadDetached,
                                                       .cb_mem = nullptr,
                                                       .cb_size = 0,
@@ -688,8 +792,8 @@ namespace communication {
         uint8_t robot_id;
         uint8_t vision_reset;      // 是否重置视觉识别
         uint8_t location_data[2];  // 裁判系统返回的位置数据，RMUL状态下为0
-        uint8_t is_killed;  // 是否被击杀，裁判系统血量为0或者触发手动kill则视为被击杀
-        uint8_t robot_mode;  // 机器人模式
+        uint8_t is_killed;         // 是否被击杀，裁判系统血量为0或者触发手动kill则视为被击杀
+        uint8_t robot_mode;        // 机器人模式
         /*
          * 1:一般跟随
          * 2:小陀螺
@@ -729,9 +833,9 @@ namespace communication {
          * */
     } __packed robot_status_upload_t;
 
-    class Host : public UARTProtocol {
+    class Host : public Protocol {
       public:
-        Host(bsp::UART* uart);
+        Host(Protocol_t protocol_t);
         pack_t pack{};
         target_angle_t target_angle{};
         no_target_flag_t no_target_flag{};
@@ -744,6 +848,7 @@ namespace communication {
         robot_status_upload_t robot_status_upload{};
 
       private:
+        ProtocolAdapterManager adapter_;
         /**
          * @brief process the data for certain command and update corresponding status variables
          *

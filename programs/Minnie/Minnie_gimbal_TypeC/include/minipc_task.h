@@ -21,5 +21,6 @@
 #pragma once
 #include "protocol.h"
 extern communication::Host* minipc;
+extern communication::ProtocolAdapterManager* MiniPCPort;
 
 void init_minipc();

@@ -75,12 +75,16 @@ void RM_Car_main_remote_mode(){
     print("\n");
     print("Mode:%s\r\n", s);
 #ifdef DBUS_MODE
-    bool flag = dbus->IsOnline();
+    print("Remote Online: %s\r\n", (dbus->IsOnline() ? "true" : "false"));
 #endif
 #ifdef SBUS_MODE
-    bool flag = sbus->IsOnline();
+    print("Remote Online: %s\r\n", (sbus->IsOnline() ? "true" : "false"));
 #endif
-    print("Remote Online: %s\r\n", (flag ? "true" : "false"));
+
+#ifdef HAS_REFEREE
+    print("Referee Online: %s\r\n", (referee->IsOnline() ? "true" : "false"));
+#endif
+
 }
 
 void RM_Car_main_data(bool newline = false){
@@ -121,7 +125,7 @@ void RM_MODEL_INIT(void) {
     init_buzzer();
     // todo:minipc卡住串口跑不了，暂时不用注释掉
     init_referee();
-    // init_minipc();
+    init_minipc();
     // 初始化遥控器与远程模式选择，遥控器类能够读取遥控器的数据
     init_remote();
     // 初始化发射机构，发射机构类能够控制发射机构的动作
@@ -134,17 +138,15 @@ void RM_MODEL_INIT(void) {
     init_ui();
 
     print("RM_ALL_INIT_OK\n");
+
 }
 
 void RM_RTOS_Init(void){
     // 设置高精度定时器以能够获取微秒级别的精度的运行时间数据
     bsp::SetHighresClockTimer(&htim5);
-    // 初始化调试串口，使print()函数能够输出调试信息
-    print("RM_RTOS_UART_INIT\n");
-    // 初始化LED灯，LED灯在需要的时候会在后台点亮
-
     // 初始化调试模式
     RM_MODEL_INIT();
+    HAL_Delay(500);
 }
 
 void RM_RTOS_Threads_Init(void) {
@@ -189,7 +191,7 @@ void RM_RTOS_Default_Task(const void* arg) {
         clear_screen();
         RM_Car_main_remote_mode();
         shoot_remote_mode();
-        RM_Car_main_data(false);
+        RM_Car_main_data(true);
         debug_gimbal(false);
         IMU_print();
         osDelay(100);

@@ -34,13 +34,13 @@ void init_referee() {
     referee = new communication::Referee(referee_uart);
 
 #ifdef UART_PRINT_LOG
-    print_use_uart(&debug_uart_post, true, 921600);
+    print_use_uart(&debug_uart_post, false, 921600);
 #else
-    // 启动裁判系统图传链路
-    refereerc_uart = new bsp::UART(&refereerc_uart_post);
-    refereerc_uart->SetupRx(300);
-    // UART7没有打开DMA发送，所以这里需要将DMA发送关闭
-    refereerc_uart->SetupTx(300, false);
-    refereerc = new communication::Referee(refereerc_uart);
+    // // 启动裁判系统图传链路
+    // refereerc_uart = new bsp::UART(&refereerc_uart_post);
+    // refereerc_uart->SetupRx(300);
+    // // UART7没有打开DMA发送，所以这里需要将DMA发送关闭
+    // refereerc_uart->SetupTx(300, false);
+    // refereerc = new communication::Referee(refereerc_uart);
 #endif
 }

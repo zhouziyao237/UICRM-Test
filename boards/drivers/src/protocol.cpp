@@ -21,7 +21,9 @@
 #include "protocol.h"
 
 #include <cstring>
+#include <memory>
 
+#include "bsp_usb.h"
 #include "crc_check.h"
 
 static const uint8_t SOF = 0xA5;
@@ -90,6 +92,8 @@ namespace communication {
     // ---------------------------------- UARTProtocol Code ---------------------------------
 
     UARTProtocol::UARTProtocol(bsp::UART* uart) : Protocol() {
+        if (uart == nullptr)
+            return;
         uart_ = uart;
         uart_->SetupRxData(&read_ptr_, &read_len_);
         uart_->RegisterCallback(CallbackWrapper, this);
@@ -116,6 +120,191 @@ namespace communication {
         package_t package = Protocol::Transmit(cmd_id);
         uart_->Write(package.data, package.length);
         return package;
+    }
+
+    // 为抽象类添加默认实现
+    bool UARTProtocol::ProcessDataRx(int cmd_id, const uint8_t* data, int length) {
+        UNUSED(cmd_id);
+        UNUSED(data);
+        UNUSED(length);
+        return false;
+    }
+
+    int UARTProtocol::ProcessDataTx(int cmd_id, uint8_t* data) {
+        UNUSED(cmd_id);
+        UNUSED(data);
+        return -1;
+    }
+
+    // ---------------------------------- USBProtocol Code ---------------------------------
+
+    USBProtocol::USBProtocol(bsp::VirtualUSB* USB) : Protocol() {
+        if (USB == nullptr)
+            return;
+        usb_ = USB;
+        usb_->SetupRxData(&read_ptr_, &read_len_);
+        usb_->RegisterCallback(CallbackWrapper, this);
+        bsp::thread_init_t thread_init = {
+            .func = callback_thread_func_,
+            .args = this,
+            .attr = callback_thread_attr_,
+        };
+        callback_thread_ = new bsp::EventThread(thread_init);
+    }
+    void USBProtocol::CallbackWrapper(void* args) {
+        USBProtocol* USB_protocol_ = reinterpret_cast<USBProtocol*>(args);
+        USB_protocol_->callback_thread_->Set();
+    }
+    void USBProtocol::callback_thread_func_(void* args) {
+        USBProtocol* USB_protocol_ = reinterpret_cast<USBProtocol*>(args);
+        USB_protocol_->Receive(
+            communication::package_t{USB_protocol_->read_ptr_, (int)USB_protocol_->read_len_});
+    }
+    USBProtocol::~USBProtocol() {
+        delete callback_thread_;
+    }
+    package_t USBProtocol::Transmit(int cmd_id) {
+        package_t package = Protocol::Transmit(cmd_id);
+        usb_->Write(package.data, package.length);
+        return package;
+    }
+
+    // 为抽象类添加默认实现
+    bool USBProtocol::ProcessDataRx(int cmd_id, const uint8_t* data, int length) {
+        UNUSED(cmd_id);
+        UNUSED(data);
+        UNUSED(length);
+        return false;
+    }
+
+    int USBProtocol::ProcessDataTx(int cmd_id, uint8_t* data) {
+        UNUSED(cmd_id);
+        UNUSED(data);
+        return -1;
+    }
+
+    // ----------------------------- ProtocolAdapterManager Code ---------------------------
+
+    // 构造函数
+    ProtocolAdapterManager::ProtocolAdapterManager(Protocol_t protocol_t) {
+        if (protocol_t.uart) {
+            uart_protocol_ = std::make_unique<UARTProtocol>(protocol_t.uart);
+            // 注册UART回调
+            protocol_t.uart->RegisterCallback(UARTCallbackWrapper, this);
+
+            // 创建UART回调线程
+            bsp::thread_init_t thread_init = {
+                .func = uart_callback_thread_func_,
+                .args = this,
+                .attr = callback_thread_attr_,
+            };
+            uart_callback_thread_ = new bsp::EventThread(thread_init);
+        }
+
+        if (protocol_t.usb) {
+            usb_protocol_ = std::make_unique<USBProtocol>(protocol_t.usb);
+            // 注册USB回调
+            protocol_t.usb->RegisterCallback(USBCallbackWrapper, this);
+
+            // 创建USB回调线程
+            bsp::thread_init_t thread_init = {
+                .func = usb_callback_thread_func_,
+                .args = this,
+                .attr = callback_thread_attr_,
+            };
+            usb_callback_thread_ = new bsp::EventThread(thread_init);
+        }
+
+        if (protocol_t.uart) {
+            protocoltype = UART_ONLY;
+        } else if (protocol_t.usb) {
+            protocoltype = USB_ONLY;
+        } else {
+            protocoltype = NONE;
+        }
+    }
+
+    // 析构函数
+    ProtocolAdapterManager::~ProtocolAdapterManager() {
+        if (uart_callback_thread_) {
+            delete uart_callback_thread_;
+        }
+        if (usb_callback_thread_) {
+            delete usb_callback_thread_;
+        }
+    }
+
+    // 统一传输接口
+    package_t ProtocolAdapterManager::Transmit(int cmd_id) {
+        switch (protocoltype) {
+            case UART_ONLY:
+                if (uart_protocol_) {
+                    return uart_protocol_->Transmit(cmd_id);
+                }
+                break;
+            case USB_ONLY:
+                if (usb_protocol_) {
+                    return usb_protocol_->Transmit(cmd_id);
+                }
+                break;
+            default:
+                break;
+        }
+        return package_t{nullptr, 0};
+    }
+
+    // 回调包装器实现
+    void ProtocolAdapterManager::UARTCallbackWrapper(void* args) {
+        ProtocolAdapterManager* adapter = reinterpret_cast<ProtocolAdapterManager*>(args);
+        if (adapter->uart_callback_thread_) {
+            adapter->uart_callback_thread_->Set();
+        }
+    }
+
+    void ProtocolAdapterManager::USBCallbackWrapper(void* args) {
+        ProtocolAdapterManager* adapter = reinterpret_cast<ProtocolAdapterManager*>(args);
+        if (adapter->usb_callback_thread_) {
+            adapter->usb_callback_thread_->Set();
+        }
+    }
+
+    // 回调线程函数实现
+    void ProtocolAdapterManager::uart_callback_thread_func_(void* args) {
+        ProtocolAdapterManager* adapter = reinterpret_cast<ProtocolAdapterManager*>(args);
+        if (adapter->uart_protocol_) {
+            // 直接使用读取指针和长度，而不是尝试获取
+            package_t package{adapter->uart_protocol_->read_ptr_, (int)adapter->uart_protocol_->read_len_};
+            adapter->HandleReceivedData(package, UART_ONLY);
+        }
+    }
+
+    // 修改 usb_callback_thread_func_ 函数
+    void ProtocolAdapterManager::usb_callback_thread_func_(void* args) {
+        ProtocolAdapterManager* adapter = reinterpret_cast<ProtocolAdapterManager*>(args);
+        if (adapter->usb_protocol_) {
+            // 直接使用读取指针和长度，而不是尝试获取
+            package_t package{adapter->usb_protocol_->read_ptr_, (int)adapter->usb_protocol_->read_len_};
+            adapter->HandleReceivedData(package, USB_ONLY);
+        }
+    }
+
+
+    // 统一数据处理入口
+    void ProtocolAdapterManager::HandleReceivedData(package_t package, ProtocolType source) {
+        switch (source) {
+            case UART_ONLY:
+                if (uart_protocol_) {
+                    uart_protocol_->Receive(package);
+                }
+                break;
+            case USB_ONLY:
+                if (usb_protocol_) {
+                    usb_protocol_->Receive(package);
+                }
+                break;
+            default:
+                break;
+        }
     }
 
     // ------------------------------------ Referee Code -----------------------------------
@@ -239,7 +428,7 @@ namespace communication {
 
     // ------------------------------------ MiniPC Code -----------------------------------
 
-    Host::Host(bsp::UART* uart) : UARTProtocol(uart) {
+    Host::Host(Protocol_t protocol_t) : Protocol(), adapter_(protocol_t) {
     }
 
     bool Host::ProcessDataRx(int cmd_id, const uint8_t* data, int length) {
