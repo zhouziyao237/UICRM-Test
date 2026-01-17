@@ -146,7 +146,7 @@ void RM_RTOS_Init(void){
     bsp::SetHighresClockTimer(&htim5);
     // 初始化调试模式
     RM_MODEL_INIT();
-    HAL_Delay(500);
+    HAL_Delay(1000);
 }
 
 void RM_RTOS_Threads_Init(void) {

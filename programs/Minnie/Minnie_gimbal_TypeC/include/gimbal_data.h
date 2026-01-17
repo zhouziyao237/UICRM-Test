@@ -31,7 +31,7 @@
 const control::gimbal_data_t gimbal_init_data = {
     .pitch_offset_ = pitch_bisa,      // 俯仰轴偏移量，使用预定义的俯仰偏差值
     .yaw_offset_ = yaw_bisa,          // 偏航轴偏移量，使用预定义的偏航偏差值
-    .pitch_max_ = 0.45f,              // 俯仰轴最大运动角度限制（弧度）
+    .pitch_max_ = 0.60f,              // 俯仰轴最大运动角度限制（弧度）
     .yaw_max_ = PI,                   // 偏航轴最大运动角度限制（弧度）
     .yaw_circle_ = true,               // 偏航轴是否支持连续旋转功能
     .pitch_inverted = true,           // 俯仰轴运动方向是否反转

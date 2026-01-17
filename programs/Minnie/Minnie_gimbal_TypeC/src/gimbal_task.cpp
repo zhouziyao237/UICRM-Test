@@ -183,6 +183,10 @@ void gimbalTask(void* arg) {
         float pitch_speed_offset = pitch_ratio;
         yaw_motor->SetSpeedOffset(yaw_speed_offset);
         pitch_motor->SetSpeedOffset(pitch_speed_offset);
+        // if (is_autoaim && minipc->IsOnline() && minipc->target_angle.target_robot_id != 0) {
+        //     gimbal->TargetAbs(-minipc->target_angle.target_pitch,
+        //     minipc->target_angle.target_yaw); gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
+        // } else {
         switch (remote_mode) {
             case REMOTE_MODE_SPIN:
                 gimbal->TargetRel(pitch_diff, yaw_diff);
@@ -212,6 +216,7 @@ void gimbalTask(void* arg) {
 
             default:
                 break;
+                // }
         }
 
         osDelay(GIMBAL_OS_DELAY);
