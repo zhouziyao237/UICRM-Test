@@ -32,13 +32,15 @@
 #define KEY_GPIO_PIN KEY_Pin
 
 // Refer to typeA datasheet for channel detail
-static bsp::CAN* can1 = nullptr;
+static bsp::CAN* can2 = nullptr;
 static driver::DMMotor* motor1 = nullptr;
+static driver::DMMotor* motor2 = nullptr;
 
 void RM_RTOS_Init() {
     print_use_uart(&huart1, true, 912600);
-    can1 = new bsp::CAN(&hcan2, true);
-    motor1 = new driver::DMMotor(can1, 0x05, 0x01, driver::MIT);
+    can2 = new bsp::CAN(&hcan2, true);
+    motor1 = new driver::DMMotor(can2, 0x05, 0x01, driver::MIT);
+    motor2 = new driver::DMMotor(can2, 0x06, 0x02, driver::MIT);
     // Snail need to be run at idle throttle for some
     // HAL_Delay(1000);
     print("test demo run");
@@ -48,25 +50,23 @@ void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
     bsp::GPIO key(KEY_GPIO_GROUP, KEY_GPIO_PIN);
     motor1->MotorEnable();
-    motor1->SetMITParams(0, 0.1, 8, 1.2, 10);  // 设置初始参数
-    motor1->TransmitOutput();
+    motor2->MotorEnable();
+    motor1->SetMITParams(0, 0.01, 12, 0.4, 10);  // 设置初始参数
+    motor2->SetMITParams(0, 0.01, 12, 0.4, 10);  // 设置初始参数
     osDelay(500);
     while (true) {
         set_cursor(0, 0);
         clear_screen();
 
         if (key.Read() == 0) {
-            osDelay(30);
-            if (key.Read() == 1) {
-                motor1->MotorEnable();
-                motor1->SetMITParams(-PI/3, 0.1, 8, 1.2, 10);  // 设置初始参数
-                motor1->TransmitOutput();
-            }
+            // motor1->SetMITParams(-1.3, 0.1, 8, 0.8, 10);
+            motor2->SetMITParams(1.3, 0.01, 12, 0.4, 10);  // 设置初始参数
+            motor1->SetMITParams(-1.3, 0.01, 12, 0.4, 10);  // 设置初始参数
         }
 
 
-        motor1->TransmitOutput();
         motor1->PrintData();
+        motor2->PrintData();
         osDelay(50);
     }
 }
