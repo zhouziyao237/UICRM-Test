@@ -48,8 +48,7 @@ void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
     bsp::GPIO key(KEY_GPIO_GROUP, KEY_GPIO_PIN);
     motor1->MotorEnable();
-    motor1->SetMITParams(0, 0.1, 8, 1.2, 10);  // 设置初始参数
-    motor1->TransmitOutput();
+    motor1->SetMITParams(0, 0.1, 12, 1.2, 10);  // 设置初始参数
     osDelay(500);
     while (true) {
         set_cursor(0, 0);
@@ -59,13 +58,10 @@ void RM_RTOS_Default_Task(const void* args) {
             osDelay(30);
             if (key.Read() == 1) {
                 motor1->MotorEnable();
-                motor1->SetMITParams(-PI/3, 0.1, 8, 1.2, 10);  // 设置初始参数
-                motor1->TransmitOutput();
+                motor1->SetMITParams(-PI/3, 0.1, 12, 1.2, 10);  // 设置初始参数
             }
         }
 
-
-        motor1->TransmitOutput();
         motor1->PrintData();
         osDelay(50);
     }
