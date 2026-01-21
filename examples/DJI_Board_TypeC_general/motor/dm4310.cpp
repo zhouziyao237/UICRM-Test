@@ -34,8 +34,8 @@ static driver::MotorDM4310* motor1 = nullptr;
 
 void RM_RTOS_Init() {
     print_use_uart(&huart1);
-    can1 = new bsp::CAN(&hcan1, true);
-    motor1 = new driver::MotorDM4310(can1, 0x301, 0x3fe);
+    can1 = new bsp::CAN(&hcan2, true);
+    motor1 = new driver::MotorDM4310(can1, 0x07, 0x03);
     motor1->SetTransmissionRatio(1);
     control::ConstrainedPID::PID_Init_t omega_pid_init = {
         .kp = 2,
@@ -55,6 +55,7 @@ void RM_RTOS_Init() {
     };
     motor1->ReInitPID(omega_pid_init, driver::MotorCANBase::ANGLE_LOOP_CONTROL);
     motor1->SetMode(driver::MotorCANBase::ANGLE_LOOP_CONTROL | driver::MotorCANBase::ABSOLUTE);
+    motor1->Enable();
     motor1->SetTarget(0);
     // Snail need to be run at idle throttle for some
     HAL_Delay(1000);
