@@ -22,6 +22,24 @@
 #include "main.h"
 
 /**
+ * @brief 将输入值从一个数值范围映射到另一个数值范围
+ *
+ * 该函数使用线性插值算法将给定的输入值从原始范围(in_min~in_max)转换到目标范围(out_min~out_max)
+ *
+ * @param value 需要进行范围映射的输入值
+ * @param in_min 输入值的最小范围边界
+ * @param in_max 输入值的最大范围边界
+ * @param out_min 输出值的最小范围边界
+ * @param out_max 输出值的最大范围边界
+ * @return 返回经过范围映射后的值，类型为模板参数T指定的类型
+ */
+template <typename T>
+T map(float value, float in_min, float in_max, float out_min, float out_max) {
+    return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+
+/**
  * @brief 将一个值限制在一个范围内
  *
  * @tparam T    值的类型

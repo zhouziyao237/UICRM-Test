@@ -40,7 +40,7 @@ void RM_RTOS_Init() {
     print_use_uart(&huart1, true, 912600);
     can2 = new bsp::CAN(&hcan2, true);
     motor1 = new driver::DMMotor(can2, 0x05, 0x01, driver::MIT);
-    motor2 = new driver::DMMotor(can2, 0x06, 0x02, driver::MIT);
+    motor2 = new driver::DMMotor(can2, 0x08, 0x04, driver::MIT);
     // Snail need to be run at idle throttle for some
     // HAL_Delay(1000);
     print("test demo run");
@@ -51,18 +51,18 @@ void RM_RTOS_Default_Task(const void* args) {
     bsp::GPIO key(KEY_GPIO_GROUP, KEY_GPIO_PIN);
     motor1->MotorEnable();
     motor2->MotorEnable();
-    motor1->SetMITParams(0, 0.01, 12, 0.4, 10);  // 设置初始参数
-    motor2->SetMITParams(0, 0.01, 12, 0.4, 10);  // 设置初始参数
+    // motor1->SetMITParams(0, 0.01, 12, 0.4, 10);  // 设置初始参数
+    // motor2->SetMITParams(0, 0.01, 12, 0.4, 10);  // 设置初始参数
     osDelay(500);
     while (true) {
         set_cursor(0, 0);
         clear_screen();
 
-        if (key.Read() == 0) {
-            // motor1->SetMITParams(-1.3, 0.1, 8, 0.8, 10);
-            motor2->SetMITParams(1.3, 0.01, 12, 0.4, 10);  // 设置初始参数
-            motor1->SetMITParams(-1.3, 0.01, 12, 0.4, 10);  // 设置初始参数
-        }
+        // if (key.Read() == 0) {
+        //     // motor1->SetMITParams(-1.3, 0.1, 8, 0.8, 10);
+        //     motor2->SetMITParams(1.3, 0.01, 12, 0.4, 10);  // 设置初始参数
+        //     motor1->SetMITParams(-1.3, 0.01, 12, 0.4, 10);  // 设置初始参数
+        // }
 
 
         motor1->PrintData();
