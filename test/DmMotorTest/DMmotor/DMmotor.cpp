@@ -19,17 +19,17 @@
 #include "DMmotor.h"
 
 #include "arm_math.h"
-#include "bsp_os.h"
-#include "utils.h"
-#include "bsp_thread.h"
 #include "bsp_error_handler.h"
+#include "bsp_os.h"
+#include "bsp_thread.h"
+#include "utils.h"
 
 namespace driver {
 
     // ==================== 静态成员初始化 ====================
     bool DMMotor::is_init_ = false;
     bsp::Thread* DMMotor::control_thread_ = nullptr;
-    uint32_t DMMotor::control_freq_ = 500;  // 默认500Hz
+    uint32_t DMMotor::control_freq_ = 500;             // 默认500Hz
     uint32_t DMMotor::control_interval_ = 1000 / 500;  // 2ms
     DMMotor::MotorGroup DMMotor::motor_groups_[DMMotor::MAX_GROUPS];
     uint8_t DMMotor::group_count_ = 0;
@@ -49,8 +49,7 @@ namespace driver {
           tx_id_base_(tx_id),
           mode_(mode),
           ctrl_state_(DISABLED),
-          protect_config_(config){
-
+          protect_config_(config) {
         // 计算实际发送ID
         switch (mode) {
             case MIT:
@@ -74,10 +73,7 @@ namespace driver {
         if (!is_init_) {
             control_interval_ = 1000 / control_freq_;  // 计算间隔时间
             bsp::thread_init_t thread_init = {
-                .func = DMMotor::ControlThread,
-                .args = nullptr,
-                .attr = DMMotor::thread_attr_
-            };
+                .func = DMMotor::ControlThread, .args = nullptr, .attr = DMMotor::thread_attr_};
             control_thread_ = new bsp::Thread(thread_init);
             control_thread_->Start();
             is_init_ = true;
@@ -91,8 +87,7 @@ namespace driver {
     void DMMotor::RegisterToControlThread() {
         // 检查是否已存在相同ID的电机
         for (uint8_t i = 0; i < group_count_; i++) {
-            if (motor_groups_[i].tx_id == tx_id_actual_ &&
-                motor_groups_[i].can == can_) {
+            if (motor_groups_[i].tx_id == tx_id_actual_ && motor_groups_[i].can == can_) {
                 // 不允许重复ID（达妙电机每个ID独立）
                 RM_ASSERT_TRUE(false, "Duplicate motor ID detected!");
                 return;
@@ -177,7 +172,8 @@ namespace driver {
                 uint32_t current_time = bsp::GetHighresTickMicroSec();
                 if (overload_start_time_ == 0) {
                     overload_start_time_ = current_time;
-                } else if (current_time - overload_start_time_ > protect_config_.overload_duration) {
+                } else if (current_time - overload_start_time_ >
+                           protect_config_.overload_duration) {
                     HandleFault(DM_FAULT_OVERLOAD);
                     return true;
                 }
@@ -223,8 +219,7 @@ namespace driver {
     }
 
     bool DMMotor::IsInFault() const {
-        return (ctrl_state_ == FAULT && fault_latched_) ||
-               (hw_state_ >= DM_FAULT_OVERVOLT);
+        return (ctrl_state_ == FAULT && fault_latched_) || (hw_state_ >= DM_FAULT_OVERVOLT);
     }
 
     // ==================== 数据打包 ====================
@@ -285,8 +280,6 @@ namespace driver {
     // ==================== 控制频率设置 ====================
     void DMMotor::SetControlFrequency(uint32_t freq) {
         RM_ASSERT_FALSE(is_init_, "Frequency must be set before creating any motor!");
-        RM_ASSERT_GE(freq, 100, "Control频率太低 (最低100Hz)");
-        RM_ASSERT_LE(freq, 1000, "控制频率太高 (最高1000Hz)");
 
         control_freq_ = freq;
         control_interval_ = 1000 / freq;
@@ -364,33 +357,35 @@ namespace driver {
 
     // ==================== 数据更新 ====================
     void DMMotor::UpdateData(const uint8_t data[]) {
-        // 反馈帧格式解析（参考说明书第6页）
-        motor_id_ = data[0] & 0x0F;
+        motor_id_ = data[0] & 0x0F;  // 电机ID (0-15)
 
         // 解析硬件状态
-        uint8_t err_byte = data[0] >> 4;
-        hw_state_ = static_cast<dm_motor_state_t>(err_byte);
+        uint8_t err_byte = data[0] >> 4;                      // 错误状态字节 (高4位)
+        hw_state_ = static_cast<dm_motor_state_t>(err_byte);  // 硬件状态 (使能/故障状态)
 
-        raw_position_ = (data[1] << 8) | data[2];
-        raw_velocity_ = (data[3] << 4) | (data[4] >> 4);
-        raw_torque_ = ((data[4] & 0x0F) << 8) | data[5];
-        raw_mos_temp_ = data[6];
-        raw_motor_temp_ = data[7];
+        raw_position_ = (data[1] << 8) | data[2];         // 原始位置数据 (16位整数)
+        raw_velocity_ = (data[3] << 4) | (data[4] >> 4);  // 原始速度数据 (12位整数)
+        raw_torque_ = ((data[4] & 0x0F) << 8) | data[5];  // 原始扭矩数据 (12位整数)
+        raw_mos_temp_ = data[6];                          // MOS管温度 (摄氏度)
+        raw_motor_temp_ = data[7];                        // 电机温度 (摄氏度)
 
         // 转换为物理量
-        current_position_ = UintToFloat(raw_position_, POS_MIN, POS_MAX, 16);
-        current_velocity_ = UintToFloat(raw_velocity_, VEL_MIN, VEL_MAX, 12);
-        current_torque_ = UintToFloat(raw_torque_, TORQUE_MIN, TORQUE_MAX, 12);
+        current_position_ =
+            UintToFloat(raw_position_, POS_MIN, POS_MAX, 16);  // 当前位置 (弧度, rad)
+        current_velocity_ =
+            UintToFloat(raw_velocity_, VEL_MIN, VEL_MAX, 12);  // 当前速度 (弧度/秒, rad/s)
+        current_torque_ =
+            UintToFloat(raw_torque_, TORQUE_MIN, TORQUE_MAX, 12);  // 当前扭矩 (牛米, Nm)
 
         // 更新控制侧状态（基于运动状态）
         if (ctrl_state_ >= WAITING && ctrl_state_ != FAULT) {
-            if (fabsf(current_velocity_) < 0.01f) {  // 速度接近0
+            if (fabsf(current_velocity_) < 0.01f) {  // 速度接近0 (小于0.01 rad/s)
                 if (ctrl_state_ == MOVING || ctrl_state_ == WAITING) {
-                    ctrl_state_ = STABLE;
+                    ctrl_state_ = STABLE;  // 切换到稳定状态
                 }
             } else {
                 if (ctrl_state_ == WAITING || ctrl_state_ == STABLE) {
-                    ctrl_state_ = MOVING;
+                    ctrl_state_ = MOVING;  // 切换到运动状态
                 }
             }
         }
@@ -400,26 +395,31 @@ namespace driver {
 
     // ==================== 调试输出 ====================
     void DMMotor::PrintData() {
-        const char* ctrl_state_str[] = {
-            "DISABLED", "ENABLED", "WAITING",
-            "MOVING", "STABLE", "FAULT"
-        };
+        const char* ctrl_state_str[] = {"DISABLED", "ENABLED", "WAITING",
+                                        "MOVING",   "STABLE",  "FAULT"};
 
-        const char* hw_state_str[] = {
-            "DISABLED", "ENABLED", "", "", "", "", "", "",
-            "OVERVOLT", "UNDERVOLT", "OVERCURRENT", "MOS_OVERTEMP",
-            "MOTOR_OVERTEMP", "COMM_LOSS", "OVERLOAD"
-        };
+        const char* hw_state_str[] = {"DISABLED",
+                                      "ENABLED",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "",
+                                      "OVERVOLT",
+                                      "UNDERVOLT",
+                                      "OVERCURRENT",
+                                      "MOS_OVERTEMP",
+                                      "MOTOR_OVERTEMP",
+                                      "COMM_LOSS",
+                                      "OVERLOAD"};
 
         print("DM Motor ID:%d ", motor_id_);
-        print("HW:%s SW:%s ",
-              hw_state_str[hw_state_],
-              ctrl_state_str[ctrl_state_]);
+        print("HW:%s SW:%s ", hw_state_str[hw_state_], ctrl_state_str[ctrl_state_]);
         print("Online:%s ", (IsOnline() ? "Yes" : "No"));
-        print("Pos:%.3frad Vel:%.3frad/s Torq:%.3fNm ",
-              current_position_, current_velocity_, current_torque_);
-        print("MOS:%dC Motor:%dC\r\n",
-              raw_mos_temp_, raw_motor_temp_);
+        print("Pos:%.3frad Vel:%.3frad/s Torq:%.3fNm ", current_position_, current_velocity_,
+              current_torque_);
+        print("MOS:%dC Motor:%dC\r\n", raw_mos_temp_, raw_motor_temp_);
     }
 
     // ==================== 数据转换函数 ====================
@@ -438,22 +438,268 @@ namespace driver {
     }
 
     // ==================== Getter函数 ====================
-    float DMMotor::GetPosition() const { return current_position_; }
-    float DMMotor::GetVelocity() const { return current_velocity_; }
-    float DMMotor::GetTorque() const { return current_torque_; }
-    dm_motor_state_t DMMotor::GetHardwareState() const { return hw_state_; }
-    DMMotor::ControlState DMMotor::GetControlState() const { return ctrl_state_; }
-    int DMMotor::GetMotorID() const { return motor_id_; }
+    float DMMotor::GetPosition() const {
+        return current_position_;
+    }
+    float DMMotor::GetVelocity() const {
+        return current_velocity_;
+    }
+    float DMMotor::GetTorque() const {
+        return current_torque_;
+    }
+    dm_motor_state_t DMMotor::GetHardwareState() const {
+        return hw_state_;
+    }
+    DMMotor::ControlState DMMotor::GetControlState() const {
+        return ctrl_state_;
+    }
+    int DMMotor::GetMotorID() const {
+        return motor_id_;
+    }
 
-    DMMotorProtectConfig DMMotor::GetProtectConfig() const { return protect_config_; }
+    DMMotorProtectConfig DMMotor::GetProtectConfig() const {
+        return protect_config_;
+    }
 
     void DMMotor::SetProtectConfig(const DMMotorProtectConfig& config) {
         protect_config_ = config;
     }
 
-    void DMMotor::RegisterFaultCallback(void (*callback)(void* instance, dm_motor_state_t fault), void* instance) {
+    void DMMotor::RegisterFaultCallback(void (*callback)(void* instance, dm_motor_state_t fault),
+                                        void* instance) {
         protect_config_.fault_callback = callback;
         protect_config_.fault_callback_instance = instance;
+    }
+
+    // --------------------------------- DMMotorMITController -------------------------------------
+
+    DMMotorMITController::DMMotorMITController(bsp::CAN* can, uint16_t rx_id, uint16_t tx_id,
+                                               DMMotorProtectConfig config)
+        : DMMotor(can, rx_id, tx_id, MIT, config) {
+        output_shaft_theta_ = 0;
+        output_shaft_omega_ = 0;
+
+        // 默认PID参数
+        omega_pid_ = control::ConstrainedPID();
+        theta_pid_ = control::ConstrainedPID();
+
+        align_angle_ = -1;  // Wait for Update to initialize
+        motor_angle_ = 0;
+        offset_angle_ = 0;
+        servo_angle_ = 0;
+        cumulated_angle_ = 0;
+        inner_wrap_detector_ = new FloatEdgeDetector(0, PI);
+        outer_wrap_detector_ = new FloatEdgeDetector(0, PI);
+
+        can->RegisterRxCallback(rx_id, can_motor_callback, this);
+    }
+
+    void DMMotorMITController::SetTarget(float target, bool override) {
+        // 设置目标值
+        // 目标值的单位取决于电机的模式
+        // 如果电机启动了角度环PID，则目标值为角度，单位为Rad
+        // 如果电机没启动角度环PID的情况下启动了速度环PID，则目标值为角速度，单位为Rad/s
+        if (mode_ & REVERSE_MOTOR_OPERATE) {
+            target = -target;
+        }
+        if (override == false && !holding_) {
+            // 如果电机没有在hold状态，则不修改目标值
+            return;
+        }
+        target_ = target;
+
+        if ((mode_ & ANGLE_LOOP_CONTROL) && (mode_ & ABSOLUTE)) {
+            target_ = wrap<float>(target_, -PI, PI);
+        }
+
+        if (mode_ & ANGLE_LOOP_CONTROL) {
+            if (!(mode_ & ABSOLUTE)) {
+                if (!holding_ && abs(target_ - GetOutputShaftTheta()) <= proximity_in_) {
+                    holding_ = true;
+                } else if (holding_ && abs(target_ - GetOutputShaftTheta()) > proximity_out_) {
+                    holding_ = false;
+                }
+            } else {
+                if (!holding_ &&
+                    abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) <= proximity_in_) {
+                    holding_ = true;
+                } else if (holding_ && abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) >
+                                           proximity_out_) {
+                    holding_ = false;
+                }
+            }
+        }
+    }
+
+    void DMMotorMITController::SetOutput(float torque) {
+        output_ = torque;
+        SetMITParams(0, 0, 0, 0, output_);
+    }
+
+    void DMMotorMITController::TorqueOutput() {
+        if (DMMotor::GetControlState() != ENABLED) {
+            SetOutput(0);
+            theta_pid_.ResetIntegral();
+            omega_pid_.ResetIntegral();
+            return;
+        }
+
+        float output = target_;
+        if (mode_ & ANGLE_LOOP_CONTROL) {
+            // 如果电机启动了角度环PID，则计算角度环PID输出
+            float theta = GetOutputShaftTheta();
+            if (mode_ & ABSOLUTE) {
+                // 如果电机启动了绝对控制模式，则直接使用角度环PID输出
+                if (abs(output - theta) > PI) {
+                    // 超过半圈，反方向走
+                    output = output > theta ? output - 2 * PI : output + 2 * PI;
+                }
+                output = theta_pid_.ComputeOutput(output, theta);
+            } else {
+                output = theta_pid_.ComputeOutput(output, theta);
+            }
+        }
+        if (mode_ & SPEED_LOOP_CONTROL) {
+            output += speed_offset_;
+            output = omega_pid_.ComputeOutput(output, GetOutputShaftOmega());
+        }
+        if (mode_ != NONE) {
+            SetOutput(output);
+        }
+    }
+
+    void DMMotorMITController::ReInitPID(control::ConstrainedPID::PID_Init_t pid_init,
+                                         uint8_t mode) {
+        if (mode & SPEED_LOOP_CONTROL) {
+            omega_pid_.Reinit(pid_init);
+        } else if (mode & ANGLE_LOOP_CONTROL) {
+            theta_pid_.Reinit(pid_init);
+        }
+    }
+
+    control::ConstrainedPID::PID_State_t DMMotorMITController::GetPIDState(uint8_t mode) const {
+        if (mode & SPEED_LOOP_CONTROL && mode_ & SPEED_LOOP_CONTROL) {
+            return omega_pid_.State();
+        } else if (mode & ANGLE_LOOP_CONTROL && mode_ & ANGLE_LOOP_CONTROL) {
+            return theta_pid_.State();
+        }
+        return control::ConstrainedPID::PID_State_t();
+    }
+
+    void DMMotorMITController::SetMode(uint8_t mode) {
+        mode_ = mode;
+    }
+
+    void DMMotorMITController::UpdateData(const uint8_t data[]) {
+        DMMotor::UpdateData(data);
+
+        // 角度速度环控制且非绝对控制模式时，需要使用统计总角度值
+        // 获取初始化时的角度值
+        if (align_angle_ < 0)
+            align_angle_ = DMMotor::current_position_;
+
+        // 如果电机角度从接近 2PI 跳到接近
+        // 0，则回绕检测器将检测到下降沿，这意味着电机在穿过编码器边界时正向正方向转动。
+        // 反之亦然，电机角度从接近 0 跃升至接近 2PI
+
+        motor_angle_ = DMMotor::current_position_ - align_angle_;
+        if (transmission_ratio_ != 1) {
+            // 获得实际的电机屁股角度
+            inner_wrap_detector_->input(motor_angle_);
+            // 输入电机屁股的角度到边界检测器
+            if (inner_wrap_detector_->negEdge())
+                // 检测到下降沿，代表电机正向转动了一整圈
+                offset_angle_ =
+                    wrap<float>(offset_angle_ + 2 * PI / transmission_ratio_, 0, 2 * PI);
+            // 更新实际的输出轴角度偏差
+            else if (inner_wrap_detector_->posEdge())
+                // 检测到上升沿，代表电机反向转动了一整圈
+                offset_angle_ =
+                    wrap<float>(offset_angle_ - 2 * PI / transmission_ratio_, 0, 2 * PI);
+            // 更新实际的输出轴角度偏差
+
+            servo_angle_ =
+                wrap<float>(offset_angle_ + motor_angle_ / transmission_ratio_, 0, 2 * PI);
+        } else {
+            servo_angle_ = wrap<float>(motor_angle_, 0, 2 * PI);
+        }
+        // 更新实际输出轴角度
+        outer_wrap_detector_->input(servo_angle_);
+        // 输入实际输出轴角度到边界检测器
+
+        // 绝对模式下不需要累积角度
+        if (!(mode_ & ABSOLUTE)) {
+            if (outer_wrap_detector_->negEdge())
+                cumulated_angle_ += 2 * PI;
+            // 检测到下降沿，代表电机输出轴正向转动了一整圈
+            else if (outer_wrap_detector_->posEdge())
+                cumulated_angle_ -= 2 * PI;
+            // 检测到上升沿，代表电机输出轴反向转动了一整圈
+        }
+
+        output_shaft_theta_ = servo_angle_ + cumulated_angle_;
+        output_shaft_omega_ = current_velocity_ / transmission_ratio_;
+
+        if (mode_ & ANGLE_LOOP_CONTROL) {
+            if (!(mode_ & ABSOLUTE)) {
+                if (!holding_ && abs(target_ - GetOutputShaftTheta()) <= proximity_in_) {
+                    holding_ = true;
+                } else if (holding_ && abs(target_ - GetOutputShaftTheta()) > proximity_out_) {
+                    holding_ = false;
+                }
+            } else {
+                if (!holding_ &&
+                    abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) <= proximity_in_) {
+                    holding_ = true;
+                } else if (holding_ && abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) >
+                                           proximity_out_) {
+                    holding_ = false;
+                }
+            }
+        }
+    }
+
+    void DMMotorMITController::SetTransmissionRatio(float ratio) {
+        // 设置电机的传动比
+        // 这里的传动比不是电机的实际传动比，而是电机与编码器的传动比
+        transmission_ratio_ = ratio;
+    }
+
+    float DMMotorMITController::GetOutputShaftTheta() const {
+        return output_shaft_theta_;
+    }
+
+    float DMMotorMITController::GetOutputShaftOmega() const {
+        return output_shaft_omega_;
+    }
+
+    float DMMotorMITController::GetTarget() const {
+        return target_;
+    }
+
+    void DMMotorMITController::Enable() {
+        DMMotor::MotorEnable();
+    }
+    void DMMotorMITController::Disable() {
+        DMMotor::MotorDisable();
+    }
+
+    bool DMMotorMITController::IsEnable() const {
+        return DMMotor::GetControlState() == ENABLED ? true : false;
+    }
+
+    bool DMMotorMITController::IsHolding() const {
+        return holding_;
+    }
+
+    void DMMotorMITController::Hold(bool override) {
+        if (!IsHolding() && mode_ & ANGLE_LOOP_CONTROL) {
+            SetTarget(GetOutputShaftTheta(), override);
+        }
+    }
+
+    void DMMotorMITController::SetSpeedOffset(float offset) {
+        speed_offset_ = offset;
     }
 
 }  // namespace driver
