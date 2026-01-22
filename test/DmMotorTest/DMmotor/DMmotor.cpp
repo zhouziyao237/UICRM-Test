@@ -40,6 +40,11 @@ namespace driver {
         motor->UpdateData(data);
     }
 
+    static void CanMITCtrlcallback(const uint8_t data[], void* args) {
+        DMMotorMITController* motor = reinterpret_cast<DMMotorMITController*>(args);
+        motor->UpdateData(data);
+    }
+
     // ==================== 构造函数 ====================
     DMMotor::DMMotor(bsp::CAN* can, uint16_t rx_id, uint16_t tx_id, dm_motor_mode_t mode,
                      DMMotorProtectConfig config)
@@ -108,7 +113,7 @@ namespace driver {
 
     // ==================== 控制线程 ====================
     void DMMotor::ControlThread(void* args) {
-        (void)args;  // 未使用
+        UNUSED(args);  // 未使用
 
         while (true) {
             // 遍历所有电机组并发送控制指令
@@ -120,6 +125,10 @@ namespace driver {
                     if (motor->CheckProtection()) {
                         // 如果存在故障，跳过发送控制指令
                         continue;
+                    }
+
+                    if (motor->MITController) {
+                        motor->TorqueOutput();
                     }
 
                     // 打包控制数据
@@ -437,6 +446,9 @@ namespace driver {
         return normalized * span + offset;
     }
 
+    void DMMotor::TorqueOutput() {
+    }
+
     // ==================== Getter函数 ====================
     float DMMotor::GetPosition() const {
         return current_position_;
@@ -476,29 +488,41 @@ namespace driver {
     DMMotorMITController::DMMotorMITController(bsp::CAN* can, uint16_t rx_id, uint16_t tx_id,
                                                DMMotorProtectConfig config)
         : DMMotor(can, rx_id, tx_id, MIT, config) {
+        // 初始化变量 - 与DJI电机保持一致
         output_shaft_theta_ = 0;
         output_shaft_omega_ = 0;
+        target_ = 0;
+        output_ = 0;
+        holding_ = false;
+        mode_ = NONE;
+        speed_offset_ = 0;
+        transmission_ratio_ = 1.0f;
+        proximity_in_ = 0.05f;  // 5度
+        proximity_out_ = 0.1f;  // 10度
 
         // 默认PID参数
         omega_pid_ = control::ConstrainedPID();
         theta_pid_ = control::ConstrainedPID();
 
-        align_angle_ = -1;  // Wait for Update to initialize
+        // 参考DJI做法：使用-1作为未初始化标记
+        align_angle_ = -1;  // 等待UpdateData初始化
         motor_angle_ = 0;
         offset_angle_ = 0;
         servo_angle_ = 0;
         cumulated_angle_ = 0;
+
+        // 注意：达妙电机范围是[-12.5, 12.5]，但实际编码器输出经过包装后是[-π, π]
+        // FloatEdgeDetector使用[0, π]范围进行边界检测（与DJI保持一致）
         inner_wrap_detector_ = new FloatEdgeDetector(0, PI);
         outer_wrap_detector_ = new FloatEdgeDetector(0, PI);
 
-        can->RegisterRxCallback(rx_id, can_motor_callback, this);
+        can->RegisterRxCallback(rx_id, CanMITCtrlcallback, this);
+
+        MITController = true;
     }
 
     void DMMotorMITController::SetTarget(float target, bool override) {
         // 设置目标值
-        // 目标值的单位取决于电机的模式
-        // 如果电机启动了角度环PID，则目标值为角度，单位为Rad
-        // 如果电机没启动角度环PID的情况下启动了速度环PID，则目标值为角速度，单位为Rad/s
         if (mode_ & REVERSE_MOTOR_OPERATE) {
             target = -target;
         }
@@ -512,21 +536,23 @@ namespace driver {
             target_ = wrap<float>(target_, -PI, PI);
         }
 
+        // 保持状态检测（仅在角度环模式下）
         if (mode_ & ANGLE_LOOP_CONTROL) {
-            if (!(mode_ & ABSOLUTE)) {
-                if (!holding_ && abs(target_ - GetOutputShaftTheta()) <= proximity_in_) {
-                    holding_ = true;
-                } else if (holding_ && abs(target_ - GetOutputShaftTheta()) > proximity_out_) {
-                    holding_ = false;
-                }
+            float current_theta = GetOutputShaftTheta();
+            float angle_diff = 0;
+
+            if (mode_ & ABSOLUTE) {
+                // 绝对模式：计算包装后的角度差
+                angle_diff = wrap<float>(target_ - current_theta, -PI, PI);
             } else {
-                if (!holding_ &&
-                    abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) <= proximity_in_) {
-                    holding_ = true;
-                } else if (holding_ && abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) >
-                                           proximity_out_) {
-                    holding_ = false;
-                }
+                // 相对模式：直接计算差值
+                angle_diff = target_ - current_theta;
+            }
+
+            if (!holding_ && fabsf(angle_diff) <= proximity_in_) {
+                holding_ = true;
+            } else if (holding_ && fabsf(angle_diff) > proximity_out_) {
+                holding_ = false;
             }
         }
     }
@@ -536,36 +562,72 @@ namespace driver {
         SetMITParams(0, 0, 0, 0, output_);
     }
 
+    // ==================== TorqueOutput函数修正（达妙专用） ====================
     void DMMotorMITController::TorqueOutput() {
-        if (DMMotor::GetControlState() != ENABLED) {
+        // 检查电机状态
+        if (DMMotor::GetControlState() == DISABLED) {
             SetOutput(0);
             theta_pid_.ResetIntegral();
             omega_pid_.ResetIntegral();
             return;
         }
 
-        float output = target_;
+        float torque_output = 0.0f;  // 最终输出的扭矩
+
+        // 1. 速度环控制（直接输出扭矩）
+        if (mode_ & SPEED_LOOP_CONTROL) {
+            // 获取当前输出轴速度
+            float current_omega = GetOutputShaftOmega();
+
+            // 速度目标值
+            float speed_target = target_;
+
+            // 加上速度前馈偏移
+            speed_target += speed_offset_;
+
+            // 计算速度环PID输出（直接输出扭矩，单位：Nm）
+            torque_output = omega_pid_.ComputeOutput(speed_target, current_omega);
+        }
+
+        // 2. 角度环控制（直接输出扭矩）
         if (mode_ & ANGLE_LOOP_CONTROL) {
-            // 如果电机启动了角度环PID，则计算角度环PID输出
-            float theta = GetOutputShaftTheta();
+            // 获取当前输出轴角度
+            float current_theta = GetOutputShaftTheta();
+
+            // 角度目标值
+            float angle_target = target_;
+
             if (mode_ & ABSOLUTE) {
-                // 如果电机启动了绝对控制模式，则直接使用角度环PID输出
-                if (abs(output - theta) > PI) {
-                    // 超过半圈，反方向走
-                    output = output > theta ? output - 2 * PI : output + 2 * PI;
-                }
-                output = theta_pid_.ComputeOutput(output, theta);
+                // 绝对模式：计算最短路径
+                float angle_diff = angle_target - current_theta;
+
+                // 包装到 [-π, π] 范围，确保走最短路径
+                float wrapped_diff = wrap<float>(angle_diff, -PI, PI);
+
+                // 使用包装后的角度作为目标
+                angle_target = current_theta + wrapped_diff;
+            }
+
+            // 计算角度环PID输出（直接输出扭矩，单位：Nm）
+            // 注意：这里和MotorCanBase一样，角度环PID输出直接就是扭矩
+            float angle_torque = theta_pid_.ComputeOutput(angle_target, current_theta);
+
+            // 如果同时开启了速度环，则角度环输出会叠加到速度环输出上
+            if (mode_ & SPEED_LOOP_CONTROL) {
+                torque_output += angle_torque;
             } else {
-                output = theta_pid_.ComputeOutput(output, theta);
+                // 如果只有角度环，直接使用角度环输出
+                torque_output = angle_torque;
             }
         }
-        if (mode_ & SPEED_LOOP_CONTROL) {
-            output += speed_offset_;
-            output = omega_pid_.ComputeOutput(output, GetOutputShaftOmega());
+
+        // 3. 如果没有启用任何控制环，输出0
+        if (mode_ == NONE) {
+            torque_output = 0;
         }
-        if (mode_ != NONE) {
-            SetOutput(output);
-        }
+
+        // 4. 设置扭矩输出
+        SetOutput(torque_output);
     }
 
     void DMMotorMITController::ReInitPID(control::ConstrainedPID::PID_Init_t pid_init,
@@ -590,68 +652,78 @@ namespace driver {
         mode_ = mode;
     }
 
-    void DMMotorMITController::UpdateData(const uint8_t data[]) {
+    void DMMotorMITController::UpdateData(const uint8_t* data) {
+        UNUSED(data);
         DMMotor::UpdateData(data);
 
-        // 角度速度环控制且非绝对控制模式时，需要使用统计总角度值
-        // 获取初始化时的角度值
-        if (align_angle_ < 0)
-            align_angle_ = DMMotor::current_position_;
+        // 将达妙电机的角度范围[-12.5, 12.5]转换为[0, 2π]范围用于记圈
+        float damiao_angle = DMMotor::current_position_;
+        float mapped_angle = (damiao_angle + DAMIAO_HALF_RANGE) * (2 * PI) / DAMIAO_RANGE;
 
-        // 如果电机角度从接近 2PI 跳到接近
-        // 0，则回绕检测器将检测到下降沿，这意味着电机在穿过编码器边界时正向正方向转动。
-        // 反之亦然，电机角度从接近 0 跃升至接近 2PI
+        if (align_angle_ < 0) {
+            align_angle_ = mapped_angle;
+        }
 
-        motor_angle_ = DMMotor::current_position_ - align_angle_;
+        // 计算相对于对齐角度的差值，映射到[0, 2π]范围
+        float relative_angle = wrap<float>(mapped_angle - align_angle_, 0, 2 * PI);
+
         if (transmission_ratio_ != 1) {
-            // 获得实际的电机屁股角度
-            inner_wrap_detector_->input(motor_angle_);
-            // 输入电机屁股的角度到边界检测器
-            if (inner_wrap_detector_->negEdge())
-                // 检测到下降沿，代表电机正向转动了一整圈
+            // 使用[0, 2π]范围的角度进行边界检测
+            inner_wrap_detector_->input(relative_angle);
+
+            if (inner_wrap_detector_->negEdge()) {
+                // 从接近2π跳到接近0，电机正向转过一圈
                 offset_angle_ =
                     wrap<float>(offset_angle_ + 2 * PI / transmission_ratio_, 0, 2 * PI);
-            // 更新实际的输出轴角度偏差
-            else if (inner_wrap_detector_->posEdge())
-                // 检测到上升沿，代表电机反向转动了一整圈
+            } else if (inner_wrap_detector_->posEdge()) {
+                // 从接近0跳到接近2π，电机反向转过一圈
                 offset_angle_ =
                     wrap<float>(offset_angle_ - 2 * PI / transmission_ratio_, 0, 2 * PI);
-            // 更新实际的输出轴角度偏差
+            }
 
             servo_angle_ =
-                wrap<float>(offset_angle_ + motor_angle_ / transmission_ratio_, 0, 2 * PI);
+                wrap<float>(offset_angle_ + relative_angle / transmission_ratio_, 0, 2 * PI);
         } else {
-            servo_angle_ = wrap<float>(motor_angle_, 0, 2 * PI);
+            servo_angle_ = wrap<float>(relative_angle, 0, 2 * PI);
         }
-        // 更新实际输出轴角度
+
+        // 外部边界检测用于累计多圈角度
         outer_wrap_detector_->input(servo_angle_);
-        // 输入实际输出轴角度到边界检测器
 
-        // 绝对模式下不需要累积角度
+        // 累计角度处理（仅在非绝对模式下）
         if (!(mode_ & ABSOLUTE)) {
-            if (outer_wrap_detector_->negEdge())
+            if (outer_wrap_detector_->negEdge()) {
+                // 从接近2π跳到接近0，输出轴正向转过一圈
                 cumulated_angle_ += 2 * PI;
-            // 检测到下降沿，代表电机输出轴正向转动了一整圈
-            else if (outer_wrap_detector_->posEdge())
+            } else if (outer_wrap_detector_->posEdge()) {
+                // 从接近0跳到接近2π，输出轴反向转过一圈
                 cumulated_angle_ -= 2 * PI;
-            // 检测到上升沿，代表电机输出轴反向转动了一整圈
+            }
         }
 
+        // 速度转换：同样使用映射方法
+        float damiao_velocity = DMMotor::current_velocity_;
+        float mapped_velocity = damiao_velocity * (2 * PI) / DAMIAO_RANGE;
+
+        // 计算最终输出轴角度（包含累计角度）
         output_shaft_theta_ = servo_angle_ + cumulated_angle_;
-        output_shaft_omega_ = current_velocity_ / transmission_ratio_;
+        output_shaft_omega_ = mapped_velocity / transmission_ratio_;
 
         if (mode_ & ANGLE_LOOP_CONTROL) {
+            // 控制逻辑中仍然使用用户友好的[-π, π]范围
+            float user_friendly_angle = wrap<float>(output_shaft_theta_, -PI, PI);
+
             if (!(mode_ & ABSOLUTE)) {
-                if (!holding_ && abs(target_ - GetOutputShaftTheta()) <= proximity_in_) {
+                if (!holding_ && abs(target_ - user_friendly_angle) <= proximity_in_) {
                     holding_ = true;
-                } else if (holding_ && abs(target_ - GetOutputShaftTheta()) > proximity_out_) {
+                } else if (holding_ && abs(target_ - user_friendly_angle) > proximity_out_) {
                     holding_ = false;
                 }
             } else {
                 if (!holding_ &&
-                    abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) <= proximity_in_) {
+                    abs(wrap<float>(target_ - user_friendly_angle, -PI, PI)) <= proximity_in_) {
                     holding_ = true;
-                } else if (holding_ && abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) >
+                } else if (holding_ && abs(wrap<float>(target_ - user_friendly_angle, -PI, PI)) >
                                            proximity_out_) {
                     holding_ = false;
                 }
@@ -700,6 +772,78 @@ namespace driver {
 
     void DMMotorMITController::SetSpeedOffset(float offset) {
         speed_offset_ = offset;
+    }
+
+    // ==================== 角度转换方法 ====================
+    float DMMotorMITController::StandardToDamiao(float standard_angle) const {
+        // 标准角度 [0, 2π] -> 达妙角度 [-12.5, 12.5]
+        // 先包装到 [0, 2π]
+        float wrapped_angle = wrap<float>(standard_angle, 0, 2 * PI);
+
+        // 将 [0, 2π] 映射到 [-12.5, 12.5]
+        // 映射公式：达妙角度 = (标准角度 / (2π)) * 25.0 - 12.5
+        constexpr float SCALE_FACTOR = DAMIAO_RANGE / (2 * PI);
+        return wrapped_angle * SCALE_FACTOR - DAMIAO_HALF_RANGE;
+    }
+
+    float DMMotorMITController::DamiaoToStandard(float damiao_angle) const {
+        // 达妙角度 [-12.5, 12.5] -> 标准角度 [0, 2π]
+        // 先包装到达妙角度范围
+        float wrapped_damiao = WrapDamiaoAngle(damiao_angle);
+
+        // 将 [-12.5, 12.5] 映射到 [0, 2π]
+        // 映射公式：标准角度 = (达妙角度 + 12.5) / 25.0 * (2π)
+        constexpr float SCALE_FACTOR = (2 * PI) / DAMIAO_RANGE;
+        return (wrapped_damiao + DAMIAO_HALF_RANGE) * SCALE_FACTOR;
+    }
+
+    float DMMotorMITController::WrapDamiaoAngle(float angle) const {
+        // 包装到达妙角度范围 [-12.5, 12.5]
+        constexpr float MIN_ANGLE = -DAMIAO_HALF_RANGE;
+        constexpr float MAX_ANGLE = DAMIAO_HALF_RANGE;
+        constexpr float RANGE = DAMIAO_RANGE;
+
+        // 确保角度在范围内
+        while (angle > MAX_ANGLE) {
+            angle -= RANGE;
+        }
+        while (angle < MIN_ANGLE) {
+            angle += RANGE;
+        }
+
+        return angle;
+    }
+
+    // ==================================== 暂存未使用函数 =====================================
+    void DMMotorMITController::SetProximityThreshold(float proximity_in, float proximity_out) {
+        proximity_in_ = proximity_in;
+        proximity_out_ = proximity_out;
+    }
+
+    float DMMotorMITController::GetOutput() const {
+        return output_;
+    }
+
+    float DMMotorMITController::GetThetaDelta(float target) const {
+        float diff = target - output_shaft_theta_;
+        return wrap<float>(diff, -PI, PI);
+    }
+
+    float DMMotorMITController::GetOmegaDelta(float target) const {
+        return target - output_shaft_omega_;
+    }
+
+    void DMMotorMITController::RegisterErrorCallback(callback_t callback, void* instance) {
+        (void)callback;
+        (void)instance;
+    }
+
+    float DMMotorMITController::GetTheta() const {
+        return DMMotor::current_position_;
+    }
+
+    float DMMotorMITController::GetOmega() const {
+        return DMMotor::current_velocity_;
     }
 
 }  // namespace driver

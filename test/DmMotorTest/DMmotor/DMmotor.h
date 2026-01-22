@@ -61,54 +61,6 @@ namespace driver {
     };
 
     /**
-     * @brief 达妙电机编码器配置结构体（根据DM-J6006-2EC说明书）
-     * @note 说明书第8页：编码器位数14位，编码器个数2，编码器类型磁编（单圈）
-     */
-    struct DMMotorEncoderConfig {
-        static constexpr uint16_t DEFAULT_RESOLUTION = 16384;  // 14位 = 2^14 = 16384
-        static constexpr float DEFAULT_MIN_ANGLE = 0.0f;       // 最小角度（rad）
-        static constexpr float DEFAULT_MAX_ANGLE = 2 * PI;     // 最大角度（rad）
-        static constexpr float DEFAULT_WRAP_LOW_THRESHOLD = 0.1f;           // 低阈值（默认0.1 rad）
-        static constexpr float DEFAULT_WRAP_HIGH_THRESHOLD = 2 * PI - 0.1f; // 高阈值（默认2π-0.1 rad）
-        static constexpr bool DEFAULT_IS_ABSOLUTE = true;      // 绝对编码器（单圈绝对位置）
-
-        uint16_t resolution = DEFAULT_RESOLUTION;          // 编码器分辨率（14位）
-        float min_angle = DEFAULT_MIN_ANGLE;               // 最小角度（rad）
-        float max_angle = DEFAULT_MAX_ANGLE;               // 最大角度（rad）
-        float wrap_low_threshold = DEFAULT_WRAP_LOW_THRESHOLD;     // 低阈值
-        float wrap_high_threshold = DEFAULT_WRAP_HIGH_THRESHOLD;   // 高阈值
-        bool is_absolute = DEFAULT_IS_ABSOLUTE;            // 是否为绝对编码器
-
-        /**
-         * @brief 验证配置的有效性
-         * @return true - 配置有效，false - 配置无效
-         */
-        bool IsValid() const {
-            return resolution > 0 &&
-                   max_angle > min_angle &&
-                   wrap_low_threshold >= min_angle &&
-                   wrap_high_threshold <= max_angle &&
-                   wrap_low_threshold < wrap_high_threshold;
-        }
-
-        /**
-         * @brief 获取编码器的角度范围
-         * @return 角度范围（rad）
-         */
-        float GetAngleRange() const {
-            return max_angle - min_angle;
-        }
-
-        /**
-         * @brief 获取默认配置（根据DM-J6006-2EC说明书）
-         * @return 默认编码器配置
-         */
-        static DMMotorEncoderConfig GetDefaultConfig() {
-            return DMMotorEncoderConfig();
-        }
-    };
-
-    /**
      * @brief 达妙4310电机操作模式（与说明书对应）
      *
      * @note 电机操作模式决定控制帧格式和使用的ID偏移量
@@ -293,6 +245,18 @@ namespace driver {
          */
         void SetVelocityParams(float velocity);
 
+        /**
+         * @brief 扭矩输出函数
+         *
+         * 该函数用于执行扭矩输出相关的操作，具体实现未在当前代码中提供。
+         * 函数可能涉及电机控制、力矩调节或其他与扭矩相关的输出功能。
+         *
+         * @param 无参数
+         *
+         * @return 无返回值
+         */
+        virtual void TorqueOutput();
+
         // === 数据转换工具函数 ===
 
         /**
@@ -323,6 +287,8 @@ namespace driver {
         volatile float current_position_ = 0;  // 单位：rad
         volatile float current_velocity_ = 0;  // 单位：rad/s
         volatile float current_torque_ = 0;    // 单位：Nm
+
+        bool MITController = false;
 
       private:
         bsp::CAN* can_;
@@ -463,6 +429,15 @@ namespace driver {
          */
         void SetMode(uint8_t mode);
 
+        /**
+         * @brief 更新数据
+         *
+         * 该函数用于更新内部数据缓冲区，使用提供的字节数组替换当前数据
+         *
+         * @param data 指向要更新的数据字节数组的指针，数组内容将被复制到内部存储
+         *
+         * @return 无返回值
+         */
         void UpdateData(const uint8_t data[]);
 
         /**
@@ -525,8 +500,7 @@ namespace driver {
          *
          * @note proximity_out应大于proximity_in
          */
-        // todo:暂时先实现速度和位置控制先
-        // void SetProximityThreshold(float proximity_in, float proximity_out);
+        void SetProximityThreshold(float proximity_in, float proximity_out);
 
         /**
          * @brief 设置力矩前馈偏移（对应MotorCANBase的SetOutput）
@@ -538,8 +512,7 @@ namespace driver {
         /**
          * @brief 获取当前设置的力矩值
          */
-        // todo:暂时先实现速度和位置控制先
-        // float GetOutput() const;
+        float GetOutput() const;
 
         /**
          * @brief 设置速度前馈偏移
@@ -566,7 +539,7 @@ namespace driver {
         bool IsEnable() const;
 
         /**
-         * @brief 获取输出轴角度（考虑减速比和转圈数，与MotorCANBase完全一致）
+         * @brief 获取输出轴角度（考虑减速比，与MotorCANBase完全一致）
          */
         float GetOutputShaftTheta() const;
 
@@ -613,61 +586,6 @@ namespace driver {
          */
         float GetOmega() const;
 
-        // === 编码器配置和转圈计数相关 ===
-
-        /**
-         * @brief 设置编码器配置
-         * @param config 编码器配置
-         * @return true - 设置成功，false - 配置无效
-         * @note 默认使用DM-J6006-2EC的配置：14位绝对编码器
-         */
-        bool SetEncoderConfig(const DMMotorEncoderConfig& config);
-
-        /**
-         * @brief 获取当前编码器配置
-         */
-        DMMotorEncoderConfig GetEncoderConfig() const;
-
-        /**
-         * @brief 设置转圈检测阈值
-         * @param low_threshold 低阈值（默认0.1 rad）
-         * @param high_threshold 高阈值（默认2π-0.1 rad）
-         * @return true - 设置成功
-         */
-        bool SetWrapThreshold(float low_threshold, float high_threshold);
-
-        /**
-         * @brief 获取输出轴累计转圈数（考虑减速比）
-         * @return 累计转圈数
-         */
-        float GetCumulativeTurns() const;
-
-        /**
-         * @brief 获取电机轴累计转圈数（不考虑减速比）
-         * @return 电机轴累计转圈数
-         */
-        float GetMotorTurns() const;
-
-        /**
-         * @brief 获取输出轴总角度（考虑减速比和转圈数）
-         * @return 总角度（rad）
-         */
-        float GetTotalOutputShaftAngle() const;
-
-        /**
-         * @brief 重置转圈计数（将当前位置设为0圈）
-         * @note 只重置转圈计数，不改变当前角度位置
-         */
-        void ResetTurnCounter();
-
-        /**
-         * @brief 设置位置环接近阈值（用于保持状态检测）
-         * @param proximity_in 进入保持状态的角度阈值[rad]
-         * @param proximity_out 退出保持状态的角度阈值[rad]
-         * @note 默认值：proximity_in = 0.05 rad, proximity_out = 0.1 rad
-         */
-        void SetProximityThreshold(float proximity_in, float proximity_out);
-
       private:
         uint8_t mode_;  // 当前控制模式
         float target_;  // 当前目标值
@@ -677,18 +595,6 @@ namespace driver {
         // PID控制器（与MotorCANBase使用相同的类）
         control::ConstrainedPID omega_pid_;  // 速度环PID（对应MotorCANBase的omega_pid_）
         control::ConstrainedPID theta_pid_;  // 角度环PID（对应MotorCANBase的theta_pid_）
-
-        // 编码器配置
-        DMMotorEncoderConfig encoder_config_;  // 编码器配置（根据说明书）
-
-        // 转圈计数相关
-        float cumulative_turns_;          // 输出轴累计转圈数（考虑减速比）
-        float motor_cumulative_turns_;    // 电机轴累计转圈数
-        float total_output_shaft_angle_;  // 输出轴总角度（rad）
-
-        // 位置控制相关
-        float proximity_in_ = 0.05f;   // 进入保持状态阈值[rad]（默认0.05 rad）
-        float proximity_out_ = 0.1f;   // 退出保持状态阈值[rad]（默认0.1 rad）
 
         // angle control
         volatile float align_angle_ = 0;  /* 对齐角度，开机时的角度，单位为[rad] */
@@ -701,20 +607,28 @@ namespace driver {
         // 前馈偏移
         float speed_offset_;  // 速度前馈偏移（与MotorCANBase一致）
 
+        // 位置控制参数（与MotorCANBase保持一致）
+        float proximity_in_;   // 进入保持状态阈值[rad]
+        float proximity_out_;  // 退出保持状态阈值[rad]
+
         // 减速比相关（与MotorCANBase保持一致）
-        float transmission_ratio_ = 1.0f;      // 减速比（默认1:1）
-        float output_shaft_theta_;             // 输出轴角度（单圈内）
-        float output_shaft_omega_;             // 输出轴角速度
+        float transmission_ratio_;                // 减速比
+        float power_on_angle_;                    // 上电角度
+        float relative_angle_;                    // 相对角度
+        float cumulated_turns_;                   // 累计圈数
+        float output_shaft_theta_;                // 输出轴角度
+        float output_shaft_omega_;                // 输出轴角速度
+        FloatEdgeDetector* inner_wrap_detector_;  // 内部边界检测器
+        FloatEdgeDetector* outer_wrap_detector_;  // 外部边界检测器
 
-        // 边界检测器（用于检测角度边界跳变）
-        FloatEdgeDetector* inner_wrap_detector_;  // 电机轴边界检测
-        FloatEdgeDetector* outer_wrap_detector_;  // 输出轴边界检测
+        // 角度转换常量
+        static constexpr float DAMIAO_RANGE = 25.0f;       // 达妙角度总范围
+        static constexpr float DAMIAO_HALF_RANGE = 12.5f;  // 达妙角度半范围
 
-        // 私有方法
-        void UpdateWrapDetectors();           // 更新边界检测器配置
-        void ProcessAngleWrap(float normalized_angle); // 处理角度边界跳变
-        float NormalizeAngle(float angle) const;       // 角度归一化
-
+        // 角度转换方法
+        float StandardToDamiao(float standard_angle) const;  // 标准角度到达妙角度
+        float DamiaoToStandard(float damiao_angle) const;    // 达妙角度到标准角度
+        float WrapDamiaoAngle(float angle) const;            // 包装达妙角度到[-12.5, 12.5]
     };
 
 }  // namespace driver
