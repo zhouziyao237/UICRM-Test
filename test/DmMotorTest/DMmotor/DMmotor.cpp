@@ -43,8 +43,6 @@ namespace driver {
     static void CanMITCtrlcallback(const uint8_t data[], void* args) {
         DMMotorMITController* motor = reinterpret_cast<DMMotorMITController*>(args);
         motor->DMMotor::UpdateData(data);
-        if (!motor->is_init)
-            motor->GetInitEncoder();
         motor->UpdateData();
     }
 
@@ -391,19 +389,14 @@ namespace driver {
         current_torque_ =
             UintToFloat(raw_torque_, TORQUE_MIN, TORQUE_MAX, 12);  // 当前扭矩 (牛米, Nm)
 
-        // 计算缩放因子：2π / DAMIAO_RANGE
-        constexpr float SCALE_FACTOR = 2 * PI / DMMotor::DAMIAO_RANGE;
         int full_cycles = int(DMMotor::current_position_ / DMMotor::DAMIAO_RANGE);
 
-        // 将 0-DAMIAO_RANGE 范围的角度转换为 0-2π 范围
+        // todo: absolute_position_的范围在 [0, DAMIAO_RANGE] 间
         if (full_cycles > 0) {
             absolute_position_ = current_position_ - full_cycles * DMMotor::DAMIAO_RANGE;
         } else {
             absolute_position_ = current_position_;
         }
-
-        // 使用比例缩放，类似 Motor6020 中 theta_ = raw_theta * THETA_SCALE 的方式
-        absolute_position_ = absolute_position_ * SCALE_FACTOR;
 
         // 更新控制侧状态（基于运动状态）
         if (ctrl_state_ >= WAITING && ctrl_state_ != FAULT) {
@@ -445,7 +438,7 @@ namespace driver {
         print("DM Motor ID:%d ", motor_id_);
         print("HW:%s SW:%s ", hw_state_str[hw_state_], ctrl_state_str[ctrl_state_]);
         print("Online:%s ", (IsOnline() ? "Yes" : "No"));
-        print("Pos:%.3frad Vel:%.3frad/s Torq:%.3fNm ", current_position_, current_velocity_,
+        print("Pos:%.3frad AbsPos:%.3frad Vel:%.3frad/s Torq:%.3fNm ", current_position_, absolute_position_,  current_velocity_,
               current_torque_);
         print("MOS:%dC Motor:%dC\r\n", raw_mos_temp_, raw_motor_temp_);
     }
@@ -529,8 +522,8 @@ namespace driver {
         servo_angle_ = 0;
         cumulated_angle_ = 0;
 
-        inner_wrap_detector_ = new FloatEdgeDetector(0, PI);
-        outer_wrap_detector_ = new FloatEdgeDetector(0, PI);
+        inner_wrap_detector_ = new FloatEdgeDetector(0, DAMIAO_HALF_RANGE);
+        outer_wrap_detector_ = new FloatEdgeDetector(0, DAMIAO_HALF_RANGE);
 
         can->RegisterRxCallback(rx_id, CanMITCtrlcallback, this);
 
@@ -538,9 +531,11 @@ namespace driver {
     }
 
     void DMMotorMITController::GetInitEncoder() {
-        align_angle_ = int(DMMotor::current_position_ / DMMotor::DAMIAO_RANGE);
-        if (align_angle_)
-            align_angle_ = -1;
+        int full_cycles = int(DMMotor::current_position_ / DMMotor::DAMIAO_RANGE);
+        // todo: absolute_position_的范围在 [0, DAMIAO_RANGE] 间
+        if (full_cycles > 0) {
+            align_angle_ = full_cycles * DMMotor::DAMIAO_RANGE;
+        }
         if (!is_init)
             is_init = true;
     }
@@ -560,7 +555,7 @@ namespace driver {
         target_ = target;
 
         if ((mode_ & ANGLE_LOOP_CONTROL) && (mode_ & ABSOLUTE)) {
-            target_ = wrap<float>(target_, -PI, PI);
+            target_ = wrap<float>(target_, -DAMIAO_HALF_RANGE, DAMIAO_HALF_RANGE);
         }
 
         if (mode_ & ANGLE_LOOP_CONTROL) {
@@ -572,9 +567,9 @@ namespace driver {
                 }
             } else {
                 if (!holding_ &&
-                    abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) <= proximity_in_) {
+                    abs(wrap<float>(target_ - GetOutputShaftTheta(), -DAMIAO_HALF_RANGE, DAMIAO_HALF_RANGE)) <= proximity_in_) {
                     holding_ = true;
-                } else if (holding_ && abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) >
+                } else if (holding_ && abs(wrap<float>(target_ - GetOutputShaftTheta(), -DAMIAO_HALF_RANGE, DAMIAO_HALF_RANGE)) >
                                            proximity_out_) {
                     holding_ = false;
                 }
@@ -603,9 +598,9 @@ namespace driver {
             float theta = GetOutputShaftTheta();
             if (mode_ & ABSOLUTE) {
                 // 如果电机启动了绝对控制模式，则直接使用角度环PID输出
-                if (abs(output - theta) > PI) {
+                if (abs(output - theta) > DAMIAO_HALF_RANGE) {
                     // 超过半圈，反方向走
-                    output = output > theta ? output - 2 * PI : output + 2 * PI;
+                    output = output > theta ? output - DAMIAO_RANGE : output + DAMIAO_RANGE;
                 }
                 output = theta_pid_.ComputeOutput(output, theta);
             } else {
@@ -662,18 +657,18 @@ namespace driver {
             if (inner_wrap_detector_->negEdge())
                 // 检测到下降沿，代表电机正向转动了一整圈
                 offset_angle_ =
-                    wrap<float>(offset_angle_ + 2 * PI / transmission_ratio_, 0, 2 * PI);
+                    wrap<float>(offset_angle_ + DAMIAO_RANGE / transmission_ratio_, 0, DAMIAO_RANGE);
             // 更新实际的输出轴角度偏差
             else if (inner_wrap_detector_->posEdge())
                 // 检测到上升沿，代表电机反向转动了一整圈
                 offset_angle_ =
-                    wrap<float>(offset_angle_ - 2 * PI / transmission_ratio_, 0, 2 * PI);
+                    wrap<float>(offset_angle_ - DAMIAO_RANGE / transmission_ratio_, 0, DAMIAO_RANGE);
             // 更新实际的输出轴角度偏差
 
             servo_angle_ =
-                wrap<float>(offset_angle_ + motor_angle_ / transmission_ratio_, 0, 2 * PI);
+                wrap<float>(offset_angle_ + motor_angle_ / transmission_ratio_, 0, DAMIAO_RANGE);
         } else {
-            servo_angle_ = wrap<float>(motor_angle_, 0, 2 * PI);
+            servo_angle_ = wrap<float>(motor_angle_, 0, DAMIAO_RANGE);
         }
         // 更新实际输出轴角度
         outer_wrap_detector_->input(servo_angle_);
@@ -682,10 +677,10 @@ namespace driver {
         // 绝对模式下不需要累积角度
         if (!(mode_ & ABSOLUTE)) {
             if (outer_wrap_detector_->negEdge())
-                cumulated_angle_ += 2 * PI;
+                cumulated_angle_ += DAMIAO_RANGE;
             // 检测到下降沿，代表电机输出轴正向转动了一整圈
             else if (outer_wrap_detector_->posEdge())
-                cumulated_angle_ -= 2 * PI;
+                cumulated_angle_ -= DAMIAO_RANGE;
             // 检测到上升沿，代表电机输出轴反向转动了一整圈
         }
 
@@ -701,9 +696,9 @@ namespace driver {
                 }
             } else {
                 if (!holding_ &&
-                    abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) <= proximity_in_) {
+                    abs(wrap<float>(target_ - GetOutputShaftTheta(), -DAMIAO_HALF_RANGE, DAMIAO_HALF_RANGE)) <= proximity_in_) {
                     holding_ = true;
-                } else if (holding_ && abs(wrap<float>(target_ - GetOutputShaftTheta(), -PI, PI)) >
+                } else if (holding_ && abs(wrap<float>(target_ - GetOutputShaftTheta(), -DAMIAO_HALF_RANGE, DAMIAO_HALF_RANGE)) >
                                            proximity_out_) {
                     holding_ = false;
                 }
