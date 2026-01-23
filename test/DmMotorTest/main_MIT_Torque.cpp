@@ -36,46 +36,47 @@ static driver::DMMotorMITController* motor1 = nullptr;
 
 void RM_RTOS_Init() {
     print_use_uart(&huart1, true, 912600);
-    can2 = new bsp::CAN(&hcan2, true);
-    motor1 = new driver::DMMotorMITController(can2, 0x08, 0x04);
+    can2 = new bsp::CAN(&hcan2, false);
+    motor1 = new driver::DMMotorMITController(can2, 0x05, 0x01);
     motor1->SetTransmissionRatio(1);
+
     control::ConstrainedPID::PID_Init_t omega_pid_init = {
-        .kp = 0.2,                                // 降低Kp，减速箱有放大效应
-        .ki = 0.0,                                // 进一步降低，避免积分饱和
-        .kd = 0.2,                                // 增加Kd，抑制减速箱间隙震荡
-        .max_out = 10000,                         // 降低最大输出（针对输出轴）
-        .max_iout = 2000,                         // 降低积分限幅
-        .deadband = 0.01,                         // 增加小死区，避免微震荡
-        .A = 0.5 * PI,                            // 进一步减小变速积分范围
-        .B = 0.3 * PI,                            // 减小启动死区
-        .output_filtering_coefficient = 0.3,      // 提高输出滤波
-        .derivative_filtering_coefficient = 0.2,  // 提高微分滤波
-        .mode = control::ConstrainedPID::Integral_Limit | control::ConstrainedPID::OutputFilter |
-                control::ConstrainedPID::Trapezoid_Intergral |
-                control::ConstrainedPID::ChangingIntegralRate,
+        .kp = 8.0,        // 降低Kp，避免速度环输出过大
+        .ki = 0,        // 降低Ki，减少积分饱和风险
+        .kd = 2,        // 适当微分抑制震荡
+        .max_out = 1200,  // 降低最大输出，留出安全余量 (todo: 输出范围缩放 100)
+        .max_iout = 200,    // 限制积分项
+        .deadband = 0, // 小死区提高灵敏度
+        .A = 0.5 * PI,    // 缩小变速积分范围
+        .B = 0.2 * PI,    // 降低启动死区
+        .output_filtering_coefficient = 0.1, // 增强滤波平滑输出
+        .derivative_filtering_coefficient = 0.0,
+        .mode = control::ConstrainedPID::Integral_Limit |       // 积分限幅
+                control::ConstrainedPID::OutputFilter |         // 输出滤波
+                control::ConstrainedPID::Trapezoid_Intergral |  // 梯形积分
+                control::ConstrainedPID::ChangingIntegralRate,  // 变速积分
     };
 
     control::ConstrainedPID::PID_Init_t theta_pid_init = {
-        .kp = 1,         // 角度环Kp可以稍高
-        .ki = 0.0,       // 角度环通常不需要积分（用速度环积分）
-        .kd = 0.5,       // 角度环需要更强微分
-        .max_out = 5.0,  // 角度环输出是速度指令（rad/s）
-        .max_iout = 1.0,
-        .deadband = 0.005,  // 小角度死区
-        .A = 0.2 * PI,      // 很小范围的变速积分
-        .B = 0.1 * PI,
-        .output_filtering_coefficient = 0.2,
-        .derivative_filtering_coefficient = 0.15,
-        .mode = control::ConstrainedPID::Integral_Limit | control::ConstrainedPID::OutputFilter |
-                control::ConstrainedPID::Trapezoid_Intergral |
-                control::ConstrainedPID::ChangingIntegralRate,
+        .kp = 12,        // 降低Kp，避免位置环输出过大
+        .ki = 0,        // 小积分消除静差
+        .kd = 4,       // 小微分抑制震荡
+        .max_out = 6 * 12.5f/2,  // 降低位置环最大输出，为速度环留出空间
+        .max_iout = 0,    // 限制积分项
+        .deadband = 0, // 提高灵敏度
+        .A = 1.5 * PI,            // 关闭变速积分避免突变
+        .B = 1 * PI,           // 关闭变速积分
+        .output_filtering_coefficient = 0.1,
+        .derivative_filtering_coefficient = 0,
+        .mode = control::ConstrainedPID::OutputFilter  // 输出滤波
     };
 
     motor1->ReInitPID(omega_pid_init, driver::DMMotorMITController::SPEED_LOOP_CONTROL);
     motor1->ReInitPID(theta_pid_init, driver::DMMotorMITController::ANGLE_LOOP_CONTROL);
 
     motor1->SetMode(driver::DMMotorMITController::ANGLE_LOOP_CONTROL |
-                    driver::DMMotorMITController::SPEED_LOOP_CONTROL);
+                    driver::DMMotorMITController::SPEED_LOOP_CONTROL |
+                    driver::DMMotorMITController::MOTOR_TORQUE_REVERSE);
     // Snail need to be run at idle throttle for some
     HAL_Delay(1000);
     print("test demo run");
@@ -91,7 +92,7 @@ void RM_RTOS_Default_Task(const void* args) {
         clear_screen();
 
         if (key.Read() == 0) {
-            motor1->SetTarget(PI);  // 设置初始参数
+            motor1->SetTarget(0.2);  // 设置初始参数
         }
 
         motor1->PrintData();

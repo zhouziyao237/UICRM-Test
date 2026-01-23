@@ -24,6 +24,8 @@
 #include "pid.h"
 #include "utils.h"
 
+#define TORQUE_REVERSE_MODE
+
 namespace driver {
 
     /**
@@ -284,11 +286,28 @@ namespace driver {
         volatile int16_t raw_motor_temp_ = 0;
 
         // 解码后的物理量
-        volatile float current_position_ = 0;  // 单位：rad
-        volatile float current_velocity_ = 0;  // 单位：rad/s
-        volatile float current_torque_ = 0;    // 单位：Nm
+        volatile float absolute_position_ = 0;  // 单位：rad
+        volatile float current_position_ = 0;   // 单位：rad
+        volatile float current_velocity_ = 0;   // 单位：rad/s
+        volatile float current_torque_ = 0;     // 单位：Nm
 
         bool MITController = false;
+
+        // 角度转换常量
+        // todo: 多圈绝对值编码器所以实际一圈是1/4的全部总和圈数
+        static constexpr float DAMIAO_HALF_RANGE = 12.5 / 4;  // 达妙角度总范围
+
+        // 参数映射范围（与说明书一致）
+        constexpr static float KP_MIN = 0;
+        constexpr static float KP_MAX = 500;
+        constexpr static float KD_MIN = 0;
+        constexpr static float KD_MAX = 5;
+        constexpr static float POS_MIN = -12.5f;
+        constexpr static float POS_MAX = 12.5f;
+        constexpr static float VEL_MIN = -45.0f;
+        constexpr static float VEL_MAX = 45.0f;
+        constexpr static float TORQUE_MIN = -12.0f;
+        constexpr static float TORQUE_MAX = 12.0f;
 
       private:
         bsp::CAN* can_;
@@ -314,18 +333,6 @@ namespace driver {
         uint32_t overload_start_time_ = 0;                    // 过载开始时间
         bool fault_latched_ = false;                          // 故障锁定标志
         dm_motor_state_t latched_fault_ = DM_STATE_DISABLED;  // 锁定的故障类型
-
-        // 参数映射范围（与说明书一致）
-        constexpr static float KP_MIN = 0;
-        constexpr static float KP_MAX = 500;
-        constexpr static float KD_MIN = 0;
-        constexpr static float KD_MAX = 5;
-        constexpr static float POS_MIN = -12.5f;
-        constexpr static float POS_MAX = 12.5f;
-        constexpr static float VEL_MIN = -45.0f;
-        constexpr static float VEL_MAX = 45.0f;
-        constexpr static float TORQUE_MIN = -18.0f;
-        constexpr static float TORQUE_MAX = 18.0f;
 
         // === 自动发送线程相关 ===
 
@@ -403,6 +410,7 @@ namespace driver {
             ANGLE_LOOP_CONTROL = 0x02,     // 角度环控制（与DJI保持一致）
             SPEED_LOOP_CONTROL = 0x04,     // 速度环控制（与DJI保持一致）
             REVERSE_MOTOR_OPERATE = 0x40,  // 反转电机方向（与DJI保持一致）
+            MOTOR_TORQUE_REVERSE = 0x70,   // 扭矩输出电机反方向
             ABSOLUTE = 0x80,               // 绝对位置模式（与DJI保持一致）
         };
 
@@ -609,12 +617,13 @@ namespace driver {
         // 前馈偏移
         float speed_offset_;  // 速度前馈偏移（与MotorCANBase一致）
 
+        float CONTROL_SCALE = 100; // (todo: 输出范围缩放 100)
+
         // 位置控制参数（与MotorCANBase保持一致）
         float proximity_in_;   // 进入保持状态阈值[rad]
         float proximity_out_;  // 退出保持状态阈值[rad]
 
         // 减速比相关（与MotorCANBase保持一致）
-        volatile float absolute_position_ = 0;    // 单位：rad
         float transmission_ratio_;                // 减速比
         float power_on_angle_;                    // 上电角度
         float relative_angle_;                    // 相对角度
@@ -623,11 +632,6 @@ namespace driver {
         float output_shaft_omega_;                // 输出轴角速度
         FloatEdgeDetector* inner_wrap_detector_;  // 内部边界检测器
         FloatEdgeDetector* outer_wrap_detector_;  // 外部边界检测器
-
-        // 角度转换常量
-        // todo: 多圈绝对值编码器所以实际一圈是1/4的全部总和圈数
-        static constexpr float DAMIAO_RANGE = 25.0f / 4;       // 达妙角度总范围
-        static constexpr float DAMIAO_HALF_RANGE = 25.0f / 8;  // 达妙角度半范围
     };
 
 }  // namespace driver
