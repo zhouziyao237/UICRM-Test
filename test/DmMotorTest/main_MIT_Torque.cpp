@@ -76,6 +76,7 @@ void RM_RTOS_Init() {
 
     motor1->SetMode(driver::DMMotorMITController::ANGLE_LOOP_CONTROL |
                     driver::DMMotorMITController::SPEED_LOOP_CONTROL |
+                    driver::DMMotorMITController::ABSOLUTE |
                     driver::DMMotorMITController::MOTOR_TORQUE_REVERSE);
     // Snail need to be run at idle throttle for some
     HAL_Delay(1000);
@@ -92,7 +93,7 @@ void RM_RTOS_Default_Task(const void* args) {
         clear_screen();
 
         if (key.Read() == 0) {
-            motor1->SetTarget(0.2);  // 设置初始参数
+            motor1->SetTarget(PI);  // 设置初始参数
         }
 
         motor1->PrintData();

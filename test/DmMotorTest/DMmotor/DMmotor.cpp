@@ -658,9 +658,9 @@ namespace driver {
         if (align_angle_ < 0)
             align_angle_ = DMMotor::absolute_position_;
 
-        // 如果电机角度从接近 2PI 跳到接近
+        // 如果电机角度从接近 2DAMIAO_HALF_RANGE 跳到接近
         // 0，则回绕检测器将检测到下降沿，这意味着电机在穿过编码器边界时正向正方向转动。
-        // 反之亦然，电机角度从接近 0 跃升至接近 2PI
+        // 反之亦然，电机角度从接近 0 跃升至接近 2DAMIAO_HALF_RANGE
 
         motor_angle_ = DMMotor::absolute_position_ - align_angle_;
         if (transmission_ratio_ != 1) {
