@@ -1,12 +1,5 @@
 
-function result = inverseKinematics(Model, x, y, y_direction)
-    % 五连杆机构逆运动学计算
-    % 输入:
-    %   Model - 机构参数结构体
-    %   x, y - 末端执行器坐标
-    %   y_direction - Y轴方向（可选）
-    %                0 - Y轴向上（默认）
-    %                1 - Y轴向下
+function result = inverseKinematics(Model, x, y)
     
     %   alpha _______ beta
     %        /   L5  \ 
@@ -15,18 +8,6 @@ function result = inverseKinematics(Model, x, y, y_direction)
     %        \       /
     %    L4   \     /   L2
     %          \___/
-
-    % 默认Y轴向上
-    if nargin < 4
-        y_direction = 0;
-    end
-    
-    % 根据Y轴方向调整y坐标
-    if y_direction == 1
-        y_eff = -y;  % Y轴向下时，y坐标取反
-    else
-        y_eff = y;   % Y轴向上时，y坐标不变
-    end
     
     alpha_tmp = [0, 0];
     beta_tmp = [0, 0];
