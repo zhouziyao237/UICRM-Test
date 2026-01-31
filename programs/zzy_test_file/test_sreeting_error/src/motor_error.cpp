@@ -22,7 +22,7 @@
 
 #include "motor_error.h"
 
-#include "../../../../boards/platform/stm32h7/include/bsp_os.h"
+#include "bsp_os.h"
 
 namespace error {
 

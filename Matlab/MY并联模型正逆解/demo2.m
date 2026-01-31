@@ -1,11 +1,11 @@
 function IKAnimate()
     % 定义机构参数
-    Model.L1 = 55;
-    Model.L3 = 55;
+    Model.L1 = 65;
+    Model.L3 = 65;
 
-    Model.L2 = 80;
-    Model.L4 = 80;
-    Model.L5 = 60;
+    Model.L2 = 90;
+    Model.L4 = 90;
+    Model.L5 = 70;
 
     % 轨迹生成
     t = linspace(-10, 118, 128);
@@ -80,6 +80,14 @@ function IKAnimate()
     hL2Text = text(0, 0, '', 'FontSize', 10, 'Color', 'g', 'BackgroundColor', 'w');
     hL5Text = text(0, 0, '', 'FontSize', 10, 'Color', 'k', 'BackgroundColor', 'w');
 
+    % 初始化中间中点到足端的连线和标注
+    hMidpointLine = plot(NaN, NaN, 'm--', 'LineWidth', 2, 'DisplayName', '中点到足端');
+    hMidpoint = plot(NaN, NaN, 'mo', 'MarkerSize', 10, 'MarkerFaceColor', 'm', 'DisplayName', '中点');
+    hMidpointText = text(0, 0, 'M', 'FontSize', 12, 'FontWeight', 'bold', 'Color', 'm');
+    hMidpointDistText = text(0, 0, '', 'FontSize', 10, 'Color', 'm', 'BackgroundColor', 'w');
+    hMidpointAngleText = text(0, 0, '', 'FontSize', 10, 'Color', 'm', 'BackgroundColor', 'w');
+    hMidpointArc = plot(NaN, NaN, 'm--', 'LineWidth', 1);
+
     % 开始动画
     while true
         for i = 1:length(X_traj)
@@ -97,6 +105,14 @@ function IKAnimate()
             D = [Model.L5, 0];                     % 右侧基座
             C = [D(1) + Model.L1 * cos(selected.beta), D(2) + Model.L1 * sin(selected.beta)]; % 右侧主动关节末端
 
+            % 计算中间中点
+            M = [(O(1)+D(1))/2, (O(2)+D(2))/2];  % 中间中点
+            
+            % 计算中点到足端的距离和角度
+            midpointDistance = sqrt((B(1)-M(1))^2 + (B(2)-M(2))^2);
+            midpointAngle = atan2(B(2)-M(2), B(1)-M(1));
+            if midpointAngle < 0, midpointAngle = midpointAngle + 2*pi; end
+
             % 保存轨迹
             BTraj = [BTraj; B];
 
@@ -106,7 +122,11 @@ function IKAnimate()
             set(hL3, 'XData', [C(1), B(1)], 'YData', [C(2), B(2)]);
             set(hL4, 'XData', [D(1), C(1)], 'YData', [D(2), C(2)]);
             set(hL5, 'XData', [O(1), D(1)], 'YData', [O(2), D(2)]);
-6
+
+            % 更新中间中点到足端的连线
+            set(hMidpointLine, 'XData', [M(1), B(1)], 'YData', [M(2), B(2)]);
+            set(hMidpoint, 'XData', M(1), 'YData', M(2));
+
             % 更新关节点
             set(hO, 'XData', O(1), 'YData', O(2));
             set(hD, 'XData', D(1), 'YData', D(2));
@@ -120,9 +140,10 @@ function IKAnimate()
             set(hCText, 'Position', [C(1)+10, C(2)+10]);
             set(hDText, 'Position', [D(1)+10, D(2)-10]);
             set(hOText, 'Position', [O(1)-10, O(2)-10]);
+            set(hMidpointText, 'Position', [M(1)-10, M(2)-10]);
 
             % 更新角度标注
-            set(hAlphaBetaText, 'String', sprintf('\alpha:%.1f° \newline\beta:%.1f°', rad2deg(selected.alpha), rad2deg(selected.beta)));
+            set(hAlphaBetaText, 'String', sprintf('\alpha:%.1f° \newline\beta:%.1f° \newline\rho:%.1f°', rad2deg(selected.alpha), rad2deg(selected.beta), rad2deg(midpointAngle)));
 
             % 更新轨迹
             set(hTrace, 'XData', BTraj(:,1), 'YData', BTraj(:,2));
@@ -146,12 +167,26 @@ function IKAnimate()
                 set(hArcBeta, 'XData', [], 'YData', []);
             end
 
+            % 更新中点到足端的角度弧线
+            if midpointAngle > 0
+                theta_midpoint = linspace(0, midpointAngle, 50);
+                arc_midpoint_x = M(1) + 40 * cos(theta_midpoint);
+                arc_midpoint_y = M(2) + 40 * sin(theta_midpoint);
+                set(hMidpointArc, 'XData', arc_midpoint_x, 'YData', arc_midpoint_y);
+            else
+                set(hMidpointArc, 'XData', [], 'YData', []);
+            end
+
             % 更新连杆长度标注
             set(hL3Text, 'Position', [(O(1)+A(1))/2, (O(2)+A(2))/2], 'String', sprintf('L3=%.0f', Model.L3));
             set(hL4Text, 'Position', [(A(1)+B(1))/2, (A(2)+B(2))/2], 'String', sprintf('L4=%.0f', Model.L4));
             set(hL1Text, 'Position', [(D(1)+C(1))/2, (D(2)+C(2))/2], 'String', sprintf('L1=%.0f', Model.L1));
             set(hL2Text, 'Position', [(C(1)+B(1))/2, (C(2)+B(2))/2], 'String', sprintf('L2=%.0f', Model.L2));
             set(hL5Text, 'Position', [(O(1)+D(1))/2, (O(2)+D(2))/2-20], 'String', sprintf('L5=%.0f', Model.L5));
+            
+            % 更新中点到足端的距离和角度标注
+            set(hMidpointDistText, 'Position', [(M(1)+B(1))/2, (M(2)+B(2))/2], 'String', sprintf('距离=%.1f', midpointDistance));
+            set(hMidpointAngleText, 'Position', [M(1)+20, M(2)+20], 'String', sprintf('角度=%.1f°', rad2deg(midpointAngle)));
 
             % 保持固定的坐标轴范围，画面不移动
             % 注释掉动态调整坐标轴范围的代码
