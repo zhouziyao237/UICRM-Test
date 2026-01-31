@@ -5,7 +5,7 @@
 ```matlab
 
     %   alpha _______ beta
-    %        /   L0  \ 
+    %        /   L5  \ 
     %    L3 /         \ L1
     %   θ_1 \         / θ_2
     %        \       /
@@ -13,7 +13,7 @@
     %          \___/
 
     % 右侧分支
-    % x = [L0 + L1 * cos(beta) + L2 * cos(θ_2)]
+    % x = [L5 + L1 * cos(beta) + L2 * cos(θ_2)]
     % y = [L1 * sin(beta) + L2 * sin(θ_2)]
 
     % 左侧分支
@@ -21,14 +21,14 @@
     % y = [L3 * sin(alpha) + L4 * sin(θ_1)]
 
     % 被动关节表达式
-    % cos(θ_2) = [x - L0 - L1 * cos(beta)] / L2
+    % cos(θ_2) = [x - L5 - L1 * cos(beta)] / L2
     % sin(θ_2) = [y - L1 * sin(beta)] / L2
 
     % cos(θ_1) = [x - L3 * cos(alpha)] / L4
     % sin(θ_1) = [y - L3 * sin(alpha)] / L4
 
     % 运动学约束方程（由cos²θ + sin²θ = 1得到）
-    % [x - L0 - L1 * cos(beta)]^2 + [y - L1 * sin(beta)]^2 = L2^2   % 方程[1]
+    % [x - L5 - L1 * cos(beta)]^2 + [y - L1 * sin(beta)]^2 = L2^2   % 方程[1]
     % [x - L3 * cos(alpha)]^2 + [y - L3 * sin(alpha)]^2 = L4^2      % 方程[2]
 
 ```
@@ -39,10 +39,10 @@
 
     % ==================== 方程[1]化简：求解β ====================
 
-    % 方程[1]: [x - L0 - L1 * cos(beta)]^2 + [y - L1 * sin(beta)]^2 = L2^2
+    % 方程[1]: [x - L5 - L1 * cos(beta)]^2 + [y - L1 * sin(beta)]^2 = L2^2
 
-    % 步骤1: 令 t = x - L0，简化方程
-    t = x - L0
+    % 步骤1: 令 t = x - L5，简化方程
+    t = x - L5
 
     % 步骤2: 展开方程
     % (t - L1 * cos(beta))^2 + (y - L1 * sin(beta))^2 = L2^2
@@ -111,11 +111,11 @@
 
     % ==================== 最终逆解公式 ====================
 
-    % 输入：末端位置 (x, y)，连杆长度 L0, L1, L2, L3, L4
+    % 输入：末端位置 (x, y)，连杆长度 L5, L1, L2, L3, L4
     % 输出：主动关节角度 α, β
 
     % 计算中间变量
-    t = x - L0
+    t = x - L5
 
     % 计算常数（注意：使用正号！）
     K1 = (t^2 + y^2 + L1^2 - L2^2) / (2 * L1)
@@ -154,7 +154,7 @@
 
     % ==================== 正解运动学：几何法推导 ====================
 
-    % 已知：主动关节角度 α, β，连杆长度 L0, L1, L2, L3, L4
+    % 已知：主动关节角度 α, β，连杆长度 L5, L1, L2, L3, L4
     % 求解：末端执行器坐标 (x, y)
 
     % ==================== 步骤1: 确定两圆的几何参数 ====================
@@ -165,8 +165,8 @@
     % C1y = L3 * sin(alpha)
     
     % 右侧圆：由主动关节β控制
-    % 圆心C2：由L1绕点(L0, 0)旋转β角
-    % C2x = L0 + L1 * cos(beta)
+    % 圆心C2：由L1绕点(L5, 0)旋转β角
+    % C2x = L5 + L1 * cos(beta)
     % C2y = L1 * sin(beta)
     
     % 两圆半径
@@ -266,14 +266,14 @@
 正运动学是已知主动关节角度α和β，计算末端执行器坐标(x, y)的过程。根据机构几何关系，末端执行器坐标是两个圆的交点：
 
 - **左侧圆**：圆心为 `[L3*cos(alpha), L3*sin(alpha)]`，半径为 `L4`
-- **右侧圆**：圆心为 `[L0 + L1*cos(beta), L1*sin(beta)]`，半径为 `L2`
+- **右侧圆**：圆心为 `[L5 + L1*cos(beta), L1*sin(beta)]`，半径为 `L2`
 
 ### 正解推导（代码对应版）
 
 1. **定义圆心和半径**
    ```matlab
    C1 = [L3*cos(alpha), L3*sin(alpha)];   % 左侧圆心
-   C2 = [L0 + L1*cos(beta), L1*sin(beta)]; % 右侧圆心
+   C2 = [L5 + L1*cos(beta), L1*sin(beta)]; % 右侧圆心
    r1 = L4;                               % 左侧半径
    r2 = L2;                               % 右侧半径
    ```
@@ -317,15 +317,15 @@
 ## MATLAB实现代码
 
 ```matlab
-function [alpha_solutions, beta_solutions] = inverse_kinematics_correct(x, y, L0, L1, L2, L3, L4)
+function [alpha_solutions, beta_solutions] = inverse_kinematics_correct(x, y, L5, L1, L2, L3, L4)
     % 正确的逆运动学函数
     % 输入: x, y - 末端位置坐标
-    %       L0, L1, L2, L3, L4 - 连杆长度
+    %       L5, L1, L2, L3, L4 - 连杆长度
     % 输出: alpha_solutions - α角的可能解 (2×1数组)
     %       beta_solutions - β角的可能解 (2×1数组)
     
     % 计算中间变量 t
-    t = x - L0;
+    t = x - L5;
     
     % 计算常数 K1, K2 (使用正号！)
     K1 = (t^2 + y^2 + L1^2 - L2^2) / (2 * L1);
@@ -372,14 +372,14 @@ end
 正运动学是已知主动关节角度α和β，计算末端执行器坐标(x, y)的过程。根据机构几何关系，末端执行器坐标是两个圆的交点：
 
 - **左侧圆**：圆心为 `[L3*cos(alpha), L3*sin(alpha)]`，半径为 `L4`
-- **右侧圆**：圆心为 `[L0 + L1*cos(beta), L1*sin(beta)]`，半径为 `L2`
+- **右侧圆**：圆心为 `[L5 + L1*cos(beta), L1*sin(beta)]`，半径为 `L2`
 
 ### 正解推导
 
 1. **定义圆心和半径**
    ```matlab
    C1 = [L3*cos(alpha), L3*sin(alpha)];   % 左侧圆心
-   C2 = [L0 + L1*cos(beta), L1*sin(beta)]; % 右侧圆心
+   C2 = [L5 + L1*cos(beta), L1*sin(beta)]; % 右侧圆心
    r1 = L4;                               % 左侧半径
    r2 = L2;                               % 右侧半径
    ```
@@ -423,16 +423,16 @@ end
 ### MATLAB实现代码
 
 ```matlab
-function [x_solutions, y_solutions] = forward_kinematics(alpha, beta, L0, L1, L2, L3, L4)
+function [x_solutions, y_solutions] = forward_kinematics(alpha, beta, L5, L1, L2, L3, L4)
     % 正运动学函数
     % 输入: alpha, beta - 主动关节角度
-    %       L0, L1, L2, L3, L4 - 连杆长度
+    %       L5, L1, L2, L3, L4 - 连杆长度
     % 输出: x_solutions - x坐标的可能解 (1×2数组)
     %       y_solutions - y坐标的可能解 (1×2数组)
     
     % 计算圆心坐标
     C1 = [L3*cos(alpha), L3*sin(alpha)];   % 左侧圆心
-    C2 = [L0 + L1*cos(beta), L1*sin(beta)]; % 右侧圆心
+    C2 = [L5 + L1*cos(beta), L1*sin(beta)]; % 右侧圆心
     r1 = L4;                               % 左侧半径
     r2 = L2;                               % 右侧半径
     
@@ -475,7 +475,7 @@ end
 
 ```matlab
 % 定义机构参数
-L0 = 5;   % 水平基准距离
+L5 = 5;   % 水平基准距离
 L1 = 3;   % 右侧第一连杆长度
 L2 = 4;   % 右侧第二连杆长度
 L3 = 3;   % 左侧第一连杆长度
@@ -486,7 +486,7 @@ x_test = 6;
 y_test = 5;
 
 % 计算逆解
-[alpha_sol, beta_sol] = inverse_kinematics_correct(x_test, y_test, L0, L1, L2, L3, L4);
+[alpha_sol, beta_sol] = inverse_kinematics_correct(x_test, y_test, L5, L1, L2, L3, L4);
 
 if ~isempty(alpha_sol) && ~isempty(beta_sol)
     fprintf('目标位置: (%.2f, %.2f)\n', x_test, y_test);
@@ -499,7 +499,7 @@ if ~isempty(alpha_sol) && ~isempty(beta_sol)
     beta = beta_sol(1);
     
     % 使用正运动学函数计算正解
-    [x_sol, y_sol] = forward_kinematics(alpha, beta, L0, L1, L2, L3, L4);
+    [x_sol, y_sol] = forward_kinematics(alpha, beta, L5, L1, L2, L3, L4);
     
     fprintf('正解验证: (%.6f, %.6f)\n', x_sol(1), y_sol(1));
     fprintf('位置误差: dx = %.6f, dy = %.6f\n', abs(x_sol(1) - x_test), abs(y_sol(1) - y_test));
@@ -509,7 +509,7 @@ end
 alpha_test = pi/4;  % 45度
 beta_test = pi/3;   % 60度
 
-[x_fwd, y_fwd] = forward_kinematics(alpha_test, beta_test, L0, L1, L2, L3, L4);
+[x_fwd, y_fwd] = forward_kinematics(alpha_test, beta_test, L5, L1, L2, L3, L4);
 
 if ~isempty(x_fwd)
     fprintf('\n正运动学测试:\n');
