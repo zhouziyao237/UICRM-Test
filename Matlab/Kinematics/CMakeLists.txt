@@ -5,5 +5,6 @@ uicrm_add_arm_executable(${PROJECT_NAME}
     SOURCES
     main.cpp
     kinematics.cpp
+    kinematics_benchmark.cpp
     INCLUDES .
 )

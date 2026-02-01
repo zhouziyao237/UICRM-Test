@@ -16,11 +16,25 @@ function result = inverseKinematics(Model, x, y)
     K2 = (x^2 + y^2 + Model.L3^2 - Model.L4^2) / (2*Model.L3);
     K1 = (t^2 + y^2 + Model.L1^2 - Model.L2^2) / (2*Model.L1);
 
-    beta_tmp(1) = atan2(y, t) + acos(K1 / sqrt(t^2 + y^2));
-    beta_tmp(2) = atan2(y, t) - acos(K1 / sqrt(t^2 + y^2));
+    % 限制 acos 参数范围，避免复数或 NaN
+    arg_beta = K1 / sqrt(t^2 + y^2);
+    arg_beta = max(min(arg_beta, 1), -1);
+    
+    arg_alpha = K2 / sqrt(x^2 + y^2);
+    arg_alpha = max(min(arg_alpha, 1), -1);
 
-    alpha_tmp(1) = atan2(y, x) + acos(K2 / sqrt(x^2 + y^2));
-    alpha_tmp(2) = atan2(y, x) - acos(K2 / sqrt(x^2 + y^2));
+    beta_tmp(1) = atan2(y, t) + acos(arg_beta);
+    beta_tmp(2) = atan2(y, t) - acos(arg_beta);
+
+    alpha_tmp(1) = atan2(y, x) + acos(arg_alpha);
+    alpha_tmp(2) = atan2(y, x) - acos(arg_alpha);
+
+    % 检查是否有 NaN 值
+    if isnan(alpha_tmp(1)) || isnan(alpha_tmp(2)) || isnan(beta_tmp(1)) || isnan(beta_tmp(2))
+        result.alpha = NaN;
+        result.beta = NaN;
+        return;
+    end
 
     alpha_tmp(1) = mod(alpha_tmp(1), 2*pi);
     alpha_tmp(2) = mod(alpha_tmp(2), 2*pi);

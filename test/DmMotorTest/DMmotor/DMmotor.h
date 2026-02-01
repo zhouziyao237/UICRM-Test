@@ -547,14 +547,20 @@ namespace driver {
         bool IsEnable() const;
 
         /**
-         * @brief 获取输出轴角度（考虑减速比，与MotorCANBase完全一致）
+         * @brief 获取输出轴角度
          */
         float GetOutputShaftTheta() const;
 
         /**
-         * @brief 获取输出轴角速度（考虑减速比，与MotorCANBase完全一致）
+         * @brief 获取输出轴角速度
          */
         float GetOutputShaftOmega() const;
+
+        /**
+         * @brief 获取绝对位置
+         */
+        float GetAbsolutePosition() const;
+
 
         /**
          * @brief 设置减速比

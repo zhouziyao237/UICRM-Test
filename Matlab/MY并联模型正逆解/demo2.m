@@ -1,15 +1,14 @@
 function IKAnimate()
     % 定义机构参数
-    Model.L1 = 65;
-    Model.L3 = 65;
-
-    Model.L2 = 90;
-    Model.L4 = 90;
-    Model.L5 = 70;
+    Model.L1 = 130;
+    Model.L2 = 210;
+    Model.L3 = 130;
+    Model.L4 = 210;
+    Model.L5 = 90;
 
     % 轨迹生成
     t = linspace(-10, 118, 128);
-    offset = 80;  % 调整为更合理的Y方向偏移
+    offset = 200;  % 调整为更合理的Y方向偏移
     amp = 30;  % 振幅
     period = 128;  % 周期
     X_traj = t;
@@ -19,7 +18,7 @@ function IKAnimate()
     y_direction = 1;  % Y轴向下
     
     % 创建图形
-    figure('Name', '五连杆机构运动动画', 'Position', [100, 100, 800, 600]);
+    figure('Name', '五连杆机构运动动画', 'Position', [400, 400, 800, 600]);
     hold on;
     grid on;
     axis equal;  % 保持画面比例不变
@@ -30,8 +29,8 @@ function IKAnimate()
     ylabel('Y 轴 (mm)');
     
     % 设置固定的坐标轴范围
-    xlim([-50, 150]);  % X轴范围
-    ylim([-50, 150]);  % Y轴范围
+    xlim([-400, 400]);  % X轴范围
+    ylim([-400, 400]);  % Y轴范围
     
     % 设置Y轴方向
     if y_direction == 1
@@ -178,11 +177,11 @@ function IKAnimate()
             end
 
             % 更新连杆长度标注
-            set(hL3Text, 'Position', [(O(1)+A(1))/2, (O(2)+A(2))/2], 'String', sprintf('L3=%.0f', Model.L3));
-            set(hL4Text, 'Position', [(A(1)+B(1))/2, (A(2)+B(2))/2], 'String', sprintf('L4=%.0f', Model.L4));
-            set(hL1Text, 'Position', [(D(1)+C(1))/2, (D(2)+C(2))/2], 'String', sprintf('L1=%.0f', Model.L1));
-            set(hL2Text, 'Position', [(C(1)+B(1))/2, (C(2)+B(2))/2], 'String', sprintf('L2=%.0f', Model.L2));
-            set(hL5Text, 'Position', [(O(1)+D(1))/2, (O(2)+D(2))/2-20], 'String', sprintf('L5=%.0f', Model.L5));
+            set(hL3Text, 'Position', [(O(1)+A(1))/2, (O(2)+A(2))/2], 'String', sprintf('L3=%', Model.L3));
+            set(hL4Text, 'Position', [(A(1)+B(1))/2, (A(2)+B(2))/2], 'String', sprintf('L4=%', Model.L4));
+            set(hL1Text, 'Position', [(D(1)+C(1))/2, (D(2)+C(2))/2], 'String', sprintf('L1=%', Model.L1));
+            set(hL2Text, 'Position', [(C(1)+B(1))/2, (C(2)+B(2))/2], 'String', sprintf('L2=%', Model.L2));
+            set(hL5Text, 'Position', [(O(1)+D(1))/2, (O(2)+D(2))/2-20], 'String', sprintf('L5=%', Model.L5));
             
             % 更新中点到足端的距离和角度标注
             set(hMidpointDistText, 'Position', [(M(1)+B(1))/2, (M(2)+B(2))/2], 'String', sprintf('距离=%.1f', midpointDistance));

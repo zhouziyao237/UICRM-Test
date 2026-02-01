@@ -737,6 +737,10 @@ namespace driver {
         return output_shaft_omega_;
     }
 
+    float DMMotorMITController::GetAbsolutePosition() const{
+        return DMMotor::absolute_position_;
+    }
+
     float DMMotorMITController::GetTarget() const {
         return target_;
     }
