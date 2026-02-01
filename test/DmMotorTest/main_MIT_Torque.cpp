@@ -20,7 +20,7 @@
 // Created by Administrator on 2025/11/19.
 //
 
-#include "DMmotor/DMmotor.h"
+#include "DMmotor.h"
 #include "bsp_gpio.h"
 #include "bsp_print.h"
 #include "cmsis_os.h"

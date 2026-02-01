@@ -1,5 +1,5 @@
 /*###########################################################
- # Copyright (c) 2023-2024. BNU-HKBU UIC RoboMaster         #
+# Copyright (c) 2023-2024. BNU-HKBU UIC RoboMaster         #
  #                                                          #
  # This program is free software: you can redistribute it   #
  # and/or modify it under the terms of the GNU General      #
@@ -18,97 +18,122 @@
  # <https://www.gnu.org/licenses/>.                         #
  ###########################################################*/
 
-#include "bsp_imu.h"
+#include "main.h"
+
+#include "DMmotor.h"
+#include "Kinematics.h"
+#include "arm_math.h"
 #include "bsp_print.h"
 #include "cmsis_os.h"
-#include "i2c.h"
-#include "main.h"
-#include "spi.h"
+#include "pid.h"
 
-#define RX_SIGNAL (1 << 0)
+#include "bsp_gpio.h"
+#define KEY_GPIO_GROUP KEY_GPIO_Port
+#define KEY_GPIO_PIN KEY_Pin
 
-const osThreadAttr_t imuTaskAttribute = {.name = "imuTask",
-                                         .attr_bits = osThreadDetached,
-                                         .cb_mem = nullptr,
-                                         .cb_size = 0,
-                                         .stack_mem = nullptr,
-                                         .stack_size = 256 * 4,
-                                         .priority = (osPriority_t)osPriorityNormal,
-                                         .tz_module = 0,
-                                         .reserved = 0};
-osThreadId_t imuTaskHandle;
-
-class IMU : public bsp::IMU_typeC {
-  public:
-    using bsp::IMU_typeC::IMU_typeC;
-
-  protected:
-    void RxCompleteCallback() final {
-        osThreadFlagsSet(imuTaskHandle, RX_SIGNAL);
-    }
-};
-
-static IMU* imu = nullptr;
-
-void imuTask(void* arg) {
-    UNUSED(arg);
-
-    while (true) {
-        uint32_t flags = osThreadFlagsWait(RX_SIGNAL, osFlagsWaitAll, osWaitForever);
-        if (flags & RX_SIGNAL) {  // unnecessary check
-            imu->Update();
-        }
-    }
-}
+static Kinematics* kinematics = nullptr;
+static bsp::CAN* can2 = nullptr;
+static driver::DMMotorMITController* motoralpha = nullptr;
+static driver::DMMotorMITController* motorbeta = nullptr;
 
 void RM_RTOS_Init(void) {
     print_use_uart(&huart1, true, 921600);
 
-    bsp::IST8310_init_t IST8310_init;
-    IST8310_init.hi2c = &hi2c3;
-    IST8310_init.int_pin = DRDY_IST8310_Pin;
-    IST8310_init.rst_group = GPIOG;
-    IST8310_init.rst_pin = GPIO_PIN_6;
-    bsp::BMI088_init_t BMI088_init;
-    BMI088_init.hspi = &hspi1;
-    BMI088_init.CS_ACCEL_Port = CS1_ACCEL_GPIO_Port;
-    BMI088_init.CS_ACCEL_Pin = CS1_ACCEL_Pin;
-    BMI088_init.CS_GYRO_Port = CS1_GYRO_GPIO_Port;
-    BMI088_init.CS_GYRO_Pin = CS1_GYRO_Pin;
-    bsp::heater_init_t heater_init;
-    heater_init.htim = &htim10;
-    heater_init.channel = 1;
-    heater_init.clock_freq = 1000000;
-    heater_init.temp = 45;
-    bsp::IMU_typeC_init_t imu_init;
-    imu_init.IST8310 = IST8310_init;
-    imu_init.BMI088 = BMI088_init;
-    imu_init.heater = heater_init;
-    imu_init.hspi = &hspi1;
-    imu_init.hdma_spi_rx = &hdma_spi1_rx;
-    imu_init.hdma_spi_tx = &hdma_spi1_tx;
-    imu_init.Accel_INT_pin_ = INT1_ACCEL_Pin;
-    imu_init.Gyro_INT_pin_ = INT1_GYRO_Pin;
-    imu = new IMU(imu_init, true);
-}
+    // 设置机构参数
+    Kinematics::Model model;
+    model.L1 = 130.0f;
+    model.L2 = 210.0f;
+    model.L3 = 130.0f;
+    model.L4 = 210.0f;
+    model.L5 = 90.0f;
+    kinematics->setModel(model);
 
+    can2 = new bsp::CAN(&hcan2, false);
+    motoralpha = new driver::DMMotorMITController(can2, 0x05, 0x01);
+    motoralpha->SetTransmissionRatio(1);
+
+    motorbeta = new driver::DMMotorMITController(can2, 0x06, 0x02);
+    motorbeta->SetTransmissionRatio(1);
+
+
+    control::ConstrainedPID::PID_Init_t omega_pid_init = {
+        .kp = 8.0,                            // 降低Kp，避免速度环输出过大
+        .ki = 0,                              // 降低Ki，减少积分饱和风险
+        .kd = 6,                              // 适当微分抑制震荡
+        .max_out = 1200,                      // 降低最大输出，留出安全余量 (todo: 输出范围缩放 100)
+        .max_iout = 200,                      // 限制积分项
+        .deadband = 0,                        // 小死区提高灵敏度
+        .A = 0.5 * PI,                        // 缩小变速积分范围
+        .B = 0.2 * PI,                        // 降低启动死区
+        .output_filtering_coefficient = 0.1,  // 增强滤波平滑输出
+        .derivative_filtering_coefficient = 0.0,
+        .mode = control::ConstrainedPID::Integral_Limit |       // 积分限幅
+                control::ConstrainedPID::OutputFilter |         // 输出滤波
+                control::ConstrainedPID::Trapezoid_Intergral |  // 梯形积分
+                control::ConstrainedPID::ChangingIntegralRate,  // 变速积分
+    };
+
+    control::ConstrainedPID::PID_Init_t theta_pid_init = {
+        .kp = 12,                  // 降低Kp，避免位置环输出过大
+        .ki = 0,                   // 小积分消除静差
+        .kd = 8,                   // 小微分抑制震荡
+        .max_out = 6 * 12.5f / 2,  // 降低位置环最大输出，为速度环留出空间
+        .max_iout = 0,             // 限制积分项
+        .deadband = 0,             // 提高灵敏度
+        .A = 1.5 * PI,             // 关闭变速积分避免突变
+        .B = 1 * PI,               // 关闭变速积分
+        .output_filtering_coefficient = 0.1,
+        .derivative_filtering_coefficient = 0,
+        .mode = control::ConstrainedPID::OutputFilter  // 输出滤波
+    };
+
+    motoralpha->ReInitPID(omega_pid_init, driver::DMMotorMITController::SPEED_LOOP_CONTROL);
+    motoralpha->ReInitPID(theta_pid_init, driver::DMMotorMITController::ANGLE_LOOP_CONTROL);
+    motoralpha->SetMode(driver::DMMotorMITController::ANGLE_LOOP_CONTROL |
+                        driver::DMMotorMITController::SPEED_LOOP_CONTROL |
+                        driver::DMMotorMITController::ABSOLUTE |
+                        driver::DMMotorMITController::MOTOR_TORQUE_REVERSE);
+
+    motorbeta->ReInitPID(omega_pid_init, driver::DMMotorMITController::SPEED_LOOP_CONTROL);
+    motorbeta->ReInitPID(theta_pid_init, driver::DMMotorMITController::ANGLE_LOOP_CONTROL);
+    motorbeta->SetMode(driver::DMMotorMITController::ANGLE_LOOP_CONTROL |
+                       driver::DMMotorMITController::SPEED_LOOP_CONTROL |
+                       driver::DMMotorMITController::ABSOLUTE |
+                       driver::DMMotorMITController::MOTOR_TORQUE_REVERSE);
+
+    // Snail need to be run at idle throttle for some
+    HAL_Delay(1000);
+    print("test demo run");
+}
 void RM_RTOS_Threads_Init(void) {
-    imuTaskHandle = osThreadNew(imuTask, nullptr, &imuTaskAttribute);
 }
 
 void RM_RTOS_Default_Task(const void* arg) {
     UNUSED(arg);
-    imu->Calibrate();
+    bsp::GPIO key(KEY_GPIO_GROUP, KEY_GPIO_PIN);
+    motoralpha->Enable();
+    motorbeta->Enable();
+    osDelay(500);
     while (true) {
         set_cursor(0, 0);
         clear_screen();
-        print("# %.2f s, IMU %s\r\n", HAL_GetTick() / 1000.0,
-              imu->DataReady() ? "\033[1;42mReady\033[0m" : "\033[1;41mNot Ready\033[0m");
-        print("Temp: %.2f\r\n", imu->Temp);
-        print("Euler Angles: %.2f, %.2f, %.2f\r\n", imu->INS_angle[0] / PI * 180,
-              imu->INS_angle[1] / PI * 180, imu->INS_angle[2] / PI * 180);
-        print("Is Calibrated: %s\r\n",
-              imu->CaliDone() ? "\033[1;42mYes\033[0m" : "\033[1;41mNo\033[0m");
+        if (key.Read() == 0) {
+            // 逆运动学计算（根据足端坐标计算关节角度）
+            // float x = 100.0f;  // 足端X坐标
+            // float y = 50.0f;   // 足端Y坐标
+            // Kinematics::IKResult ikResult = kinematics->inverseKinematics(x, y);
+            //
+            // // motoralpha->SetTarget(ikResult.alpha);
+            // // motorbeta->SetTarget(ikResult.beta);
+            // motoralpha->SetTarget(ikResult.alpha);
+            // motorbeta->SetTarget(ikResult.beta);
+
+            motoralpha->SetTarget(0 + motoralpha->GetAbsolutePosition());
+            motorbeta->SetTarget(0);
+        }
+
+        motorbeta->PrintData();
+        motoralpha->PrintData();
         osDelay(50);
     }
 }

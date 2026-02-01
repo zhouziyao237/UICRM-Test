@@ -26,7 +26,7 @@
 #include "main.h"
 #include "pid.h"
 
-#include "DMmotor/DMmotor.h"
+#include "DMmotor.h"
 
 #define KEY_GPIO_GROUP KEY_GPIO_Port
 #define KEY_GPIO_PIN KEY_Pin
