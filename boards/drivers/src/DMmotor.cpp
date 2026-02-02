@@ -33,9 +33,12 @@ namespace driver {
     uint32_t DMMotor::control_interval_ = 1000 / 500;  // 2ms
     DMMotor::MotorGroup DMMotor::motor_groups_[DMMotor::MAX_GROUPS];
     uint8_t DMMotor::group_count_ = 0;
-    DMMotorMITController::callback_t DMMotorMITController::pre_output_callback_ = [](void* args) { UNUSED(args); };
-    DMMotorMITController::callback_t DMMotorMITController::post_output_callback_ = [](void* args) { UNUSED(args); };
-
+    DMMotorMITController::callback_t DMMotorMITController::pre_output_callback_ = [](void* args) {
+        UNUSED(args);
+    };
+    DMMotorMITController::callback_t DMMotorMITController::post_output_callback_ = [](void* args) {
+        UNUSED(args);
+    };
 
     // ==================== CAN回调函数 ====================
     static void can_motor_callback(const uint8_t data[], void* args) {
@@ -45,19 +48,18 @@ namespace driver {
 
     static void CanMITCtrlcallback(const uint8_t data[], void* args) {
         DMMotorMITController* motor = reinterpret_cast<DMMotorMITController*>(args);
-        motor->DMMotor::UpdateData(data);
-        motor->UpdateData();
+        motor->UpdateData(data);
     }
 
     // ==================== 构造函数 ====================
     DMMotor::DMMotor(bsp::CAN* can, uint16_t rx_id, uint16_t tx_id, dm_motor_mode_t mode,
                      DMMotorProtectConfig config)
         : ConnectionDriver(50),
+          ctrl_state_(DISABLED),
           can_(can),
           rx_id_(rx_id),
           tx_id_base_(tx_id),
           mode_(mode),
-          ctrl_state_(DISABLED),
           protect_config_(config) {
         // 计算实际发送ID
         switch (mode) {
@@ -382,40 +384,6 @@ namespace driver {
         raw_mos_temp_ = data[6];                          // MOS管温度 (摄氏度)
         raw_motor_temp_ = data[7];                        // 电机温度 (摄氏度)
 
-        // 转换为物理量
-        // todo:电机传回的位置是负值为
-        // 0~-25rad间(多圈绝对值)所以要绝对值一下取正周期，一圈其实是 25/4rad
-        current_position_ =
-            -UintToFloat(raw_position_, POS_MIN, POS_MAX, 16);  // 当前位置 (弧度, rad)
-        current_velocity_ =
-            -UintToFloat(raw_velocity_, VEL_MIN, VEL_MAX, 12);  // 当前速度 (弧度/秒, rad/s)
-        current_torque_ =
-            -UintToFloat(raw_torque_, TORQUE_MIN, TORQUE_MAX, 12);  // 当前扭矩 (牛米, Nm)
-
-        // todo: absolute_position_的范围在 [0, DAMIAO_RANGE] 间
-        // 完整绝对位置 = (多圈计数 × 12.5/2) + 单圈计数值
-        // 实际角度(rad) = (完整绝对位置 × 2π) / 12.5
-
-        int full_cycles = int(DMMotor::current_position_ / (DAMIAO_HALF_RANGE * 2));
-        if (full_cycles > 0) {
-            absolute_position_ = current_position_ - (full_cycles * DAMIAO_HALF_RANGE * 2);
-        } else {
-            absolute_position_ = current_position_;
-        }
-
-        // 更新控制侧状态（基于运动状态）
-        if (ctrl_state_ >= WAITING && ctrl_state_ != FAULT) {
-            if (fabsf(current_velocity_) < 0.01f) {  // 速度接近0 (小于0.01 rad/s)
-                if (ctrl_state_ == MOVING || ctrl_state_ == WAITING) {
-                    ctrl_state_ = STABLE;  // 切换到稳定状态
-                }
-            } else {
-                if (ctrl_state_ == WAITING || ctrl_state_ == STABLE) {
-                    ctrl_state_ = MOVING;  // 切换到运动状态
-                }
-            }
-        }
-
         Heartbeat();  // 更新在线状态
     }
 
@@ -655,7 +623,8 @@ namespace driver {
         mode_ = mode;
     }
 
-    void DMMotorMITController::UpdateData() {
+    void DMMotorMITController::UpdateData(const uint8_t data[]) {
+        UNUSED(data);
         // 角度速度环控制且非绝对控制模式时，需要使用统计总角度值
         // 获取初始化时的角度值
         if (align_angle_ < 0)
@@ -740,7 +709,7 @@ namespace driver {
         return output_shaft_omega_;
     }
 
-    float DMMotorMITController::GetAbsolutePosition() const{
+    float DMMotorMITController::GetAbsolutePosition() const {
         return DMMotor::absolute_position_;
     }
 
@@ -759,7 +728,8 @@ namespace driver {
         return DMMotor::GetControlState() == ENABLED ? true : false;
     }
 
-    void DMMotorMITController::RegisterErrorCallback(DMMotorMITController::callback_t callback, void* instance) {
+    void DMMotorMITController::RegisterErrorCallback(DMMotorMITController::callback_t callback,
+                                                     void* instance) {
         error_callback_ = callback;
         error_callback_instance_ = instance;
         if (!(mode_ & SPEED_LOOP_CONTROL)) {
@@ -769,8 +739,8 @@ namespace driver {
             omega_pid_.RegisterErrorCallcack(ErrorCallbackWrapper, this);
         }
     }
-    void DMMotorMITController::ErrorCallbackWrapper(void* instance,
-                                            control::ConstrainedPID::PID_ErrorHandler_t type) {
+    void DMMotorMITController::ErrorCallbackWrapper(
+        void* instance, control::ConstrainedPID::PID_ErrorHandler_t type) {
         UNUSED(type);
         DMMotorMITController* motor = reinterpret_cast<DMMotorMITController*>(instance);
         if (motor->error_callback_ != nullptr)
@@ -792,12 +762,12 @@ namespace driver {
     }
 
     void DMMotorMITController::RegisterPreOutputCallback(DMMotorMITController::callback_t callback,
-                                             void* instance) {
+                                                         void* instance) {
         pre_output_callback_ = callback;
         pre_output_callback_instance_ = instance;
     }
     void DMMotorMITController::RegisterPostOutputCallback(DMMotorMITController::callback_t callback,
-                                                  void* instance) {
+                                                          void* instance) {
         post_output_callback_ = callback;
         post_output_callback_instance_ = instance;
     }
@@ -827,6 +797,68 @@ namespace driver {
 
     float DMMotorMITController::GetOmega() const {
         return DMMotor::current_velocity_;
+    }
+
+    /**
+     * @brief Motor6006类的构造函数
+     *
+     * 初始化Motor6006电机对象，继承自MotorCANBase类。
+     *
+     * @param can 指向CAN通信接口的指针，用于与Motor6006电机进行通信。
+     * @param rx_id 接收CAN消息的ID，用于接收来自Motor6006电机的数据。
+     * @param tx_id 发送CAN消息的ID，用于向Motor6006电机发送数据。
+     *
+     * 构造函数首先调用基类MotorCANBase的构造函数进行初始化，
+     * 由于Motor6006是绝对位置电机，因此不需要初始化align_angle_（对齐角度），
+     * 将其设置为0。
+     * 接着，使用CAN接口注册一个接收回调函数can_motor_callback，
+     * 当接收到指定rx_id的CAN消息时，该函数将被调用以处理接收到的电机数据。
+     */
+    Motor6006::Motor6006(bsp::CAN* can, uint16_t rx_id, uint16_t tx_id)
+        : DMMotorMITController(can, rx_id, tx_id) {
+        // 绝对位置电机不需要初始化align_angle_
+        align_angle_ = 0;
+        can->RegisterRxCallback(rx_id, CanMITCtrlcallback, this);
+    }
+
+    void Motor6006::UpdateData(const uint8_t data[]) {
+        DMMotor::UpdateData(data);
+
+        // 转换为物理量
+        // todo:电机传回的位置是负值为
+        // 0~-25rad间(多圈绝对值)所以要绝对值一下取正周期，一圈其实是 25/4rad
+        current_position_ =
+            -UintToFloat(raw_position_, POS_MIN, POS_MAX, 16);  // 当前位置 (弧度, rad)
+        current_velocity_ =
+            -UintToFloat(raw_velocity_, VEL_MIN, VEL_MAX, 12);  // 当前速度 (弧度/秒, rad/s)
+        current_torque_ =
+            -UintToFloat(raw_torque_, TORQUE_MIN, TORQUE_MAX, 12);  // 当前扭矩 (牛米, Nm)
+
+        // todo: absolute_position_的范围在 [0, DAMIAO_RANGE] 间
+        // 完整绝对位置 = (多圈计数 × 12.5/2) + 单圈计数值
+        // 实际角度(rad) = (完整绝对位置 × 2π) / 12.5
+
+        int full_cycles = int(DMMotor::current_position_ / (DAMIAO_HALF_RANGE * 2));
+        if (full_cycles > 0) {
+            absolute_position_ = current_position_ - (full_cycles * DAMIAO_HALF_RANGE * 2);
+        } else {
+            absolute_position_ = current_position_;
+        }
+
+        // 更新控制侧状态（基于运动状态）
+        if (ctrl_state_ >= WAITING && ctrl_state_ != FAULT) {
+            if (fabsf(current_velocity_) < 0.01f) {  // 速度接近0 (小于0.01 rad/s)
+                if (ctrl_state_ == MOVING || ctrl_state_ == WAITING) {
+                    ctrl_state_ = STABLE;  // 切换到稳定状态
+                }
+            } else {
+                if (ctrl_state_ == WAITING || ctrl_state_ == STABLE) {
+                    ctrl_state_ = MOVING;  // 切换到运动状态
+                }
+            }
+        }
+
+        DMMotorMITController::UpdateData(data);
     }
 
 }  // namespace driver

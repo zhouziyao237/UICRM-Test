@@ -4,16 +4,15 @@
 
 #pragma once
 
-
-#include "can_bridge.h"
-#include "connection_driver.h"
-#include "kinematics.h"
 #include "DMmotor.h"
 #include "MotorCanBase.h"
+#include "can_bridge.h"
+#include "connection_driver.h"
+#include "fivebar.h"
+#include "pid.h"
 #include "power_limit_new.h"
 #include "supercap.h"
 #include "utils.h"
-#include "pid.h"
 
 #define MAX_WHEEL_NUM 8
 
@@ -22,31 +21,22 @@ namespace WheelLeg {
     /**
      * @brief chassis models
      */
-    typedef enum {
-        CHASSIS_WHEELLEG
-    } chassis_model_t;
+    typedef enum { CHASSIS_WHEELLEG } chassis_model_t;
 
     /**
      * @brief structure used when chassis instance is initialized
      */
     struct chassis_t {
         driver::MotorCANBase** Motors; /* motor instances of all chassis motors */
-        driver::DMMotorMITController** JoinMotors;
-        chassis_model_t model;                 /* chassis model                         */
-        Kinematics* left;                      /* 左侧运动学模型指针 */
-        Kinematics* right;                     /* 右侧运动学模型指针 */
+        chassis_model_t model;         /* chassis model */
         float offset = 0;
         bool power_limit_on = false;
         bool has_super_capacitor = false;
         driver::SuperCap* super_capacitor = nullptr;
     };
 
-    struct JoinMotor {
-        enum { front_left, front_right, back_left, back_right, Join_motor_num };
-    };
-
     struct TwoWheel {
-        enum { left, right, motor_num};
+        enum { left, right, motor_num };
     };
 
     class Chassis : public driver::ConnectionDriver {
@@ -152,5 +142,59 @@ namespace WheelLeg {
         float chassis_vy = 0;
         float chassis_vt = 0;
     };
+
+    struct JoinMotor {
+        enum { front_left, front_right, back_left, back_right, Join_motor_num };
+    };
+
+    struct JointOffset {
+        float front_left = 0;
+        float front_right = 0;
+        float back_left = 0;
+        float back_right = 0;
+    };
+
+    struct Joint_t {
+        driver::DMMotorMITController** JoinMotors; /* Join motor instances of all chassis motors */
+        FiveBarLinkage** Linkage;
+        chassis_model_t model; /* chassis model */
+        JointOffset offset;
+        // bool power_limit_on = false;
+        // bool has_super_capacitor = false;
+        // driver::SuperCap* super_capacitor = nullptr;
+    };
+
+    struct LegPos_t {
+        float FootEnd_X = 0;
+        float FootEnd_Y = 0;
+
+        float L0 = 0;
+        float Theta0 = 0;
+    };
+
+    class JointControl : public driver::ConnectionDriver {
+    public:
+        explicit JointControl(const Joint_t Joint);
+
+        ~JointControl() override;
+
+        void SetPosition(const LegPos_t Left_LegPos, const LegPos_t Right_LegPos);
+
+
+    protected:
+        driver::DMMotorMITController** motors_ = nullptr;
+        FiveBarLinkage** Linkage_ = nullptr;
+        chassis_model_t model_;
+
+        JointOffset offset_;
+
+        // pids and current speeds for each motor on the chassis
+        float* theta_ = nullptr;
+
+        uint8_t JoinMotor_num_ = 0;
+
+        LegPos_t Left_LegPos_;
+        LegPos_t Right_LegPos_;
+    }
 
 }  // namespace WheelLeg

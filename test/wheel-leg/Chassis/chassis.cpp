@@ -186,4 +186,83 @@ namespace WheelLeg {
         }
     }
 
+    JointControl::JointControl(const Joint_t Joint) {
+        model_ = Joint.model;
+
+        switch (model_) {
+            case CHASSIS_WHEELLEG: {
+                motors_ = new driver::DMMotorMITController*[TwoWheel::motor_num];
+                motors_[TwoWheel::left] = Joint.JoinMotors[TwoWheel::left];
+                motors_[TwoWheel::right] = Joint.JoinMotors[TwoWheel::right];
+
+                Linkage_[TwoWheel::left] = Joint.Linkage[TwoWheel::left];
+                Linkage_[TwoWheel::right] = Joint.Linkage[TwoWheel::right];
+
+                // 角度初始化
+                theta_ = new float[TwoWheel::motor_num];
+                for (int i = 0; i < TwoWheel::motor_num; ++i)
+                    theta_[i] = 0;
+
+                // 轮子数
+                JoinMotor_num_ = TwoWheel::motor_num;
+                break;
+            }
+            default:
+                RM_ASSERT_TRUE(false, "Not Supported Chassis Mode\r\n");
+        }
+
+        offset_ = Joint.offset;
+    }
+
+    JointControl::~JointControl() {
+        driver::DMMotorMITController::RegisterPreOutputCallback([](void* args) { UNUSED(args); },
+                                                                nullptr);
+        switch (model_) {
+            case CHASSIS_WHEELLEG: {
+                motors_[JoinMotor::front_left] = nullptr;
+                motors_[JoinMotor::front_right] = nullptr;
+                motors_[JoinMotor::back_left] = nullptr;
+                motors_[JoinMotor::back_right] = nullptr;
+
+                Linkage_[TwoWheel::left] = nullptr;
+                Linkage_[TwoWheel::right] = nullptr;
+
+                delete[] motors_;
+                motors_ = nullptr;
+
+                delete[] Linkage_;
+                Linkage_ = nullptr;
+
+                delete[] theta_;
+                theta_ = nullptr;
+                break;
+            }
+
+            default:
+                RM_ASSERT_TRUE(false, "Not Supported Chassis Mode\r\n");
+        }
+    }
+
+    void JointControl::SetPosition(const LegPos_t Left_LegPos, const LegPos_t Right_LegPos) {
+        Heartbeat();
+        Left_LegPos_ = Left_LegPos;
+        Right_LegPos_ = Right_LegPos;
+
+        switch (model_) {
+            case CHASSIS_WHEELLEG: {
+                kin_ik_result_t result_left = Linkage_[TwoWheel::left]->inverseKinematics(Left_LegPos.FootEnd_X, Left_LegPos.FootEnd_Y);
+                theta_[JoinMotor::front_left] = result_left.alpha;
+                theta_[JoinMotor::back_left] = result_left.beta;
+
+                kin_ik_result_t result_right = Linkage_[TwoWheel::right]->inverseKinematics(Left_LegPos.FootEnd_X, Left_LegPos.FootEnd_Y);
+                theta_[JoinMotor::front_right] = result_right.alpha;
+                theta_[JoinMotor::back_right] = result_right.beta;
+
+                break;
+            }
+            default:
+                RM_ASSERT_TRUE(false, "Not Supported Chassis Mode\r\n");
+        }
+    }
+
 }  // namespace WheelLeg

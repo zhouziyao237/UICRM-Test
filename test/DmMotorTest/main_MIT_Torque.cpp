@@ -32,12 +32,12 @@
 
 // Refer to typeA datasheet for channel detail
 static bsp::CAN* can2 = nullptr;
-static driver::DMMotorMITController* motor1 = nullptr;
+static driver::Motor6006* motor1 = nullptr;
 
 void RM_RTOS_Init() {
     print_use_uart(&huart1, true, 912600);
     can2 = new bsp::CAN(&hcan2, false);
-    motor1 = new driver::DMMotorMITController(can2, 0x05, 0x01);
+    motor1 = new driver::Motor6006(can2, 0x05, 0x01);
     motor1->SetTransmissionRatio(1);
 
     control::ConstrainedPID::PID_Init_t omega_pid_init = {
@@ -93,7 +93,8 @@ void RM_RTOS_Default_Task(const void* args) {
         clear_screen();
 
         if (key.Read() == 0) {
-            motor1->SetTarget(PI);  // 设置初始参数
+            print("key");
+            motor1->SetTarget(0);  // 设置初始参数
         }
 
         motor1->PrintData();

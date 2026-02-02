@@ -291,6 +291,10 @@ namespace driver {
         volatile float current_velocity_ = 0;   // 单位：rad/s
         volatile float current_torque_ = 0;     // 单位：Nm
 
+        volatile int motor_id_ = 0;                               // 电机ID（反馈帧中获取）
+        volatile dm_motor_state_t hw_state_ = DM_STATE_DISABLED;  // 硬件反馈状态
+        volatile ControlState ctrl_state_ = DISABLED;             // 控制侧状态
+
         bool MITController = false;
 
         // 角度转换常量
@@ -316,10 +320,6 @@ namespace driver {
         uint16_t tx_id_actual_;  // 实际发送ID（根据模式计算）
         dm_motor_mode_t mode_;   // 当前控制模式
         uint32_t comm_loss_time = 0;
-
-        volatile int motor_id_ = 0;                               // 电机ID（反馈帧中获取）
-        volatile dm_motor_state_t hw_state_ = DM_STATE_DISABLED;  // 硬件反馈状态
-        volatile ControlState ctrl_state_ = DISABLED;             // 控制侧状态
 
         // 当前设置值（待发送）
         float set_position_ = 0;
@@ -444,9 +444,10 @@ namespace driver {
          *
          * 该函数用于更新内部数据缓冲区，使用提供的字节数组替换当前数据
          *
+         * @param data[]  原始数据
          * @return 无返回值
          */
-        void UpdateData();
+        virtual void UpdateData(const uint8_t data[]);
 
         /**
          * @brief 设置目标值
@@ -561,7 +562,6 @@ namespace driver {
          */
         float GetAbsolutePosition() const;
 
-
         /**
          * @brief 设置减速比
          *
@@ -626,7 +626,7 @@ namespace driver {
 
         bool is_init = false;
 
-      private:
+      protected:
         uint8_t mode_;  // 当前控制模式
         float target_;  // 当前目标值
         float output_;  // 当前输出力矩值
@@ -644,13 +644,14 @@ namespace driver {
         volatile float servo_angle_ = 0;  /* 电机输出轴的角度，单位为[rad]，范围为[0, 2PI] */
         volatile float cumulated_angle_ = 0; /* 累积角度，单位为[rad] */
 
+      private:
         // 前馈偏移
         float speed_offset_;  // 前馈中使用，在角度环输出的速度上加上一个偏移量
 
         callback_t error_callback_ = [](void* instance) { UNUSED(instance); };
         void* error_callback_instance_ = nullptr;
 
-        float CONTROL_SCALE = 100; // (todo: 输出范围缩放 100)
+        float CONTROL_SCALE = 100;  // (todo: 输出范围缩放 100)
 
         // 位置控制参数（与MotorCANBase保持一致）
         float proximity_in_;   // 进入保持状态阈值[rad]
@@ -670,6 +671,27 @@ namespace driver {
         static void* pre_output_callback_instance_;
         static callback_t post_output_callback_;
         static void* post_output_callback_instance_;
+    };
+
+    /**
+     * @brief DM 6006电机的标准类
+     */
+    /**
+     * @brief DM 6006 motor class
+     */
+    class Motor6006 : public DMMotorMITController {
+      public:
+        /* constructor wrapper over MotorCANBase */
+        Motor6006(bsp::CAN* can, uint16_t rx_id, uint16_t tx_id = 0x00);
+        /* implements data update callback */
+        void UpdateData(const uint8_t data[]) override final;
+        /* implements data printout */
+
+      private:
+        volatile int16_t raw_current_get_ = 0;
+        volatile uint8_t raw_temperature_ = 0;
+        static const int16_t MAX_OUT = 25000;
+        static const int16_t MAX_OUT_C = 16383;
     };
 
 }  // namespace driver

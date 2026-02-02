@@ -21,32 +21,35 @@
 #include "main.h"
 
 #include "DMmotor.h"
-#include "Kinematics.h"
 #include "arm_math.h"
+#include "bsp_gpio.h"
 #include "bsp_print.h"
 #include "cmsis_os.h"
+#include "fivebar.h"
 #include "pid.h"
-
-#include "bsp_gpio.h"
 #define KEY_GPIO_GROUP KEY_GPIO_Port
 #define KEY_GPIO_PIN KEY_Pin
 
-static Kinematics* kinematics = nullptr;
+static FiveBarLinkage* Linkage = nullptr;
 static bsp::CAN* can2 = nullptr;
 static driver::DMMotorMITController* motoralpha = nullptr;
 static driver::DMMotorMITController* motorbeta = nullptr;
 
+struct ModelLink_s {
+    float L1 = 130;
+    float L2 = 210;
+    float L3 = 130;
+    float L4 = 210;
+    float L5 = 90;
+} ModelLink_t;
+ModelLink_s linkcfg;
+
 void RM_RTOS_Init(void) {
     print_use_uart(&huart1, true, 921600);
 
+    Linkage = new FiveBarLinkage();
     // 设置机构参数
-    Kinematics::Model model;
-    model.L1 = 130.0f;
-    model.L2 = 210.0f;
-    model.L3 = 130.0f;
-    model.L4 = 210.0f;
-    model.L5 = 90.0f;
-    kinematics->setModel(model);
+    Linkage->setModel(linkcfg.L1, linkcfg.L2, linkcfg.L3, linkcfg.L4, linkcfg.L5);
 
     can2 = new bsp::CAN(&hcan2, false);
     motoralpha = new driver::DMMotorMITController(can2, 0x05, 0x01);
@@ -54,7 +57,6 @@ void RM_RTOS_Init(void) {
 
     motorbeta = new driver::DMMotorMITController(can2, 0x06, 0x02);
     motorbeta->SetTransmissionRatio(1);
-
 
     control::ConstrainedPID::PID_Init_t omega_pid_init = {
         .kp = 8.0,                            // 降低Kp，避免速度环输出过大
@@ -114,23 +116,11 @@ void RM_RTOS_Default_Task(const void* arg) {
     motoralpha->Enable();
     motorbeta->Enable();
     osDelay(500);
+
     while (true) {
         set_cursor(0, 0);
         clear_screen();
-        if (key.Read() == 0) {
-            // 逆运动学计算（根据足端坐标计算关节角度）
-            // float x = 100.0f;  // 足端X坐标
-            // float y = 50.0f;   // 足端Y坐标
-            // Kinematics::IKResult ikResult = kinematics->inverseKinematics(x, y);
-            //
-            // // motoralpha->SetTarget(ikResult.alpha);
-            // // motorbeta->SetTarget(ikResult.beta);
-            // motoralpha->SetTarget(ikResult.alpha);
-            // motorbeta->SetTarget(ikResult.beta);
 
-            motoralpha->SetTarget(0 + motoralpha->GetAbsolutePosition());
-            motorbeta->SetTarget(0);
-        }
 
         motorbeta->PrintData();
         motoralpha->PrintData();

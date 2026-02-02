@@ -3,8 +3,9 @@ uicrm_add_arm_executable(Wheel-Leg
         TARGET DJI_Board_TypeC_general
         SOURCES
         main.cpp
-        src/kinematics.cpp
-        src/chassis.cpp
+        ./Kinematics/kinematics.cpp
+        ./Kinematics/Model/fivebar.cpp
+        ./Chassis/chassis.cpp
 
-        INCLUDES include
+        INCLUDES ./Chassis ./Kinematics ./Kinematics/Model
 )
