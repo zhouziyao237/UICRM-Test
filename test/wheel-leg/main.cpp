@@ -1,39 +1,36 @@
-/*###########################################################
-# Copyright (c) 2023-2024. BNU-HKBU UIC RoboMaster         #
- #                                                          #
- # This program is free software: you can redistribute it   #
- # and/or modify it under the terms of the GNU General      #
- # Public License as published by the Free Software         #
- # Foundation, either version 3 of the License, or (at      #
- # your option) any later version.                          #
- #                                                          #
- # This program is distributed in the hope that it will be  #
- # useful, but WITHOUT ANY WARRANTY; without even           #
- # the implied warranty of MERCHANTABILITY or FITNESS       #
- # FOR A PARTICULAR PURPOSE.  See the GNU General           #
- # Public License for more details.                         #
- #                                                          #
- # You should have received a copy of the GNU General       #
- # Public License along with this program.  If not, see     #
- # <https://www.gnu.org/licenses/>.                         #
- ###########################################################*/
-
 #include "main.h"
 
 #include "DMmotor.h"
 #include "arm_math.h"
 #include "bsp_gpio.h"
 #include "bsp_print.h"
+#include "chassis.h"
 #include "cmsis_os.h"
 #include "fivebar.h"
 #include "pid.h"
+
 #define KEY_GPIO_GROUP KEY_GPIO_Port
 #define KEY_GPIO_PIN KEY_Pin
 
-static FiveBarLinkage* Linkage = nullptr;
+static FiveBarLinkage* left_Linkage = nullptr;
+static FiveBarLinkage* right_Linkage = nullptr;
 static bsp::CAN* can2 = nullptr;
-static driver::DMMotorMITController* motoralpha = nullptr;
-static driver::DMMotorMITController* motorbeta = nullptr;
+static driver::Motor6006* left_motoralpha = nullptr;
+static driver::Motor6006* left_motorbeta = nullptr;
+
+static driver::Motor6006* right_motoralpha = nullptr;
+static driver::Motor6006* right_motorbeta = nullptr;
+
+static WheelLeg::JointControl* joint_control = nullptr;
+static WheelLeg::LegPos_t left_leg_pos;
+static WheelLeg::LegPos_t right_leg_pos;
+
+static WheelLeg::JointMotorData_t ConfigData[4]{
+    {0, 1.50f},  // front_left
+    {0, 1.50f},  // front_right
+    {0, 1.50f},  // back_left
+    {0, 1.50f}   // back_right
+};
 
 struct ModelLink_s {
     float L1 = 130;
@@ -47,21 +44,26 @@ ModelLink_s linkcfg;
 void RM_RTOS_Init(void) {
     print_use_uart(&huart1, true, 921600);
 
-    Linkage = new FiveBarLinkage();
-    // 设置机构参数
-    Linkage->setModel(linkcfg.L1, linkcfg.L2, linkcfg.L3, linkcfg.L4, linkcfg.L5);
+    left_Linkage = new FiveBarLinkage();
+    left_Linkage->setModel(linkcfg.L1, linkcfg.L2, linkcfg.L3, linkcfg.L4, linkcfg.L5);
+    right_Linkage = new FiveBarLinkage();
+    right_Linkage->setModel(linkcfg.L1, linkcfg.L2, linkcfg.L3, linkcfg.L4, linkcfg.L5);
 
     can2 = new bsp::CAN(&hcan2, false);
-    motoralpha = new driver::DMMotorMITController(can2, 0x05, 0x01);
-    motoralpha->SetTransmissionRatio(1);
+    right_motoralpha = new driver::Motor6006(can2, 0x05, 0x01);
+    right_motoralpha->SetTransmissionRatio(1);
+    right_motorbeta = new driver::Motor6006(can2, 0x06, 0x02);
+    right_motorbeta->SetTransmissionRatio(1);
 
-    motorbeta = new driver::DMMotorMITController(can2, 0x06, 0x02);
-    motorbeta->SetTransmissionRatio(1);
+    left_motoralpha = new driver::Motor6006(can2, 0x07, 0x03);
+    left_motoralpha->SetTransmissionRatio(1);
+    left_motorbeta = new driver::Motor6006(can2, 0x08, 0x04);
+    left_motorbeta->SetTransmissionRatio(1);
 
     control::ConstrainedPID::PID_Init_t omega_pid_init = {
         .kp = 8.0,                            // 降低Kp，避免速度环输出过大
         .ki = 0,                              // 降低Ki，减少积分饱和风险
-        .kd = 6,                              // 适当微分抑制震荡
+        .kd = 2,                              // 适当微分抑制震荡
         .max_out = 1200,                      // 降低最大输出，留出安全余量 (todo: 输出范围缩放 100)
         .max_iout = 200,                      // 限制积分项
         .deadband = 0,                        // 小死区提高灵敏度
@@ -78,7 +80,7 @@ void RM_RTOS_Init(void) {
     control::ConstrainedPID::PID_Init_t theta_pid_init = {
         .kp = 12,                  // 降低Kp，避免位置环输出过大
         .ki = 0,                   // 小积分消除静差
-        .kd = 8,                   // 小微分抑制震荡
+        .kd = 4,                   // 小微分抑制震荡
         .max_out = 6 * 12.5f / 2,  // 降低位置环最大输出，为速度环留出空间
         .max_iout = 0,             // 限制积分项
         .deadband = 0,             // 提高灵敏度
@@ -89,41 +91,93 @@ void RM_RTOS_Init(void) {
         .mode = control::ConstrainedPID::OutputFilter  // 输出滤波
     };
 
-    motoralpha->ReInitPID(omega_pid_init, driver::DMMotorMITController::SPEED_LOOP_CONTROL);
-    motoralpha->ReInitPID(theta_pid_init, driver::DMMotorMITController::ANGLE_LOOP_CONTROL);
-    motoralpha->SetMode(driver::DMMotorMITController::ANGLE_LOOP_CONTROL |
-                        driver::DMMotorMITController::SPEED_LOOP_CONTROL |
-                        driver::DMMotorMITController::ABSOLUTE |
-                        driver::DMMotorMITController::MOTOR_TORQUE_REVERSE);
+    // 批量设置四个电机的PID参数
+    driver::Motor6006* all_motors[] = {left_motoralpha, left_motorbeta, right_motoralpha,
+                                       right_motorbeta};
 
-    motorbeta->ReInitPID(omega_pid_init, driver::DMMotorMITController::SPEED_LOOP_CONTROL);
-    motorbeta->ReInitPID(theta_pid_init, driver::DMMotorMITController::ANGLE_LOOP_CONTROL);
-    motorbeta->SetMode(driver::DMMotorMITController::ANGLE_LOOP_CONTROL |
-                       driver::DMMotorMITController::SPEED_LOOP_CONTROL |
-                       driver::DMMotorMITController::ABSOLUTE |
-                       driver::DMMotorMITController::MOTOR_TORQUE_REVERSE);
+    for (int i = 0; i < 4; i++) {
+        all_motors[i]->ReInitPID(omega_pid_init, driver::DMMotorMITController::SPEED_LOOP_CONTROL);
+        all_motors[i]->ReInitPID(theta_pid_init, driver::DMMotorMITController::ANGLE_LOOP_CONTROL);
 
-    // Snail need to be run at idle throttle for some
+        all_motors[i]->SetMode(driver::DMMotorMITController::ANGLE_LOOP_CONTROL |
+                               driver::DMMotorMITController::SPEED_LOOP_CONTROL |
+                               driver::DMMotorMITController::ABSOLUTE |
+                               driver::DMMotorMITController::MOTOR_TORQUE_REVERSE);
+    }
+
+    WheelLeg::Joint_t joint_config;
+    joint_config.JoinMotors =
+        new driver::DMMotorMITController*[WheelLeg::JoinMotor::Join_motor_num];
+    joint_config.JoinMotors[WheelLeg::JoinMotor::front_left] = left_motorbeta;
+    joint_config.JoinMotors[WheelLeg::JoinMotor::back_left] = left_motoralpha;
+    joint_config.JoinMotors[WheelLeg::JoinMotor::front_right] = right_motoralpha;
+    joint_config.JoinMotors[WheelLeg::JoinMotor::back_right] = right_motorbeta;
+
+    joint_config.Linkage = new FiveBarLinkage*[WheelLeg::TwoLink::Link_num];
+    joint_config.Linkage[WheelLeg::TwoLink::left] = left_Linkage;
+    joint_config.Linkage[WheelLeg::TwoLink::right] = right_Linkage;
+
+    joint_config.data = new WheelLeg::JointMotorData_t*[WheelLeg::JoinMotor::Join_motor_num];
+    for (int i = 0; i < WheelLeg::JoinMotor::Join_motor_num; i++) {
+        joint_config.data[i] = &ConfigData[i];
+    }
+    joint_config.model = WheelLeg::CHASSIS_WHEELLEG;
+
+    joint_config.JointMirror.SetLeft(false);
+    joint_config.JointMirror.SetRight(true);
+
+    joint_control = new WheelLeg::JointControl(joint_config);
+    joint_control->Enable();
+
+    left_leg_pos.FootEnd_X = 24.0f;
+    left_leg_pos.FootEnd_Y = 50.0f;
+    right_leg_pos.FootEnd_X = 24.0f;
+    right_leg_pos.FootEnd_Y = 50.0f;
+
     HAL_Delay(1000);
-    print("test demo run");
-}
-void RM_RTOS_Threads_Init(void) {
+    print("test demo run\n");
 }
 
 void RM_RTOS_Default_Task(const void* arg) {
     UNUSED(arg);
     bsp::GPIO key(KEY_GPIO_GROUP, KEY_GPIO_PIN);
-    motoralpha->Enable();
-    motorbeta->Enable();
+    joint_control->Enable();
     osDelay(500);
-
     while (true) {
         set_cursor(0, 0);
         clear_screen();
 
+        WheelLeg::ErrorCode result = joint_control->Update();
+        if (result != WheelLeg::ErrorCode::SUCCESS) {
+            switch (result) {
+                case WheelLeg::ErrorCode::MOTOR_OFFLINE:
+                    print("[ERROR] Motor offline detected.\r\n");
+                    break;
+                case WheelLeg::ErrorCode::INITIALIZATION_FAILED:
+                    print("[ERROR] Initialization failed.\r\n");
+                    break;
+                case WheelLeg::ErrorCode::UNSUPPORTED_MODE:
+                    print("[ERROR] Unsupported chassis mode.\r\n");
+                    break;
+                default:
+                    print("Unknown error occurred.\r\n");
+                    break;
+            }
+        }
 
-        motorbeta->PrintData();
-        motoralpha->PrintData();
-        osDelay(50);
+        joint_control->UpdatePosition(&left_leg_pos, &right_leg_pos);
+
+        joint_control->GetLegPos(left_leg_pos, WheelLeg::TwoLink::left);
+        joint_control->GetLegPos(left_leg_pos, WheelLeg::TwoLink::right);
+
+        print("Left Leg Position: X=%.2f, Y=%.2f\r\n", left_leg_pos.FootEnd_X,
+              left_leg_pos.FootEnd_Y);
+        print("Right Leg Position: X=%.2f, Y=%.2f\r\n", right_leg_pos.FootEnd_X,
+              right_leg_pos.FootEnd_Y);
+
+        right_motorbeta->PrintData();
+        right_motoralpha->PrintData();
+
+        osDelay(100);
     }
 }

@@ -100,6 +100,11 @@ namespace driver {
         };
 
         /**
+         * @brief 堵转回调函数类型（与MotorCANBase保持一致）
+         */
+        typedef void (*callback_t)(void* args);
+
+        /**
          * @brief 构造函数
          *
          * @param can    CAN总线对象
@@ -248,6 +253,20 @@ namespace driver {
         void SetVelocityParams(float velocity);
 
         /**
+         * @brief 设置在执行输出数据前的回调函数，一般用于功率限制
+         * @param callback 回调函数
+         * @param instance 回调函数的参数
+         */
+        static void RegisterPreOutputCallback(callback_t callback, void* instance);
+
+        /**
+         * @brief 设置在执行输出数据后的回调函数，一般用于垃圾清理等
+         * @param callback 回调函数
+         * @param instance 回调函数的参数
+         */
+        static void RegisterPostOutputCallback(callback_t callback, void* instance);
+
+        /**
          * @brief 扭矩输出函数
          *
          * 该函数用于执行扭矩输出相关的操作，具体实现未在当前代码中提供。
@@ -277,6 +296,22 @@ namespace driver {
          */
         static float UintToFloat(int x_int, float x_min, float x_max, int bits);
 
+        // 角度转换常量
+        // todo: 多圈绝对值编码器所以实际一圈是1/4的全部总和圈数
+        static constexpr float DAMIAO_HALF_RANGE = 12.5 / 4;  // 达妙角度总范围
+
+        // 参数映射范围（与说明书一致）
+        constexpr static float KP_MIN = 0;
+        constexpr static float KP_MAX = 500;
+        constexpr static float KD_MIN = 0;
+        constexpr static float KD_MAX = 5;
+        constexpr static float POS_MIN = -12.5f;
+        constexpr static float POS_MAX = 12.5f;
+        constexpr static float VEL_MIN = -45.0f;
+        constexpr static float VEL_MAX = 45.0f;
+        constexpr static float TORQUE_MIN = -12.0f;
+        constexpr static float TORQUE_MAX = 12.0f;
+
       protected:
         // 反馈原始数据
         volatile int16_t raw_position_ = 0;
@@ -297,21 +332,10 @@ namespace driver {
 
         bool MITController = false;
 
-        // 角度转换常量
-        // todo: 多圈绝对值编码器所以实际一圈是1/4的全部总和圈数
-        static constexpr float DAMIAO_HALF_RANGE = 12.5 / 4;  // 达妙角度总范围
-
-        // 参数映射范围（与说明书一致）
-        constexpr static float KP_MIN = 0;
-        constexpr static float KP_MAX = 500;
-        constexpr static float KD_MIN = 0;
-        constexpr static float KD_MAX = 5;
-        constexpr static float POS_MIN = -12.5f;
-        constexpr static float POS_MAX = 12.5f;
-        constexpr static float VEL_MIN = -45.0f;
-        constexpr static float VEL_MAX = 45.0f;
-        constexpr static float TORQUE_MIN = -12.0f;
-        constexpr static float TORQUE_MAX = 12.0f;
+        static callback_t pre_output_callback_;
+        static void* pre_output_callback_instance_;
+        static callback_t post_output_callback_;
+        static void* post_output_callback_instance_;
 
       private:
         bsp::CAN* can_;
@@ -378,6 +402,8 @@ namespace driver {
         struct MotorGroup {
             bsp::CAN* can;   // CAN总线
             uint16_t tx_id;  // 发送ID
+            uint16_t rx_id;  // 接收ID
+            uint8_t motor_data_[8];
             DMMotor* motor;  // 电机实例
             bool active;     // 是否激活
         };
@@ -601,20 +627,6 @@ namespace driver {
                                          control::ConstrainedPID::PID_ErrorHandler_t type);
 
         /**
-         * @brief 设置在执行输出数据前的回调函数，一般用于功率限制
-         * @param callback 回调函数
-         * @param instance 回调函数的参数
-         */
-        static void RegisterPreOutputCallback(callback_t callback, void* instance);
-
-        /**
-         * @brief 设置在执行输出数据后的回调函数，一般用于垃圾清理等
-         * @param callback 回调函数
-         * @param instance 回调函数的参数
-         */
-        static void RegisterPostOutputCallback(callback_t callback, void* instance);
-
-        /**
          * @brief 获取电机编码器原始角度
          */
         float GetTheta() const;
@@ -666,11 +678,6 @@ namespace driver {
         float output_shaft_omega_;                // 输出轴角速度
         FloatEdgeDetector* inner_wrap_detector_;  // 内部边界检测器
         FloatEdgeDetector* outer_wrap_detector_;  // 外部边界检测器
-
-        static callback_t pre_output_callback_;
-        static void* pre_output_callback_instance_;
-        static callback_t post_output_callback_;
-        static void* post_output_callback_instance_;
     };
 
     /**
@@ -682,16 +689,9 @@ namespace driver {
     class Motor6006 : public DMMotorMITController {
       public:
         /* constructor wrapper over MotorCANBase */
-        Motor6006(bsp::CAN* can, uint16_t rx_id, uint16_t tx_id = 0x00);
+        Motor6006(bsp::CAN* can, uint16_t rx_id, uint16_t tx_id);
         /* implements data update callback */
         void UpdateData(const uint8_t data[]) override final;
-        /* implements data printout */
-
-      private:
-        volatile int16_t raw_current_get_ = 0;
-        volatile uint8_t raw_temperature_ = 0;
-        static const int16_t MAX_OUT = 25000;
-        static const int16_t MAX_OUT_C = 16383;
     };
 
 }  // namespace driver

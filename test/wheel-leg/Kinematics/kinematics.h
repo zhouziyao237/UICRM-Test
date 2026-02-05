@@ -52,8 +52,8 @@ struct kin_ik_result_t {
     float beta;         // 右侧关节角度(rad)
 
     struct {
-        uint16_t theta1;  // 左侧夹角(0.01rad精度)
-        uint16_t theta2;  // 右侧夹角(0.01rad精度)
+        float theta1;  // 左侧夹角(0.01rad精度)
+        float theta2;  // 右侧夹角(0.01rad精度)
     } angles;
 
     struct {
