@@ -331,6 +331,7 @@ namespace driver {
         volatile ControlState ctrl_state_ = DISABLED;             // 控制侧状态
 
         bool MITController = false;
+        bool SETMode = false;
 
         static callback_t pre_output_callback_;
         static void* pre_output_callback_instance_;

@@ -136,8 +136,31 @@ namespace driver {
                         motor->TorqueOutput();
                     }
 
-                    // 打包控制数据
-                    motor->PackControlData(motor_groups_[i].motor_data_);
+                    if (motor->SETMode) {
+                        const uint8_t zero_position_cmd[8] = {0xff, 0xff, 0xff, 0xff,
+                                                              0xff, 0xff, 0xff, 0xfe};
+                        memcpy(motor_groups_[i].motor_data_, zero_position_cmd,
+                               sizeof(zero_position_cmd));
+                        motor->SETMode = false;
+                    } else {
+                        switch (motor->ctrl_state_) {
+                            case ENABLED: {
+                                const uint8_t enable_cmd[8] = {0xff, 0xff, 0xff, 0xff,
+                                                               0xff, 0xff, 0xff, 0xfd};
+                                memcpy(motor_groups_[i].motor_data_, enable_cmd,
+                                       sizeof(enable_cmd));
+                            } break;
+                            case DISABLED: {
+                                const uint8_t disable_cmd[8] = {0xff, 0xff, 0xff, 0xff,
+                                                                0xff, 0xff, 0xff, 0xff};
+                                memcpy(motor_groups_[i].motor_data_, disable_cmd,
+                                       sizeof(disable_cmd));
+                            } break;
+                            default:
+                                // 打包控制数据
+                                motor->PackControlData(motor_groups_[i].motor_data_);
+                        }
+                    }
                 }
             }
 
@@ -147,7 +170,8 @@ namespace driver {
             for (uint8_t i = 0; i < group_count_; i++) {
                 if (motor_groups_[i].active && motor_groups_[i].motor) {
                     // 直接发送单个电机的控制数据
-                    motor_groups_[i].can->Transmit(motor_groups_[i].tx_id, motor_groups_[i].motor_data_, 8);
+                    motor_groups_[i].can->Transmit(motor_groups_[i].tx_id,
+                                                   motor_groups_[i].motor_data_, 8);
                 }
             }
 
@@ -156,7 +180,6 @@ namespace driver {
             osDelay(control_interval_);
         }
     }
-
 
     // ==================== 防护检测 ====================
     bool DMMotor::CheckProtection() {
@@ -314,22 +337,24 @@ namespace driver {
             return;
         }
 
-        uint8_t data[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc};
-        can_->Transmit(tx_id_actual_, data, 8);
+        // uint8_t data[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc};
+        // can_->Transmit(tx_id_actual_, data, 8);
         // 更新控制侧状态
         ctrl_state_ = ENABLED;
     }
 
     void DMMotor::MotorDisable() {
-        uint8_t data[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfd};
-        can_->Transmit(tx_id_actual_, data, 8);
+        // uint8_t data[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfd};
+        // can_->Transmit(tx_id_actual_, data, 8);
         // 更新控制侧状态
         ctrl_state_ = DISABLED;
     }
 
     void DMMotor::SetZeroPosition() {
-        uint8_t data[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe};
-        can_->Transmit(tx_id_actual_, data, 8);
+        // uint8_t data[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe};
+        // can_->Transmit(tx_id_actual_, data, 8);
+
+        SETMode = true;
     }
 
     // ==================== 参数设置函数 ====================
