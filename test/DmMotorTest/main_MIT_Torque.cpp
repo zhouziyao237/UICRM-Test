@@ -33,12 +33,15 @@
 // Refer to typeA datasheet for channel detail
 static bsp::CAN* can2 = nullptr;
 static driver::Motor6006* motor1 = nullptr;
+static driver::Motor6006* motor2 = nullptr;
 
 void RM_RTOS_Init() {
     print_use_uart(&huart1, true, 912600);
     can2 = new bsp::CAN(&hcan2, false);
     motor1 = new driver::Motor6006(can2, 0x05, 0x01);
     motor1->SetTransmissionRatio(1);
+    motor2 = new driver::Motor6006(can2, 0x06, 0x02);
+    motor2->SetTransmissionRatio(1);
 
     control::ConstrainedPID::PID_Init_t omega_pid_init = {
         .kp = 8.0,        // 降低Kp，避免速度环输出过大
@@ -78,6 +81,15 @@ void RM_RTOS_Init() {
                     driver::DMMotorMITController::SPEED_LOOP_CONTROL |
                     driver::DMMotorMITController::ABSOLUTE |
                     driver::DMMotorMITController::MOTOR_TORQUE_REVERSE);
+
+    motor2->ReInitPID(omega_pid_init, driver::DMMotorMITController::SPEED_LOOP_CONTROL);
+    motor2->ReInitPID(theta_pid_init, driver::DMMotorMITController::ANGLE_LOOP_CONTROL);
+
+    motor2->SetMode(driver::DMMotorMITController::ANGLE_LOOP_CONTROL |
+                    driver::DMMotorMITController::SPEED_LOOP_CONTROL |
+                    driver::DMMotorMITController::ABSOLUTE |
+                    driver::DMMotorMITController::MOTOR_TORQUE_REVERSE);
+
     // Snail need to be run at idle throttle for some
     HAL_Delay(1000);
     print("test demo run");
@@ -87,6 +99,7 @@ void RM_RTOS_Default_Task(const void* args) {
     UNUSED(args);
     bsp::GPIO key(KEY_GPIO_GROUP, KEY_GPIO_PIN);
     motor1->Enable();
+    motor2->Enable();
     osDelay(500);
     while (true) {
         set_cursor(0, 0);
@@ -94,10 +107,12 @@ void RM_RTOS_Default_Task(const void* args) {
 
         if (key.Read() == 0) {
             print("key");
-            motor1->SetTarget(0);  // 设置初始参数
+            motor1->SetTarget(-0.5);  // 设置初始参数
+            motor2->SetTarget(0.5);
         }
 
         motor1->PrintData();
+        motor2->PrintData();
         osDelay(50);
     }
 }

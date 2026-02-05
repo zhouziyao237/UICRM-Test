@@ -29,16 +29,15 @@ namespace driver {
     // ==================== 静态成员初始化 ====================
     bool DMMotor::is_init_ = false;
     bsp::Thread* DMMotor::control_thread_ = nullptr;
-    uint32_t DMMotor::control_freq_ = 500;             // 默认500Hz
-    uint32_t DMMotor::control_interval_ = 1000 / 500;  // 2ms
+    uint32_t DMMotor::control_freq_ = 1000;             // 默认1000Hz
+    uint32_t DMMotor::control_interval_ = 1000 / 1000;  // 1ms
     DMMotor::MotorGroup DMMotor::motor_groups_[DMMotor::MAX_GROUPS];
     uint8_t DMMotor::group_count_ = 0;
-    DMMotorMITController::callback_t DMMotorMITController::pre_output_callback_ = [](void* args) {
-        UNUSED(args);
-    };
-    DMMotorMITController::callback_t DMMotorMITController::post_output_callback_ = [](void* args) {
-        UNUSED(args);
-    };
+    // 静态成员变量定义
+    DMMotor::callback_t DMMotor::pre_output_callback_ = [](void* args) { UNUSED(args); };
+    DMMotor::callback_t DMMotor::post_output_callback_ = [](void* args) { UNUSED(args); };
+    void* DMMotor::pre_output_callback_instance_ = nullptr;
+    void* DMMotor::post_output_callback_instance_ = nullptr;
 
     // ==================== CAN回调函数 ====================
     static void can_motor_callback(const uint8_t data[], void* args) {
@@ -54,7 +53,7 @@ namespace driver {
     // ==================== 构造函数 ====================
     DMMotor::DMMotor(bsp::CAN* can, uint16_t rx_id, uint16_t tx_id, dm_motor_mode_t mode,
                      DMMotorProtectConfig config)
-        : ConnectionDriver(50),
+        : ConnectionDriver(control_interval_ * 30),
           ctrl_state_(DISABLED),
           can_(can),
           rx_id_(rx_id),
@@ -137,16 +136,47 @@ namespace driver {
                         motor->TorqueOutput();
                     }
 
-                    // 打包控制数据
-                    uint8_t data[8];
-                    motor->PackControlData(data);
+                    if (motor->SETMode) {
+                        const uint8_t zero_position_cmd[8] = {0xff, 0xff, 0xff, 0xff,
+                                                              0xff, 0xff, 0xff, 0xfe};
+                        memcpy(motor_groups_[i].motor_data_, zero_position_cmd,
+                               sizeof(zero_position_cmd));
+                        motor->SETMode = false;
+                    } else {
+                        switch (motor->ctrl_state_) {
+                            case ENABLED: {
+                                const uint8_t enable_cmd[8] = {0xff, 0xff, 0xff, 0xff,
+                                                               0xff, 0xff, 0xff, 0xfd};
+                                memcpy(motor_groups_[i].motor_data_, enable_cmd,
+                                       sizeof(enable_cmd));
+                            } break;
+                            case DISABLED: {
+                                const uint8_t disable_cmd[8] = {0xff, 0xff, 0xff, 0xff,
+                                                                0xff, 0xff, 0xff, 0xff};
+                                memcpy(motor_groups_[i].motor_data_, disable_cmd,
+                                       sizeof(disable_cmd));
+                            } break;
+                            default:
+                                // 打包控制数据
+                                motor->PackControlData(motor_groups_[i].motor_data_);
+                        }
+                    }
+                }
+            }
 
-                    // 发送CAN帧
-                    motor_groups_[i].can->Transmit(motor_groups_[i].tx_id, data, 8);
+            pre_output_callback_(pre_output_callback_instance_);
+
+            // 直接发送每个电机的控制数据，避免批量发送的复杂性
+            for (uint8_t i = 0; i < group_count_; i++) {
+                if (motor_groups_[i].active && motor_groups_[i].motor) {
+                    // 直接发送单个电机的控制数据
+                    motor_groups_[i].can->Transmit(motor_groups_[i].tx_id,
+                                                   motor_groups_[i].motor_data_, 8);
                 }
             }
 
             // 固定频率延时
+            post_output_callback_(post_output_callback_instance_);
             osDelay(control_interval_);
         }
     }
@@ -307,24 +337,24 @@ namespace driver {
             return;
         }
 
-        uint8_t data[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc};
-        can_->Transmit(tx_id_actual_, data, 8);
-
+        // uint8_t data[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc};
+        // can_->Transmit(tx_id_actual_, data, 8);
         // 更新控制侧状态
         ctrl_state_ = ENABLED;
     }
 
     void DMMotor::MotorDisable() {
-        uint8_t data[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfd};
-        can_->Transmit(tx_id_actual_, data, 8);
-
+        // uint8_t data[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfd};
+        // can_->Transmit(tx_id_actual_, data, 8);
         // 更新控制侧状态
         ctrl_state_ = DISABLED;
     }
 
     void DMMotor::SetZeroPosition() {
-        uint8_t data[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe};
-        can_->Transmit(tx_id_actual_, data, 8);
+        // uint8_t data[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe};
+        // can_->Transmit(tx_id_actual_, data, 8);
+
+        SETMode = true;
     }
 
     // ==================== 参数设置函数 ====================
@@ -368,6 +398,15 @@ namespace driver {
         if (ctrl_state_ == ENABLED) {
             ctrl_state_ = WAITING;
         }
+    }
+
+    void DMMotor::RegisterPreOutputCallback(DMMotor::callback_t callback, void* instance) {
+        pre_output_callback_ = callback;
+        pre_output_callback_instance_ = instance;
+    }
+    void DMMotor::RegisterPostOutputCallback(DMMotor::callback_t callback, void* instance) {
+        post_output_callback_ = callback;
+        post_output_callback_instance_ = instance;
     }
 
     // ==================== 数据更新 ====================
@@ -759,17 +798,6 @@ namespace driver {
 
     void DMMotorMITController::SetSpeedOffset(float offset) {
         speed_offset_ = offset;
-    }
-
-    void DMMotorMITController::RegisterPreOutputCallback(DMMotorMITController::callback_t callback,
-                                                         void* instance) {
-        pre_output_callback_ = callback;
-        pre_output_callback_instance_ = instance;
-    }
-    void DMMotorMITController::RegisterPostOutputCallback(DMMotorMITController::callback_t callback,
-                                                          void* instance) {
-        post_output_callback_ = callback;
-        post_output_callback_instance_ = instance;
     }
 
     // ==================================== 暂存未使用函数 =====================================

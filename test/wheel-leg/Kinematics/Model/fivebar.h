@@ -38,8 +38,8 @@ public:
     // ========== 重写缓存方法 ==========
     void clearCache() override;
 
-private:
-    // ========== 私有类型定义 ==========
+    // ========== 成员变量 ==========
+
     struct ModelParams {
         float L1, L2, L3, L4, L5;
         float L5_half;
@@ -67,6 +67,11 @@ private:
         }
     } __attribute__((aligned(4)));
 
+    ModelParams model_;
+
+private:
+    // ========== 私有类型定义 ==========
+
     // 计算工作区 - 使用更紧凑的设计
     struct CalcWorkspace {
         float x, y;
@@ -81,7 +86,6 @@ private:
     } __attribute__((aligned(4)));
 
     // ========== 成员变量 ==========
-    ModelParams model_;
     bool model_initialized_;
 
     // 计算工作区（避免重复分配）
