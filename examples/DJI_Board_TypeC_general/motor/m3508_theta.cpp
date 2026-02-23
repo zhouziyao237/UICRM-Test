@@ -35,13 +35,13 @@ static driver::Motor3508* motor1 = nullptr;
 void RM_RTOS_Init() {
     print_use_uart(&huart1, true, 921600);
     can1 = new bsp::CAN(&hcan1, true);
-    motor1 = new driver::Motor3508(can1, 0x204);
-    motor1->SetTransmissionRatio(6);
+    motor1 = new driver::Motor3508(can1, 0x203);
+    motor1->SetTransmissionRatio(1);
     control::ConstrainedPID::PID_Init_t theta_pid_init = {
-        .kp = 20,
+        .kp = 6,
         .ki = 0,
-        .kd = 0,
-        .max_out = 15 * PI,
+        .kd = 8,
+        .max_out = 6 * PI,
         .max_iout = 0,
         .deadband = 0,                                 // 死区
         .A = 0,                                        // 变速积分所能达到的最大值为A+B
@@ -52,14 +52,14 @@ void RM_RTOS_Init() {
     };
     motor1->ReInitPID(theta_pid_init, driver::MotorCANBase::ANGLE_LOOP_CONTROL);
     control::ConstrainedPID::PID_Init_t omega_pid_init = {
-        .kp = 2500,
+        .kp = 150,
         .ki = 3,
-        .kd = 0,
+        .kd = 260,
         .max_out = 30000,
         .max_iout = 10000,
         .deadband = 0,                          // 死区
-        .A = 3 * PI,                            // 变速积分所能达到的最大值为A+B
-        .B = 2 * PI,                            // 启动变速积分的死区
+        .A = 1.5 * PI,                            // 变速积分所能达到的最大值为A+B
+        .B = 1 * PI,                            // 启动变速积分的死区
         .output_filtering_coefficient = 0.1,    // 输出滤波系数
         .derivative_filtering_coefficient = 0,  // 微分滤波系数
         .mode = control::ConstrainedPID::Integral_Limit |       // 积分限幅
