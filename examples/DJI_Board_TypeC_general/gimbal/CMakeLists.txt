@@ -8,3 +8,7 @@ uicrm_add_arm_executable(${PROJECT_NAME}
 uicrm_add_arm_executable(${PROJECT_NAME}_sbus
         TARGET ${BOARD_NAME}
         SOURCES typeC_sbus.cpp)
+
+uicrm_add_arm_executable(${PROJECT_NAME}demo2
+        TARGET ${BOARD_NAME}
+        SOURCES typeC-demo2.cpp)

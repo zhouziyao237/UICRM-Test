@@ -34,11 +34,12 @@ bsp::UART* refereeRc_uart = nullptr;
 void RM_RTOS_Init(void) {
     print_use_usb();
 
-    referee_uart = new bsp::UART(&huart1);
+    referee_uart = new bsp::UART(&huart6);
     referee_uart->SetupRx(300);
     referee_uart->SetupTx(300);
 
-    refereeRc_uart = new bsp::UART(&huart6);
+    refereeRc_uart = new bsp::UART(&huart1);
+    refereeRc_uart->SetBaudrate(912600);
     refereeRc_uart->SetupRx(300);
     refereeRc_uart->SetupTx(300);
 

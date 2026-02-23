@@ -33,10 +33,10 @@ static bsp::CAN* can1 = nullptr;
 static driver::Motor3508* motor1 = nullptr;
 
 void RM_RTOS_Init() {
-    print_use_uart(&huart1);
+    print_use_uart(&huart1, true, 921600);
     can1 = new bsp::CAN(&hcan1, true);
-    motor1 = new driver::Motor3508(can1, 0x201);
-    motor1->SetTransmissionRatio(19);
+    motor1 = new driver::Motor3508(can1, 0x204);
+    motor1->SetTransmissionRatio(6);
     control::ConstrainedPID::PID_Init_t theta_pid_init = {
         .kp = 20,
         .ki = 0,
@@ -50,7 +50,7 @@ void RM_RTOS_Init() {
         .derivative_filtering_coefficient = 0,         // 微分滤波系数
         .mode = control::ConstrainedPID::OutputFilter  // 输出滤波
     };
-    motor1->ReInitPID(theta_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
+    motor1->ReInitPID(theta_pid_init, driver::MotorCANBase::ANGLE_LOOP_CONTROL);
     control::ConstrainedPID::PID_Init_t omega_pid_init = {
         .kp = 2500,
         .ki = 3,
@@ -67,7 +67,7 @@ void RM_RTOS_Init() {
                 control::ConstrainedPID::Trapezoid_Intergral |  // 梯形积分
                 control::ConstrainedPID::ChangingIntegralRate,  // 变速积分
     };
-    motor1->ReInitPID(omega_pid_init, driver::MotorCANBase::ANGLE_LOOP_CONTROL);
+    motor1->ReInitPID(omega_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
     motor1->SetMode(driver::MotorCANBase::SPEED_LOOP_CONTROL |
                     driver::MotorCANBase::ANGLE_LOOP_CONTROL);
 
@@ -88,7 +88,8 @@ void RM_RTOS_Default_Task(const void* args) {
             while (key.Read() == 0) {
                 osDelay(30);
             }
-            motor1->SetTarget(motor1->GetTarget() + 2 * PI);
+            motor1->Enable();
+            motor1->SetTarget(PI);
             osDelay(20);
         }
         motor1->PrintData();
