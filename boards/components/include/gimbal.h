@@ -21,17 +21,27 @@
 #pragma once
 
 #include "MotorCanBase.h"
+#include <string>
 #include "pid.h"
 #include "utils.h"
 
 namespace control {
 
+    // 角度转换宏定义
+#ifndef DEG_TO_RAD
+#define DEG_TO_RAD(deg) ((deg) * M_PI / 180.0f)
+#endif
+
+#ifndef RAD_TO_DEG
+#define RAD_TO_DEG(rad) ((rad) * 180.0f / M_PI)
+#endif
+
     /**
-     * @brief 不同云台的电机偏移角度、最大角度、最小角度
+     * @brief 不同云台的电机偏移角度、最大角度、最小角度、减速比
      * @note 除了最小角度由用户决定，其他都应该通过读取编码器值通过uart/gdb获取
      */
     /**
-     * @brief offset, max, and proximity angles of different gimbals
+     * @brief offset, max, proximity angles and reduction ratios of different gimbals
      * @note except for proximity is determined by user, these should be obtained
      * by reading encoder values through uart/gdb
      */
@@ -41,12 +51,14 @@ namespace control {
         float yaw_offset_ = 0.0f;   /* yaw offset angle (angle when muzzle is at horizontal
                                   center) */
         float pitch_max_ = 0.0f;    /* maximum pitch angle the gimbal can turn from center */
-        float yaw_max_ = 0.0f;      /* maximum yaw angle the gimbal can turn from center      */
+        float yaw_max_ = 0.0f;      /* maximum yaw angle the gimbal can turn from center */
         bool yaw_circle_ = true;    /* yaw angle can circle or not */
         bool pitch_inverted = false;
         bool yaw_inverted = false;
         float pitch_eposition = 0;
         float yaw_eposition = 0;
+        float pitch_reduction = 1.0f; /* pitch axis reduction ratio (motor angle / gimbal angle) */
+        float yaw_reduction = 1.0f;   /* yaw axis reduction ratio (motor angle / gimbal angle) */
     };
 
     /**
@@ -185,6 +197,8 @@ namespace control {
          */
         float getYawByMotor() const;
 
+        int GetDebugString(char* buffer, size_t size) const;
+
       private:
         // acquired from user
         driver::MotorCANBase* pitch_motor_ = nullptr;
@@ -193,11 +207,11 @@ namespace control {
         // pitch and yaw constants
         gimbal_data_t data_;
 
-        // pitch and yaw angle
+        // pitch and yaw angle (gimbal frame)
         float pitch_angle_; /* current gimbal pitch angle */
         float yaw_angle_;   /* current gimbal yaw angle   */
 
-        // pitch and yaw limit
+        // pitch and yaw limit (gimbal frame)
         float pitch_lower_limit_; /* pitch lower limit */
         float pitch_upper_limit_; /* pitch upper limit */
         float yaw_lower_limit_;   /* yaw lower limit   */

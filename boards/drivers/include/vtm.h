@@ -36,7 +36,7 @@ namespace remote {
     #define BAUD_RATE 921600                    // 波特率
     #define TIME_INTERVAL_MS 14                 // 时间间隔(毫秒)
     #define PACKET_SIZE 21                      // 单包字节数
-    #define BUFFER_SIZE 25
+    #define BUFFER_SIZE 100
 
     // VTM相关常量
     #define VTM_FRAME_HEADER_1 0xA9             // 帧头第一字节
@@ -103,7 +103,7 @@ namespace remote {
      * @note 用于RoboMaster VTM图传模块接收端
      */
     class VTM : public driver::ConnectionDriver {
-      public:
+    public:
         /**
          * @brief 构造函数
          * @note 和uart类似，vtm需要时间进行初始化
@@ -111,11 +111,8 @@ namespace remote {
          * @param huart uart实例
          */
         explicit VTM(bsp::UART* uart);
-        ~VTM();
 
         bool IsReady();
-
-        static void VTMTask(void* arg);
 
         void VTMupdata(uint8_t* data);
 
@@ -191,25 +188,14 @@ namespace remote {
 
         uint32_t timestamp;
 
-      private:
+    private:
         bsp::UART* uart_ = nullptr;
 
         uint8_t* read_ptr_ = nullptr;
         uint32_t read_len_ = 0;
         uint8_t bufferRx[BUFFER_SIZE] = {0};
 
-        bsp::Thread* thread_ = nullptr;
-        static void thread_func_(void* args);
-
-        const osThreadAttr_t thread_attr_ = {.name = "VtmUpdateTask",
-                                                      .attr_bits = osThreadDetached,
-                                                      .cb_mem = nullptr,
-                                                      .cb_size = 0,
-                                                      .stack_mem = nullptr,
-                                                      .stack_size =256 * 4,
-                                                      .priority = (osPriority_t)osPriorityLow,
-                                                      .tz_module = 0,
-                                                      .reserved = 0};
+        static void RxCallback(void* args);
 
     };
 

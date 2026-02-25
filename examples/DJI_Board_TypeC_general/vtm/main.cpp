@@ -31,7 +31,7 @@ void RM_RTOS_Init(void) {
     print_use_uart(&huart1, true, 921600);
     uart = new bsp::UART(&huart6);
     uart->SetBaudrate(912600);
-    uart->SetupRx(100, true);
+    uart->SetupRx(BUFFER_SIZE);
     vtm = new remote::VTM(uart);
     print("VTM initialized on UART6\r\n");
     HAL_Delay(100);
