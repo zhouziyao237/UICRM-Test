@@ -57,9 +57,9 @@ void BMI088update(gyroData_t* gyro) {
 
     if (bmi088->IsReady()) {
         // 更新陀螺仪数据
-        gyro->gyroADCRaw[0] = static_cast<int16_t>(bmi088->gyro_[0]);
-        gyro->gyroADCRaw[1] = static_cast<int16_t>(bmi088->gyro_[1]);
-        gyro->gyroADCRaw[2] = static_cast<int16_t>(bmi088->gyro_[2]);
+        gyro->gyroADCRaw[0] = bmi088->gyro_[0];
+        gyro->gyroADCRaw[1] = bmi088->gyro_[1];
+        gyro->gyroADCRaw[2] = bmi088->gyro_[2];
 
         // 更新加速度计数据
         gyro->gyroADC[0] = bmi088->accel_[0];
@@ -67,7 +67,7 @@ void BMI088update(gyroData_t* gyro) {
         gyro->gyroADC[2] = bmi088->accel_[2];
 
         // 更新温度
-        gyro->temperature = static_cast<int16_t>(bmi088->temperature_);
+        gyro->temperature = (bmi088->temperature_);
         gyro->dataReady = 1;
     }
 }

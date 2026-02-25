@@ -52,6 +52,8 @@ namespace remote {
     #define VTM_ROCKER_MAX 1684
     #define VTM_ROCKER_ZERO_DRIFT 10  // Range of possible drift around initial position
 
+    #define MAKE_IDLE_TIM TIME_INTERVAL_MS
+
     typedef struct {
         uint8_t* data;
         int length;
@@ -111,8 +113,13 @@ namespace remote {
         explicit VTM(bsp::UART* uart);
         ~VTM();
 
-        bool Receive(package_t package);
-        void ProcessVTMData(uint8_t* data);
+        bool IsReady();
+
+        static void VTMTask(void* arg);
+
+        void VTMupdata(uint8_t* data);
+
+        bool vtm_start_flag = false;
 
         // rocker channel information
         /**
@@ -191,21 +198,19 @@ namespace remote {
         uint32_t read_len_ = 0;
         uint8_t bufferRx[BUFFER_SIZE] = {0};
 
-        bsp::EventThread* callback_thread_ = nullptr;
-        static void callback_thread_func_(void* args);
+        bsp::Thread* thread_ = nullptr;
+        static void thread_func_(void* args);
 
-        const osThreadAttr_t callback_thread_attr_ = {.name = "VtmUpdateTask",
+        const osThreadAttr_t thread_attr_ = {.name = "VtmUpdateTask",
                                                       .attr_bits = osThreadDetached,
                                                       .cb_mem = nullptr,
                                                       .cb_size = 0,
                                                       .stack_mem = nullptr,
                                                       .stack_size =256 * 4,
-                                                      .priority = (osPriority_t)osPriorityHigh,
+                                                      .priority = (osPriority_t)osPriorityLow,
                                                       .tz_module = 0,
                                                       .reserved = 0};
 
-        // Add custom rx data handler
-        static void CallbackWrapper(void* args);
     };
 
 } /* namespace remote */

@@ -71,6 +71,6 @@ void RM_RTOS_Default_Task(const void* arguments) {
             "Tempreture: %.2f",
             bmi088->accel_[0], bmi088->accel_[1], bmi088->accel_[2], bmi088->gyro_[0],
             bmi088->gyro_[1], bmi088->gyro_[2], bmi088->temperature_);
-        osDelay(30);
+        osDelay(100);
     }
 }

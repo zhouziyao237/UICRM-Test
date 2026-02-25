@@ -22,21 +22,25 @@
 #include "main.h"
 
 #include "remote_task.h"
-#include "gyro_task.h"
-#include "bsp_print.h"
 #include "rx_vtm.h"
+#include "gyro_task.h"
+
+#include "bsp_print.h"
+#include "FreeRTOS.h"
+#include "cmsis_os2.h"
+#include "task.h"
 
 void RM_RTOS_Init()
 {
-    print_use_uart(&huart1, false, 912600);
+    print_use_uart(&huart1, true, 912600);
     // 初始化遥控器系统
     InitRemote();
-    // InitGyro();
+    InitGyro();
 }
 
 void RM_RTOS_Threads_Init() {
-    RemoteTaskHandle = osThreadNew(RemoteMainTask, nullptr, &remoteTaskAttribute);
-    // GyroTaskHandle = osThreadNew(GyroMainTask, nullptr, &gyroTaskAttribute);
+    // RemoteTaskHandle = osThreadNew(RemoteMainTask, nullptr, &remoteTaskAttribute);
+    GyroTaskHandle = osThreadNew(GyroMainTask, nullptr, &gyroTaskAttribute);
 }
 
 void RM_RTOS_Default_Task(const void* argument) {
@@ -48,12 +52,17 @@ void RM_RTOS_Default_Task(const void* argument) {
 
         print(
             "Accel: x: %.2f y: %.2f z: %.2f\r\n"
-            "Gyro: x: %.2f y:%.2f z: %.2f"
-            "Tempreture: %.2f",
+            "Gyro: x: %.2f y:%.2f z: %.2f\r\n"
+            "Tempreture: %.2f\r\n\r\n",
             gyroData.gyroADCRaw[0], gyroData.gyroADCRaw[1], gyroData.gyroADCRaw[2],
             gyroData.gyroADC[0], gyroData.gyroADC[1], gyroData.gyroADC[2],
             gyroData.temperature);
 
-        osDelay(100);
+        char buf[512];
+        vTaskList(buf);
+        print("vTaskList: \r\n");
+        print("%s\r\n", buf);
+
+        osDelay(10);
     }
 }

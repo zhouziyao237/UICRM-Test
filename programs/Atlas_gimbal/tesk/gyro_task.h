@@ -40,10 +40,10 @@
  * @param OffsetAngle 角度偏移量，用于姿态校准
  */
 typedef struct gyroData_s {
-    int16_t gyroADCRaw[XYZ_AXIS_COUNT];
+    float gyroADCRaw[XYZ_AXIS_COUNT];
     float gyroADC[XYZ_AXIS_COUNT];
     float gyroZero[XYZ_AXIS_COUNT];
-    int16_t temperature;
+    float temperature;
     uint8_t dataReady;
     uint8_t Align;
     int16_t OffsetAngle[XYZ_AXIS_COUNT];
@@ -86,7 +86,7 @@ const osThreadAttr_t gyroTaskAttribute = {.name = "GyroTask",
                                            .cb_size = 0,
                                            .stack_mem = nullptr,
                                            .stack_size = 128 * 4,
-                                           .priority = (osPriority_t)osPriorityHigh,
+                                           .priority = (osPriority_t)osPriorityNormal,
                                            .tz_module = 0,
                                            .reserved = 0};
 

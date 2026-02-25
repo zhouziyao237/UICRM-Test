@@ -67,6 +67,11 @@ void RM_RTOS_Default_Task(const void* arguments) {
         print("Mouse: x: %d y: %d z: %d l: %d r: %d\r\n", vtm->mouse.x, vtm->mouse.y,
               vtm->mouse.z, vtm->mouse.l, vtm->mouse.r);
 
+        char buf[512];
+        vTaskList(buf);
+        print("vTaskList: \r\n");
+        print("%s\r\n", buf);
+
         osDelay(100);  // 增加延迟以便观察
     }
 }

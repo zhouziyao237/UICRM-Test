@@ -35,49 +35,45 @@ namespace remote {
         if (uart == nullptr)
             return;
         uart_ = uart;
-        uart_->SetupRxData(&read_ptr_, &read_len_);
-        uart_->RegisterCallback(CallbackWrapper, this);
+        uart_->RegisterCallback(nullptr, nullptr);
 
         bsp::thread_init_t thread_init = {
-            .func = callback_thread_func_,
+            .func = VTMTask,
             .args = this,
-            .attr = callback_thread_attr_,
+            .attr = thread_attr_,
         };
-        callback_thread_ = new bsp::EventThread(thread_init);
+        thread_ = new bsp::Thread(thread_init);
+        thread_->Start();
     }
 
     VTM::~VTM() {
-        delete callback_thread_;
+        delete thread_;
     }
 
-    void VTM::CallbackWrapper(void* args) {
-        VTM* vtm_instance = reinterpret_cast<VTM*>(args);
-        vtm_instance->callback_thread_->Set();
-    }
-
-    void VTM::callback_thread_func_(void* args) {
-        VTM* vtm_instance = reinterpret_cast<VTM*>(args);
-        vtm_instance->Receive(package_t{vtm_instance->read_ptr_, (int)vtm_instance->read_len_});
-    }
-
-    bool VTM::Receive(package_t package) {
-        Heartbeat();
-        memcpy(bufferRx, package.data, package.length);
-        int start_idx;
-        int end_idx = 0;
-        while (end_idx < package.length) {
-            start_idx = end_idx;
-            while (++end_idx < package.length && bufferRx[end_idx] != VTM_FRAME_HEADER_1)
-                ;
-            if (end_idx - start_idx >= PACKET_SIZE) {
-                ProcessVTMData(bufferRx + start_idx);
+    void VTM::VTMTask(void* arg) {
+        VTM* self = static_cast<VTM*>(arg);
+        while (true) {
+            self->Heartbeat();
+            self->vtm_start_flag = false;
+            package_t package = {};
+            package.length = self->uart_->Read<true>(&package.data);
+            memcpy(self->bufferRx, package.data, package.length);
+            int start_idx;
+            int end_idx = 0;
+            while (end_idx < package.length) {
+                start_idx = end_idx;
+                while (++end_idx < package.length && self->bufferRx[end_idx] != VTM_FRAME_HEADER_1)
+                    ;
+                if (end_idx - start_idx >= PACKET_SIZE) {
+                    self->VTMupdata(self->bufferRx + start_idx);
+                }
             }
+            self->vtm_start_flag = true;
+            memset(self->bufferRx, 0, package.length);
         }
-        return true;
     }
 
-    void VTM::ProcessVTMData(uint8_t* data) {
-
+    void VTM::VTMupdata(uint8_t* data) {
         // 重新解释数据缓冲区并解码到类属性
         vtm_raw_t* repr = reinterpret_cast<vtm_raw_t*>(data);
 
