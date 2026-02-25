@@ -18,52 +18,47 @@
  # <https://www.gnu.org/licenses/>.                         #
  ###########################################################*/
 
-#include "bsp_imu.h"
 #include "bsp_print.h"
 #include "cmsis_os.h"
-#include "dbus.h"
 #include "gimbal.h"
-#include "i2c.h"
 #include "main.h"
+#include "vtm.h"
+
 #include "spi.h"
+#include "i2c.h"
+#include "AHRS.h"
+#include "BMI088.h"
+#include "IST8310.h"
+#include "bsp_gpio.h"
+#include "bsp_spi.h"
+#include "heater.h"
+
 
 static bsp::CAN* can1 = nullptr;
-static remote::DBUS* dbus = nullptr;
+static bsp::UART* uart = nullptr;
+static remote::VTM* vtm = nullptr;
 
-#define RX_SIGNAL (1 << 0)
+static control::AHRS* ahrs = nullptr;
+static driver::Heater* heater = nullptr;
+static bsp::PWM* heater_pwm = nullptr;
 
-const osThreadAttr_t imuTaskAttribute = {.name = "imuTask",
-                                         .attr_bits = osThreadDetached,
-                                         .cb_mem = nullptr,
-                                         .cb_size = 0,
-                                         .stack_mem = nullptr,
-                                         .stack_size = 256 * 4,
-                                         .priority = (osPriority_t)osPriorityNormal,
-                                         .tz_module = 0,
-                                         .reserved = 0};
-osThreadId_t imuTaskHandle;
+static bsp::SPI* spi1 = nullptr;
+static bsp::SPIMaster* spi1_master = nullptr;
+static imu::BMI088* bmi088 = nullptr;
+static bsp::GPIO* bmi088_accel_cs = nullptr;
+static bsp::GPIO* bmi088_gyro_cs = nullptr;
+static bsp::GPIT* bmi088_accel_int = nullptr;
+static bsp::GPIT* bmi088_gyro_int = nullptr;
 
-class IMU : public bsp::IMU_typeC {
-  public:
-    using bsp::IMU_typeC::IMU_typeC;
+static bsp::I2C* i2c3 = nullptr;
+static bsp::GPIO* ist8310_rst = nullptr;
+static bsp::GPIT* ist8310_int = nullptr;
+static imu::IST8310* ist8310 = nullptr;
 
-  protected:
-    void RxCompleteCallback() final {
-        osThreadFlagsSet(imuTaskHandle, RX_SIGNAL);
-    }
-};
-
-static IMU* imu = nullptr;
-
-void imuTask(void* arg) {
-    UNUSED(arg);
-
-    while (true) {
-        uint32_t flags = osThreadFlagsWait(RX_SIGNAL, osFlagsWaitAll, osWaitForever);
-        if (flags & RX_SIGNAL) {  // unnecessary check
-            imu->Update();
-        }
-    }
+void BMI088ReceiveDone() {
+    ahrs->Update(bmi088->gyro_[0], bmi088->gyro_[1], bmi088->gyro_[2], bmi088->accel_[0],
+                 bmi088->accel_[1], bmi088->accel_[2]);
+    heater->Update(bmi088->temperature_);
 }
 
 static driver::MotorCANBase* pitch_motor = nullptr;
@@ -71,11 +66,24 @@ static driver::MotorCANBase* yaw_motor = nullptr;
 static control::Gimbal* gimbal = nullptr;
 static control::gimbal_data_t* gimbal_param = nullptr;
 
-const control::gimbal_data_t gimbal_init_data = {
-    .pitch_offset_ = -0.5232f,
-    .yaw_offset_ = 0,
-    .pitch_max_ = 1.2,
-    .yaw_max_ = PI,
+enum mode {
+    MANUALMODE = 0,
+    IMUMODE = 1
+};
+
+uint8_t manual_mode = MANUALMODE;
+
+// 配置你的云台（±60度，1:6减速比）
+control::gimbal_data_t gimbal_config = {
+    .pitch_offset_ = 1.9225f,        // 云台机械零点
+    .yaw_offset_ = 0.0f,           // 云台机械零点
+    .pitch_max_ = DEG_TO_RAD(40),  // ±40度范围
+    .yaw_max_ = 2 * PI,            // ±2PI度范围
+    .yaw_circle_ = false,          // 不能360度旋转
+    .pitch_inverted = true,        // 不反转
+    .yaw_inverted = false,         // 不反转
+    .pitch_reduction = 6.0f,   // 1:6减速比
+    .yaw_reduction = 1.0f          // 1:6减速比
 };
 
 const osThreadAttr_t gimbalTaskAttribute = {.name = "gimbalTask",
@@ -94,14 +102,22 @@ void gimbalTask(void* arg) {
 
     print("Wait for beginning signal...\r\n");
     while (true) {
-        if (dbus->keyboard.bit.V || dbus->swr == remote::DOWN) {
+        if (vtm->keyboard.bit.V || vtm->ch5 == 1) {
             break;
         }
         osDelay(100);
     }
 
     int i = 0;
-    while (i < 2000 || !imu->DataReady()) {
+    for (i = 0; i < 5000; i++) {
+        gimbal->TargetAbs(0, 0);
+        gimbal->Update();
+        osDelay(1);
+    }
+
+    ahrs->Cailbrate();
+    i = 0;
+    while (!ahrs->IsCailbrated()) {
         gimbal->TargetAbs(0, 0);
         gimbal->Update();
         osDelay(1);
@@ -109,15 +125,7 @@ void gimbalTask(void* arg) {
     }
 
     print("Start Calibration.\r\n");
-    imu->Calibrate();
-
-    i = 0;
-    while (!imu->DataReady() || !imu->CaliDone()) {
-        gimbal->TargetAbs(0, 0);
-        gimbal->Update();
-        osDelay(1);
-        ++i;
-    }
+    ahrs->Cailbrate();
 
     print("Gimbal Begin!\r\n");
 
@@ -126,33 +134,53 @@ void gimbalTask(void* arg) {
     float pitch_diff, yaw_diff;
     float pitch_target = 0, yaw_target = 0;
 
+
+
     while (true) {
-        if (dbus->keyboard.bit.B || dbus->swl == remote::DOWN) {
+        if (vtm->keyboard.bit.B || vtm->gear_switch == 0) {
             while (true) {
-                if (dbus->keyboard.bit.V) {
+                if (vtm->keyboard.bit.V || vtm->ch5 == 1) {
                     break;
                 }
                 osDelay(10);
             }
         }
 
-        pitch_ratio = dbus->mouse.y / 32767.0 * 7.5 / 7.0;
-        yaw_ratio = -dbus->mouse.x / 32767.0 * 7.5 / 7.0;
-        pitch_ratio = dbus->ch3 / 18000.0 / 7.0;
-        yaw_ratio = -dbus->ch2 / 18000.0 / 7.0;
-        pitch_target =
-            clip<float>(pitch_ratio, -gimbal_param->pitch_max_, gimbal_param->pitch_max_);
+        if (vtm->custom_right == 1) {
+            manual_mode = MANUALMODE;
+        }
+
+        if (vtm->custom_left == 1) {
+            manual_mode = IMUMODE;
+        }
+
+
+        pitch_ratio = vtm->ch2 / 1800.0 / 2.0;
+        yaw_ratio = -vtm->ch3 / 1800.0 / 2.0;
+        pitch_target = clip<float>(pitch_ratio, -gimbal_param->pitch_max_, gimbal_param->pitch_max_);
         yaw_target = clip<float>(yaw_ratio, -gimbal_param->yaw_max_, gimbal_param->yaw_max_);
 
-        pitch_diff = wrap<float>(pitch_target, -PI, PI);
-        yaw_diff = wrap<float>(yaw_target, -PI, PI);
+        switch (manual_mode) {
+            case MANUALMODE: {
+                // 手动控制模式
+                gimbal->TargetAbs(pitch_target, yaw_target);
+                gimbal->Update();
+            }break;
 
-        pitch_curr = imu->INS_angle[2];
-        yaw_curr = imu->INS_angle[0];
+            case IMUMODE: {
+                // IMU跟随模式
+                pitch_diff = wrap<float>(pitch_target, -PI, PI);
+                yaw_diff = wrap<float>(yaw_target, -PI, PI);
+                pitch_curr = ahrs->INS_angle[1];
+                yaw_curr = ahrs->INS_angle[0];
+                gimbal->TargetRel(pitch_diff, yaw_diff);
+                gimbal->UpdateIMU(pitch_curr, yaw_curr);
+            }break;
+            default:
+                break;
 
-        gimbal->TargetRel(pitch_diff, yaw_diff);
+        }
 
-        gimbal->UpdateIMU(pitch_curr, yaw_curr);
         osDelay(1);
     }
 }
@@ -161,43 +189,62 @@ void RM_RTOS_Init(void) {
     print_use_uart(&huart1, true, 921600);
 
     can1 = new bsp::CAN(&hcan1, true);
-    dbus = new remote::DBUS(&huart3);
 
-    bsp::IST8310_init_t IST8310_init;
-    IST8310_init.hi2c = &hi2c3;
-    IST8310_init.int_pin = DRDY_IST8310_Pin;
-    IST8310_init.rst_group = GPIOG;
-    IST8310_init.rst_pin = GPIO_PIN_6;
-    bsp::BMI088_init_t BMI088_init;
-    BMI088_init.hspi = &hspi1;
-    BMI088_init.CS_ACCEL_Port = CS1_ACCEL_GPIO_Port;
-    BMI088_init.CS_ACCEL_Pin = CS1_ACCEL_Pin;
-    BMI088_init.CS_GYRO_Port = CS1_GYRO_GPIO_Port;
-    BMI088_init.CS_GYRO_Pin = CS1_GYRO_Pin;
-    bsp::heater_init_t heater_init;
-    heater_init.htim = &htim10;
-    heater_init.channel = 1;
-    heater_init.clock_freq = 1000000;
-    heater_init.temp = 45;
-    bsp::IMU_typeC_init_t imu_init;
-    imu_init.IST8310 = IST8310_init;
-    imu_init.BMI088 = BMI088_init;
-    imu_init.heater = heater_init;
-    imu_init.hspi = &hspi1;
-    imu_init.hdma_spi_rx = &hdma_spi1_rx;
-    imu_init.hdma_spi_tx = &hdma_spi1_tx;
-    imu_init.Accel_INT_pin_ = INT1_ACCEL_Pin;
-    imu_init.Gyro_INT_pin_ = INT1_GYRO_Pin;
-    imu = new IMU(imu_init, true);
+    uart = new bsp::UART(&huart6);
+    uart->SetBaudrate(912600);
+    uart->SetupRx(BUFFER_SIZE);
+    vtm = new remote::VTM(uart);
+
+    bsp::spi_init_t spiInit = {
+        .hspi = &hspi1,
+        .mode = bsp::SPI_MODE_DMA,
+    };
+    spi1 = new bsp::SPI(spiInit);
+    bsp::spi_master_init_t spiMasterInit = {
+        .spi = spi1,
+    };
+    spi1_master = new bsp::SPIMaster(spiMasterInit);
+    bmi088_accel_cs = new bsp::GPIO(CS1_ACCEL_GPIO_Port, CS1_ACCEL_Pin);
+    bmi088_gyro_cs = new bsp::GPIO(CS1_GYRO_GPIO_Port, CS1_GYRO_Pin);
+    bmi088_accel_int = new bsp::GPIT(INT1_ACCEL_Pin);
+    bmi088_gyro_int = new bsp::GPIT(INT1_GYRO_Pin);
+    imu::BMI088_init_t BMI088_init = {
+        .spi_master = spi1_master,
+        .CS_ACCEL = bmi088_accel_cs,
+        .CS_GYRO = bmi088_gyro_cs,
+        .INT_ACCEL = bmi088_accel_int,
+        .INT_GYRO = bmi088_gyro_int,
+        .is_DMA = true,
+    };
+
+    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+    ist8310_rst = new bsp::GPIO(GPIOG, GPIO_PIN_6);
+    ist8310_int = new bsp::GPIT(DRDY_IST8310_Pin);
+    bsp::i2c_init_t i2c3_init = {.hi2c = &hi2c3, .mode = bsp::I2C_MODE_IT};
+    i2c3 = new bsp::I2C(i2c3_init);
+    imu::IST8310_init_t ist8310Init = {.i2c = i2c3, .drdy = ist8310_int, .rst = ist8310_rst};
+
+    ist8310 = new imu::IST8310(ist8310Init);
+    bmi088 = new imu::BMI088(BMI088_init);
+
+    ahrs = new control::AHRS(false);
+    heater_pwm = new bsp::PWM(&htim10, 1, 1000000, 2000, 0);
+    driver::heater_init_t heater_init = {
+        .pwm = heater_pwm,
+        .target_temp = 45.0f,
+    };
+    heater = new driver::Heater(heater_init);
+    bmi088->RegisterCallback(BMI088ReceiveDone);
+
 
     pitch_motor = new driver::Motor3508(can1, 0x204);
     yaw_motor = new driver::Motor6020(can1, 0x205);
 
-    pitch_motor->SetTransmissionRatio(6);
-    control::ConstrainedPID::PID_Init_t pitch_theta_pid_init = {
-        .kp = 26,
+    pitch_motor->SetTransmissionRatio(1);
+    control::ConstrainedPID::PID_Init_t theta_pid_init = {
+        .kp = 120,
         .ki = 0,
-        .kd = 20,
+        .kd = 58,
         .max_out = 15 * PI,
         .max_iout = 0,
         .deadband = 0,                                 // 死区
@@ -207,26 +254,26 @@ void RM_RTOS_Init(void) {
         .derivative_filtering_coefficient = 0,         // 微分滤波系数
         .mode = control::ConstrainedPID::OutputFilter  // 输出滤波
     };
-    pitch_motor->ReInitPID(pitch_theta_pid_init, driver::MotorCANBase::ANGLE_LOOP_CONTROL);
-    control::ConstrainedPID::PID_Init_t pitch_omega_pid_init = {
-        .kp = 200,
-        .ki = 1,
-        .kd = 0,
+    pitch_motor->ReInitPID(theta_pid_init, driver::MotorCANBase::ANGLE_LOOP_CONTROL);
+    control::ConstrainedPID::PID_Init_t omega_pid_init = {
+        .kp = 120,
+        .ki = 0,
+        .kd = 2500,
         .max_out = 30000,
         .max_iout = 10000,
-        .deadband = 0,                                          // 死区
-        .A = 1.5 * PI,                                          // 变速积分所能达到的最大值为A+B
-        .B = 1 * PI,                                            // 启动变速积分的死区
-        .output_filtering_coefficient = 0.1,                    // 输出滤波系数
-        .derivative_filtering_coefficient = 0,                  // 微分滤波系数
+        .deadband = 0,                          // 死区
+        .A = 1.5 * PI,                            // 变速积分所能达到的最大值为A+B
+        .B = 1 * PI,                            // 启动变速积分的死区
+        .output_filtering_coefficient = 0.1,    // 输出滤波系数
+        .derivative_filtering_coefficient = 0,  // 微分滤波系数
         .mode = control::ConstrainedPID::Integral_Limit |       // 积分限幅
                 control::ConstrainedPID::OutputFilter |         // 输出滤波
                 control::ConstrainedPID::Trapezoid_Intergral |  // 梯形积分
                 control::ConstrainedPID::ChangingIntegralRate,  // 变速积分
     };
-    pitch_motor->ReInitPID(pitch_omega_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
+    pitch_motor->ReInitPID(omega_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
     pitch_motor->SetMode(driver::MotorCANBase::SPEED_LOOP_CONTROL |
-                         driver::MotorCANBase::ANGLE_LOOP_CONTROL);
+                         driver::MotorCANBase::ANGLE_LOOP_CONTROL | driver::MotorCANBase::ABSOLUTE);
 
     yaw_motor->SetTransmissionRatio(1);
     control::ConstrainedPID::PID_Init_t yaw_theta_pid_init = {
@@ -250,7 +297,7 @@ void RM_RTOS_Init(void) {
         .max_out = 30000,
         .max_iout = 10000,
         .deadband = 0,                                          // 死区
-        .A = 1.5 * PI,                                            // 变速积分所能达到的最大值为A+B
+        .A = 1.5 * PI,                                          // 变速积分所能达到的最大值为A+B
         .B = 1 * PI,                                            // 启动变速积分的死区
         .output_filtering_coefficient = 0.1,                    // 输出滤波系数
         .derivative_filtering_coefficient = 0,                  // 微分滤波系数
@@ -264,51 +311,27 @@ void RM_RTOS_Init(void) {
                        driver::MotorCANBase::ANGLE_LOOP_CONTROL | driver::MotorCANBase::ABSOLUTE);
 
     control::gimbal_t gimbal_data;
-    gimbal_data.data = gimbal_init_data;
+    gimbal_data.data = gimbal_config;
     gimbal_data.pitch_motor = pitch_motor;
     gimbal_data.yaw_motor = yaw_motor;
-    //    control::gimbal_pid_t gimbalBasicPID;
-    //    {
-    //        float pitch_theta_max_iout = 0;
-    //        float pitch_theta_max_out = 10;
-    //        float pitch_omega_max_iout = 10000;
-    //        float pitch_omega_max_out = 30000;
-    //        float yaw_theta_max_iout = 0;
-    //        float yaw_theta_max_out = 10;
-    //        float yaw_omega_max_iout = 5000;  // 10000
-    //        float yaw_omega_max_out = 30000;
-    //        float* pitch_theta_pid_param = new float[3]{15, 0, 0};
-    //        float* pitch_omega_pid_param = new float[3]{1000, 100, 0};
-    //        float* yaw_theta_pid_param = new float[3]{15, 0, 0};
-    //        float* yaw_omega_pid_param = new float[3]{1000, 100, 0};
-    //        gimbalBasicPID.pitch_theta_pid = new control::ConstrainedPID(
-    //            pitch_theta_pid_param, pitch_theta_max_iout, pitch_theta_max_out);
-    //        gimbalBasicPID.pitch_omega_pid = new control::ConstrainedPID(
-    //            pitch_omega_pid_param, pitch_omega_max_iout, pitch_omega_max_out);
-    //        gimbalBasicPID.yaw_theta_pid =
-    //            new control::ConstrainedPID(yaw_theta_pid_param, yaw_theta_max_iout,
-    //            yaw_theta_max_out);
-    //        gimbalBasicPID.yaw_omega_pid =
-    //            new control::ConstrainedPID(yaw_omega_pid_param, yaw_omega_max_iout,
-    //            yaw_omega_max_out);
-    //    }
     gimbal = new control::Gimbal(gimbal_data);
     gimbal_param = gimbal->GetData();
 }
 
 void RM_RTOS_Threads_Init(void) {
-    imuTaskHandle = osThreadNew(imuTask, nullptr, &imuTaskAttribute);
     gimbalTaskHandle = osThreadNew(gimbalTask, nullptr, &gimbalTaskAttribute);
 }
 
 void KillAll() {
     RM_EXPECT_TRUE(false, "Operation killed\r\n");
     while (true) {
-        if (dbus->keyboard.bit.V) {
+        if (vtm->keyboard.bit.V || vtm->ch5 == 1) {
+            pitch_motor->Enable();
+            yaw_motor->Enable();
             break;
         }
-        pitch_motor->SetOutput(0);
-        yaw_motor->SetOutput(0);
+        pitch_motor->Disable();
+        yaw_motor->Disable();
         osDelay(10);
     }
 }
@@ -317,25 +340,47 @@ void RM_RTOS_Default_Task(const void* arg) {
     UNUSED(arg);
 
     while (true) {
-        if (dbus->keyboard.bit.B || dbus->swl == remote::DOWN)
+        if (vtm->keyboard.bit.B || vtm->gear_switch == 0)
             KillAll();
 
         set_cursor(0, 0);
         clear_screen();
 
+
+        print("Gimbal Model: %s\r\n", manual_mode ? "IMU" : "MANUAL");
         print("# %.2f s, IMU %s\r\n", HAL_GetTick() / 1000.0,
-              imu->CaliDone() ? "\033[1;42mReady\033[0m" : "\033[1;41mNot Ready\033[0m");
-        print("Temp: %.2f\r\n", imu->Temp);
-        print("Euler Angles: %.2f, %.2f, %.2f\r\n", imu->INS_angle[0] / PI * 180,
-              imu->INS_angle[1] / PI * 180, imu->INS_angle[2] / PI * 180);
+              ahrs->IsCailbrated() ? "\033[1;42mReady\033[0m" : "\033[1;41mNot Ready\033[0m");
+        print("Temp: %.2f\r\n", bmi088->temperature_);
+        print("Euler Angles: %.2f, %.2f, %.2f\r\n", ahrs->INS_angle[0] / PI * 180,
+              ahrs->INS_angle[1] / PI * 180, ahrs->INS_angle[2] / PI * 180);
 
         print("\r\n");
 
-        print("CH0: %-4d CH1: %-4d CH2: %-4d CH3: %-4d ", dbus->ch0, dbus->ch1, dbus->ch2,
-              dbus->ch3);
-        print("SWL: %d SWR: %d @ %d ms\r\n", dbus->swl, dbus->swr, dbus->timestamp);
+        bool is_connected = vtm->IsOnline();
+        print("VTM Status: %s | Updates: %lu\r\n", is_connected ? "CONNECTED" : "DISCONNECTED",
+              vtm->timestamp);
 
-        pitch_motor->PrintData();
+        print(
+            "CH0: %-4d CH1: %-4d CH2: %-4d CH3: %-4d \r\n"
+            "CH4: %-4d CH5: %-4d GSWL: %d PBUT: %d \r\n"
+            "Custom: L=%d R=%d\r\n",  // 添加自定义按键显示
+            vtm->ch0, vtm->ch1, vtm->ch2, vtm->ch3, vtm->ch4, vtm->ch5, vtm->gear_switch,
+            vtm->pause_button, vtm->custom_left, vtm->custom_right);  // 添加自定义按键值
+
+        print("W: %d A: %d S: %d D: %d\r\n", vtm->keyboard.bit.W, vtm->keyboard.bit.A,
+              vtm->keyboard.bit.S, vtm->keyboard.bit.D);
+        print("Q: %d E: %d R: %d F: %d G: %d\r\n", vtm->keyboard.bit.Q, vtm->keyboard.bit.E,
+              vtm->keyboard.bit.R, vtm->keyboard.bit.F, vtm->keyboard.bit.G);
+        print("Z: %d X: %d C: %d V: %d B: %d\r\n", vtm->keyboard.bit.Z, vtm->keyboard.bit.X,
+              vtm->keyboard.bit.C, vtm->keyboard.bit.V, vtm->keyboard.bit.B);
+        print("SHIFT: %d CTRL: %d\r\n", vtm->keyboard.bit.SHIFT, vtm->keyboard.bit.CTRL);
+        print("Mouse: x: %d y: %d z: %d l: %d r: %d\r\n", vtm->mouse.x, vtm->mouse.y, vtm->mouse.z,
+              vtm->mouse.l, vtm->mouse.r);
+
+        char buffer[128];
+        gimbal->GetDebugString(buffer, sizeof(buffer));
+        print("%s\n", buffer);
+
         osDelay(100);
     }
 }

@@ -36,7 +36,7 @@ void VIMChannelsInit(RemoteDeviceConfig_s* config) {
         RM_ASSERT_TRUE(false, "VTM config is null");
     vtm_uart = new bsp::UART(&config->uart);
     vtm_uart->SetBaudrate(config->baudrate);
-    vtm_uart->SetupRx(BUFFER_SIZE, true);
+    vtm_uart->SetupRx(BUFFER_SIZE);
     vtm = new remote::VTM(vtm_uart);
 
     // 初始化rcData为中值

@@ -35,12 +35,12 @@ void RM_RTOS_Init()
     print_use_uart(&huart1, true, 912600);
     // 初始化遥控器系统
     InitRemote();
-    InitGyro();
+    // InitGyro();
 }
 
 void RM_RTOS_Threads_Init() {
-    // RemoteTaskHandle = osThreadNew(RemoteMainTask, nullptr, &remoteTaskAttribute);
-    GyroTaskHandle = osThreadNew(GyroMainTask, nullptr, &gyroTaskAttribute);
+    RemoteTaskHandle = osThreadNew(RemoteMainTask, nullptr, &remoteTaskAttribute);
+    // GyroTaskHandle = osThreadNew(GyroMainTask, nullptr, &gyroTaskAttribute);
 }
 
 void RM_RTOS_Default_Task(const void* argument) {

@@ -25,9 +25,9 @@
 
 #include "bsp_error_handler.h"
 #include "cmsis_os2.h"
-#include "crc_check.h"
 #include "vtm_package.h"
 #include "bsp_thread.h"
+#include "FreeRTOS.h"
 
 namespace remote {
 
@@ -35,26 +35,18 @@ namespace remote {
         if (uart == nullptr)
             return;
         uart_ = uart;
-        uart_->RegisterCallback(nullptr, nullptr);
+        uart_->RegisterCallback(RxCallback, this);
 
-        bsp::thread_init_t thread_init = {
-            .func = VTMTask,
-            .args = this,
-            .attr = thread_attr_,
-        };
-        thread_ = new bsp::Thread(thread_init);
-        thread_->Start();
+        vtm_start_flag = true;
     }
 
-    VTM::~VTM() {
-        delete thread_;
-    }
+    void VTM::RxCallback(void *args) {
+        VTM* self = static_cast<VTM*>(args);
 
-    void VTM::VTMTask(void* arg) {
-        VTM* self = static_cast<VTM*>(arg);
-        while (true) {
-            self->Heartbeat();
+        if (self->vtm_start_flag) {
             self->vtm_start_flag = false;
+
+            self->Heartbeat();
             package_t package = {};
             package.length = self->uart_->Read<true>(&package.data);
             memcpy(self->bufferRx, package.data, package.length);
@@ -68,8 +60,8 @@ namespace remote {
                     self->VTMupdata(self->bufferRx + start_idx);
                 }
             }
-            self->vtm_start_flag = true;
             memset(self->bufferRx, 0, package.length);
+            self->vtm_start_flag = true;
         }
     }
 
