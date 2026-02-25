@@ -287,6 +287,7 @@ namespace imu {
         bsp::GPIT* INT_ACCEL = nullptr;
         bsp::GPIT* INT_GYRO = nullptr;
         bool is_DMA = true;
+        bool use_thread_ = true;
     };
 
     /**
@@ -410,6 +411,8 @@ namespace imu {
         bsp::GPIT* gpit_gyro_ = nullptr;
 
         bool dma_ = true;
+
+        bool use_thread_ = true;
 
         BMI088_callback_t callback_ = []() {};
 

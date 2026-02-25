@@ -31,6 +31,7 @@ namespace imu {
         gpit_accel_ = init.INT_ACCEL;
         gpit_gyro_ = init.INT_GYRO;
         dma_ = init.is_DMA;
+        use_thread_ = init.use_thread_;
         while (Init() != BMI088_NO_ERROR)
             ;
     }
@@ -172,14 +173,14 @@ namespace imu {
         }
 
         bmi088_start_flag = 1;
-
-        bsp::thread_init_t thread_init = {
-            .func = callback_thread_func_,
-            .args = this,
-            .attr = callback_thread_attr_,
-        };
-        callback_thread_ = new bsp::EventThread(thread_init);
-
+        if (use_thread_) {
+            bsp::thread_init_t thread_init = {
+                .func = callback_thread_func_,
+                .args = this,
+                .attr = callback_thread_attr_,
+            };
+            callback_thread_ = new bsp::EventThread(thread_init);
+        }
         return error;
     }
 

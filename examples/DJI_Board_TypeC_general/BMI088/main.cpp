@@ -34,7 +34,7 @@ static bsp::GPIT* bmi088_accel_int = nullptr;
 static bsp::GPIT* bmi088_gyro_int = nullptr;
 
 void RM_RTOS_Init(void) {
-    print_use_uart(&huart1);
+    print_use_uart(&huart1, true, 912600);
     bsp::spi_init_t spiInit = {
         .hspi = &hspi1,
         .mode = bsp::SPI_MODE_DMA,
