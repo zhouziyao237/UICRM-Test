@@ -72,12 +72,13 @@ enum mode {
 };
 
 uint8_t manual_mode = MANUALMODE;
+float pitch_target = 0, yaw_target = 0;
 
 // 配置你的云台（±60度，1:6减速比）
 control::gimbal_data_t gimbal_config = {
-    .pitch_offset_ = 1.9225f,        // 云台机械零点
+    .pitch_offset_ = 0.9272f,        // 云台机械零点
     .yaw_offset_ = 0.0f,           // 云台机械零点
-    .pitch_max_ = DEG_TO_RAD(40),  // ±40度范围
+    .pitch_max_ = 0.6981f,
     .yaw_max_ = 2 * PI,            // ±2PI度范围
     .yaw_circle_ = false,          // 不能360度旋转
     .pitch_inverted = true,        // 不反转
@@ -96,7 +97,6 @@ const osThreadAttr_t gimbalTaskAttribute = {.name = "gimbalTask",
                                             .tz_module = 0,
                                             .reserved = 0};
 osThreadId_t gimbalTaskHandle;
-
 void gimbalTask(void* arg) {
     UNUSED(arg);
 
@@ -131,10 +131,6 @@ void gimbalTask(void* arg) {
 
     float pitch_ratio, yaw_ratio;
     float pitch_curr, yaw_curr;
-    float pitch_diff, yaw_diff;
-    float pitch_target = 0, yaw_target = 0;
-
-
 
     while (true) {
         if (vtm->keyboard.bit.B || vtm->gear_switch == 0) {
@@ -155,8 +151,8 @@ void gimbalTask(void* arg) {
         }
 
 
-        pitch_ratio = vtm->ch2 / 1800.0 / 2.0;
-        yaw_ratio = -vtm->ch3 / 1800.0 / 2.0;
+        pitch_ratio = -vtm->ch1 / 1800.0 / 2.0;
+        yaw_ratio = vtm->ch3 / 1800.0 / 2.0;
         pitch_target = clip<float>(pitch_ratio, -gimbal_param->pitch_max_, gimbal_param->pitch_max_);
         yaw_target = clip<float>(yaw_ratio, -gimbal_param->yaw_max_, gimbal_param->yaw_max_);
 
@@ -168,12 +164,9 @@ void gimbalTask(void* arg) {
             }break;
 
             case IMUMODE: {
-                // IMU跟随模式
-                pitch_diff = wrap<float>(pitch_target, -PI, PI);
-                yaw_diff = wrap<float>(yaw_target, -PI, PI);
                 pitch_curr = ahrs->INS_angle[1];
                 yaw_curr = ahrs->INS_angle[0];
-                gimbal->TargetRel(pitch_diff, yaw_diff);
+                gimbal->TargetRel(pitch_target, yaw_target);
                 gimbal->UpdateIMU(pitch_curr, yaw_curr);
             }break;
             default:
@@ -273,7 +266,8 @@ void RM_RTOS_Init(void) {
     };
     pitch_motor->ReInitPID(omega_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
     pitch_motor->SetMode(driver::MotorCANBase::SPEED_LOOP_CONTROL |
-                         driver::MotorCANBase::ANGLE_LOOP_CONTROL | driver::MotorCANBase::ABSOLUTE);
+                         driver::MotorCANBase::ANGLE_LOOP_CONTROL |
+                         driver::MotorCANBase::SINGLETURN);
 
     yaw_motor->SetTransmissionRatio(1);
     control::ConstrainedPID::PID_Init_t yaw_theta_pid_init = {
@@ -347,7 +341,8 @@ void RM_RTOS_Default_Task(const void* arg) {
         clear_screen();
 
 
-        print("Gimbal Model: %s\r\n", manual_mode ? "IMU" : "MANUAL");
+        print("Gimbal Model: %d\r\n", manual_mode);
+        print("Pitch: %.2f, Yaw: %.2f", pitch_target, yaw_target);
         print("# %.2f s, IMU %s\r\n", HAL_GetTick() / 1000.0,
               ahrs->IsCailbrated() ? "\033[1;42mReady\033[0m" : "\033[1;41mNot Ready\033[0m");
         print("Temp: %.2f\r\n", bmi088->temperature_);

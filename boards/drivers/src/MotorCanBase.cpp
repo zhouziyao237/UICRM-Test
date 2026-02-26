@@ -324,8 +324,14 @@ namespace driver {
 
         // 角度速度环控制且非绝对控制模式时，需要使用统计总角度值
         // 获取初始化时的角度值
-        if (align_angle_ < 0)
+        if (align_angle_ < 0) {
+            if (mode_ & (ABSOLUTE | SINGLETURN)) {
+                // 绝对位置电机不需要初始化align_angle_
+                align_angle_ = 0;
+                return;
+            }
             align_angle_ = theta_;
+        }
 
         // 如果电机角度从接近 2PI 跳到接近
         // 0，则回绕检测器将检测到下降沿，这意味着电机在穿过编码器边界时正向正方向转动。
@@ -457,6 +463,11 @@ namespace driver {
         post_output_callback_instance_ = instance;
     }
 
+    void MotorCANBase::RegisterDataUpdateCallback(DataUpdateCallback_t callback, void* instance){
+        data_update_callback_ = callback;
+        data_update_instance_ = instance;
+    }
+
     /**
      * @brief Motor3508类的构造函数
      *
@@ -464,10 +475,14 @@ namespace driver {
      *
      * @param can  指向CAN通信接口的指针，用于与电机进行通信。
      * @param rx_id 接收CAN消息的ID，用于标识接收到的电机数据。
+     * @param tx_id 发送CAN消息的ID，用于向电机发送控制指令。
      *
      * 构造函数首先调用基类MotorCANBase的构造函数进行初始化，
-     * 然后注册一个CAN接收回调函数can_motor_callback，当接收到指定ID的CAN消息时，
-     * 该回调函数将被调用以处理接收到的电机数据。
+     * 然后检查电机工作模式是否包含绝对位置模式(ABSOLUTE)。
+     * 如果是绝对位置电机，则将对齐角度align_angle_设置为0，
+     * 因为绝对位置电机的角度是相对于固定参考点的绝对值。
+     * 最后，使用CAN接口注册一个接收回调函数can_motor_callback，
+     * 当接收到指定rx_id的CAN消息时，该函数将被调用以处理接收到的电机数据。
      */
     Motor3508::Motor3508(CAN* can, uint16_t rx_id, uint16_t tx_id)
         : MotorCANBase(can, rx_id, tx_id){
@@ -486,6 +501,7 @@ namespace driver {
         omega_ = raw_omega * OMEGA_SCALE;
 
         MotorCANBase::UpdateData(data);
+        data_update_callback_(data_update_instance_);
     }
 
     void Motor3508::PrintData() const {
@@ -536,8 +552,10 @@ namespace driver {
      */
     Motor6020::Motor6020(CAN* can, uint16_t rx_id, uint16_t tx_id)
         : MotorCANBase(can, rx_id, tx_id) {
-        // 绝对位置电机不需要初始化align_angle_
-        align_angle_ = 0;
+        if ((mode_ & ABSOLUTE)) {
+            // 绝对位置电机不需要初始化align_angle_
+            align_angle_ = 0;
+        }
         can->RegisterRxCallback(rx_id, can_motor_callback, this);
     }
 
@@ -553,6 +571,7 @@ namespace driver {
         omega_ = raw_omega * OMEGA_SCALE;
 
         MotorCANBase::UpdateData(data);
+        data_update_callback_(data_update_instance_);
     }
 
     void Motor6020::PrintData() const {
@@ -601,6 +620,7 @@ namespace driver {
         omega_ = raw_omega * OMEGA_SCALE;
 
         MotorCANBase::UpdateData(data);
+        data_update_callback_(data_update_instance_);
     }
 
     void Motor2006::PrintData() const {

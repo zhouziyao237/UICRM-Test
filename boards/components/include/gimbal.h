@@ -1,22 +1,20 @@
-/*###########################################################
- # Copyright (c) 2023-2024. BNU-HKBU UIC RoboMaster         #
- #                                                          #
- # This program is free software: you can redistribute it   #
- # and/or modify it under the terms of the GNU General      #
- # Public License as published by the Free Software         #
- # Foundation, either version 3 of the License, or (at      #
- # your option) any later version.                          #
- #                                                          #
- # This program is distributed in the hope that it will be  #
- # useful, but WITHOUT ANY WARRANTY; without even           #
- # the implied warranty of MERCHANTABILITY or FITNESS       #
- # FOR A PARTICULAR PURPOSE.  See the GNU General           #
- # Public License for more details.                         #
- #                                                          #
- # You should have received a copy of the GNU General       #
- # Public License along with this program.  If not, see     #
- # <https://www.gnu.org/licenses/>.                         #
- ###########################################################*/
+// Copyright (c) 2023-2026. BNU-HKBU UIC RoboMaster
+//
+// This program is free software: you can redistribute it
+// and/or modify it under the terms of the GNU General
+// Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// This program is distributed in the hope that it will be
+// useful, but WITHOUT ANY WARRANTY; without even
+// the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE.  See the GNU General
+// Public License for more details.
+//
+// You should have received a copy of the GNU General
+// Public License along with this program.  If not, see
+// <https://www.gnu.org/licenses/>.
 
 #pragma once
 
@@ -185,17 +183,41 @@ namespace control {
          */
         void UpdateOffset(float pitch_offset, float yaw_offset);
 
+        /**
+         * @brief 获取云台俯仰轴的目标角度
+         *
+         * @return float 返回当前设置的俯仰轴目标角度值
+         */
         float getPitchTarget() const;
+
+        /**
+         * @brief 获取云台偏航轴的目标角度
+         *
+         * @return float 返回当前设置的偏航轴目标角度值
+         */
         float getYawTarget() const;
 
-        /*
-         * @brief 通过电机编码器 获取 云台相对于云台参数标定的零点 的pitch
+        /**
+         * @brief 俯仰电机数据更新回调函数
+         *
+         * 当俯仰电机数据更新时被调用的回调函数
+         *
+         * @param arg 回调函数参数指针，通常指向Gimbal对象实例
          */
-        float getPitchByMotor() const;
-        /*
-         * @brief 通过电机编码器 获取 云台相对于云台参数标定的零点 的yaw
+        static void UpdataPitchByMotor(void* arg);
+
+        /**
+         * @brief 偏航电机数据更新回调函数
+         *
+         * 当偏航电机数据更新时被调用的回调函数
+         *
+         * @param arg 回调函数参数指针，通常指向Gimbal对象实例
          */
-        float getYawByMotor() const;
+        static void UpdataYawByMotor(void* arg);
+
+        float getPitchByMotor();
+
+        float getYawByMotor();
 
         int GetDebugString(char* buffer, size_t size) const;
 
@@ -206,6 +228,20 @@ namespace control {
 
         // pitch and yaw constants
         gimbal_data_t data_;
+
+        // 多圈累积状态结构体
+        struct MotorWrapState {
+            float offset_angle_;      // 电机轴累积圈数（有符号）
+            float theta;         // 电机轴角度
+            FloatEdgeDetector* inner_wrap_detector_; // 输入电机屁股的角度到边界检测器
+            MotorWrapState() :
+            offset_angle_(0){
+                inner_wrap_detector_ = new FloatEdgeDetector(0, PI);
+            }
+        };
+
+        MotorWrapState pitch_wrap_;
+        MotorWrapState yaw_wrap_;
 
         // pitch and yaw angle (gimbal frame)
         float pitch_angle_; /* current gimbal pitch angle */

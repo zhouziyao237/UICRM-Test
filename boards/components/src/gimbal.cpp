@@ -34,6 +34,9 @@ namespace control {
         pitch_angle_ = data_.pitch_offset_;
         yaw_angle_ = data_.yaw_offset_;
 
+        pitch_motor_->RegisterDataUpdateCallback(UpdataPitchByMotor, this);
+        yaw_motor_->RegisterDataUpdateCallback(UpdataYawByMotor, this);
+
         pitch_lower_limit_ = wrap<float>(data_.pitch_offset_ - data_.pitch_max_, 0, 2 * PI);
         pitch_upper_limit_ = wrap<float>(data_.pitch_offset_ + data_.pitch_max_, 0, 2 * PI);
         yaw_lower_limit_ = wrap<float>(data_.yaw_offset_ - data_.yaw_max_, 0, 2 * PI);
@@ -67,7 +70,7 @@ namespace control {
         if (!data_.yaw_circle_) {
             yaw_angle_ = clip<float>(yaw_angle_, yaw_lower_limit_, yaw_upper_limit_);
         }
-        yaw_motor_->SetTarget(yaw_angle_ * data_.yaw_reduction);
+        yaw_motor_->SetTarget(yaw_angle_ * data_.pitch_reduction);
 
         //        float yt_diff = yaw_motor_->GetThetaDelta(yaw_angle_);
         //        yt_diff = wrap<float>(yt_diff, -PI, PI);
@@ -85,9 +88,8 @@ namespace control {
     }
 
     void Gimbal::UpdateIMU(float pitch, float yaw) {
-        // convert current motor angle to gimbal angle
-        float actual_pitch_angle = pitch_motor_->GetTheta() / data_.pitch_reduction;
         float pt_diff = pitch_angle_ - data_.pitch_offset_ - pitch;
+        float actual_pitch_angle = getPitchByMotor();
         float new_pitch_diff = wrapping_clip<float>(
             pt_diff + actual_pitch_angle, pitch_lower_limit_, pitch_upper_limit_, 0, 2 * PI);
         new_pitch_diff = new_pitch_diff - actual_pitch_angle;
@@ -99,15 +101,14 @@ namespace control {
         if (abs(pt_diff) < data_.pitch_eposition) {
             pt_diff = 0;
         }
-        // set motor target: (current gimbal angle + error) converted to motor frame
         pitch_motor_->SetTarget((pt_diff + actual_pitch_angle) * data_.pitch_reduction);
 
         //        float pt_out = pitch_theta_pid_->ComputeOutput(pt_diff);
         //        float po_in = pitch_motor_->GetOmegaDelta(pt_out);
         //        float po_out = pitch_omega_pid_->ComputeConstrainedOutput(po_in);
 
-        float actual_yaw_angle = yaw_motor_->GetTheta() / data_.yaw_reduction;
         float yt_diff = yaw_angle_ - data_.yaw_offset_ - yaw;
+        float actual_yaw_angle = getYawByMotor();
         if (!data_.yaw_circle_) {
             float new_yaw_diff = wrapping_clip<float>(yt_diff + actual_yaw_angle, yaw_lower_limit_,
                                                       yaw_upper_limit_, 0, 2 * PI);
@@ -124,7 +125,7 @@ namespace control {
             yt_diff = 0;
         }
 
-        yaw_motor_->SetTarget((yt_diff + actual_yaw_angle) * data_.yaw_reduction);
+        yaw_motor_->SetTarget(yt_diff + actual_yaw_angle);
 
         //        float yt_out = yaw_theta_pid_->ComputeOutput(yt_diff);
         //        float yo_in = yaw_motor_->GetOmegaDelta(yt_out);
@@ -170,8 +171,8 @@ namespace control {
         if (data_.yaw_inverted)
             new_yaw = -new_yaw;
         // convert current motor angles to gimbal frame
-        float current_pitch = pitch_motor_->GetTheta() / data_.pitch_reduction;
-        float current_yaw = yaw_motor_->GetTheta() / data_.yaw_reduction;
+        float current_pitch = getPitchByMotor();
+        float current_yaw = getYawByMotor();
         pitch_angle_ = wrap<float>(current_pitch + new_pitch, 0, 2 * PI);
         yaw_angle_ = wrap<float>(current_yaw + new_yaw, 0, 2 * PI);
     }
@@ -184,28 +185,60 @@ namespace control {
         return yaw_angle_;
     }
 
-    float Gimbal::getPitchByMotor() const {
-        // return gimbal angle relative to offset
-        return pitch_motor_->GetTheta() / data_.pitch_reduction - data_.pitch_offset_;
+    void Gimbal::UpdataPitchByMotor(void* arg) {
+        Gimbal* self = static_cast<Gimbal*>(arg);
+        float motor_angle = self->pitch_motor_->GetTheta();
+        self->pitch_wrap_.inner_wrap_detector_->input(motor_angle);
+        if (self->pitch_wrap_.inner_wrap_detector_->negEdge()) {
+            self->pitch_wrap_.offset_angle_ =
+            wrap<float>(self->pitch_wrap_.offset_angle_ + 2 * PI / self->data_.pitch_reduction, 0, 2 * PI);
+        }else if (self->pitch_wrap_.inner_wrap_detector_->posEdge()) {
+            self->pitch_wrap_.offset_angle_ =
+            wrap<float>(self->pitch_wrap_.offset_angle_ - 2 * PI / self->data_.pitch_reduction, 0, 2 * PI);
+        }
+        self->pitch_wrap_.theta = wrap<float>(self->pitch_wrap_.offset_angle_ + motor_angle / self->data_.pitch_reduction, 0, 2 * PI);
+
     }
 
-    float Gimbal::getYawByMotor() const {
-        return yaw_motor_->GetTheta() / data_.yaw_reduction - data_.yaw_offset_;
+    void Gimbal::UpdataYawByMotor(void* arg){
+        Gimbal* self = static_cast<Gimbal*>(arg);
+        float motor_angle = self->yaw_motor_->GetTheta();
+        self->yaw_wrap_.inner_wrap_detector_->input(motor_angle);
+        if (self->yaw_wrap_.inner_wrap_detector_->negEdge()) {
+            self->yaw_wrap_.offset_angle_ =
+            wrap<float>(self->yaw_wrap_.offset_angle_ + 2 * PI / self->data_.yaw_reduction, 0, 2 * PI);
+        } else if (self->yaw_wrap_.inner_wrap_detector_->posEdge()) {
+            self->yaw_wrap_.offset_angle_ =
+            wrap<float>(self->yaw_wrap_.offset_angle_ - 2 * PI / self->data_.yaw_reduction, 0, 2 * PI);
+        }
+        self->yaw_wrap_.theta = wrap<float>(self->yaw_wrap_.offset_angle_ + motor_angle / self->data_.yaw_reduction, 0, 2 * PI);
+
+    }
+
+    float Gimbal::getPitchByMotor() {
+        float theta = wrap<float>(pitch_wrap_.theta, 0, 2*PI);
+        return theta;
+    }
+
+    float Gimbal::getYawByMotor() {
+        float theta = wrap<float>(yaw_wrap_.theta, 0, 2*PI);
+        return theta;
     }
 
     int Gimbal::GetDebugString(char* buffer, size_t size) const {
         float pitch_motor_raw = pitch_motor_->GetTheta();
         float yaw_motor_raw = yaw_motor_->GetTheta();
-        float pitch_gimbal_actual = getPitchByMotor();
-        float yaw_gimbal_actual = getYawByMotor();
+
+        float pitch_gimbal_actual = const_cast<Gimbal*>(this)->getPitchByMotor();
+        float yaw_gimbal_actual = const_cast<Gimbal*>(this)->getYawByMotor();
         float pitch_gimbal_target = pitch_angle_;
         float yaw_gimbal_target = yaw_angle_;
 
         return snprintf(buffer, size,
-            "P_Mtr:%8.4f \r\nP_GimAct:%8.4f \r\nP_GimTgt:%8.4f \r\n"
-            "Y_Mtr:%8.4f \r\nY_GimAct:%8.4f \r\nY_GimTgt:%8.4f\r\n",
-            pitch_motor_raw, pitch_gimbal_actual, pitch_gimbal_target,
-            yaw_motor_raw, yaw_gimbal_actual, yaw_gimbal_target);
+            "P_Mtr:%2.4f|P_GimAct:%2.4f|P_GimTgt:%2.4f|PitchTheta:%2.4f|\r\n"
+            "Y_Mtr:%2.4f|Y_GimAct:%2.4f|Y_GimTgt:%2.4f|YawTheta:%2.4f|\r\n",
+            pitch_motor_raw, pitch_gimbal_actual, pitch_gimbal_target, pitch_wrap_.theta,
+            yaw_motor_raw, yaw_gimbal_actual, yaw_gimbal_target, yaw_wrap_.theta);
     }
 
 }  // namespace control

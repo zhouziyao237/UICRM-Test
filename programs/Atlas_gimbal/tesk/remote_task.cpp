@@ -50,6 +50,6 @@ void RemoteMainTask(void* arg) {
         SyncVTMToRcData();
 #endif
 
-        osDelay(1);
+        osDelay(10);
     }
 }

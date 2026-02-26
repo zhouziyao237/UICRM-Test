@@ -33,6 +33,7 @@
 namespace driver {
 
     typedef void (*ErrorCallback_t)(void* instance);
+    typedef void (*DataUpdateCallback_t)(void* instance);
 
     struct MotorErrorConfig{
         uint16_t thershold_Curr = 0;
@@ -74,6 +75,8 @@ namespace driver {
             // ABSOLUTE模式下，认为输出轴只有一圈。电机输出轴角度不会累计，被限制在[0,
             // 2PI]之间，如果目标在相反的半圈，则从另一侧绕过去
             ABSOLUTE = 0x80,
+            // 单圈限制，不自动最短路径
+            SINGLETURN = 0x10,
         };
 
 
@@ -318,6 +321,16 @@ namespace driver {
         static void RegisterPostOutputCallback(callback_t callback, void* instance);
 
         /**
+         * @brief 注册数据更新回调函数
+         *
+         * 该函数用于注册一个数据更新回调函数，当电机数据更新时会被调用。
+         *
+         * @param callback 回调函数指针，指向用户定义的数据更新处理函数
+         * @param instance 回调函数的实例参数，通常指向相关的对象实例
+         */
+        void RegisterDataUpdateCallback(DataUpdateCallback_t callback, void* instance);
+
+        /**
          * @brief 判断电机是否进入保持状态
          * @return 电机是否进入保持状态
          */
@@ -347,6 +360,7 @@ namespace driver {
         volatile float output_shaft_omega_;
 
         bool enable_;
+        uint8_t mode_ = 0;
 
         // angle control
         volatile float align_angle_ = 0; /* 对齐角度，开机时的角度，单位为[rad] */
@@ -365,6 +379,10 @@ namespace driver {
         float proximity_out_ = 0.15; /* 电机退出保持状态的临界角度差 */
 
         bool holding_ = true; /* 电机是否进入保持状态 */
+
+        DataUpdateCallback_t data_update_callback_ = [](void* instance) { UNUSED(instance); };
+        void* data_update_instance_ = nullptr;
+
       private:
         bsp::CAN* can_;
         uint16_t rx_id_;
@@ -373,7 +391,6 @@ namespace driver {
         MotorErrorConfig MotorErrorConfig_;
         MotorState current_state_;
 
-        uint8_t mode_ = 0;
         control::ConstrainedPID omega_pid_;
         control::ConstrainedPID theta_pid_;
         float target_;

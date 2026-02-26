@@ -66,6 +66,6 @@ void GyroMainTask(void *args) {
         BMI088update(&gyroData);
 #endif
 
-    osDelay(1);
+    osDelay(10);
     }
 }

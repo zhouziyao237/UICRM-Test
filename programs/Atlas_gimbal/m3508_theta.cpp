@@ -70,11 +70,11 @@ void RM_RTOS_Init() {
     motor1->ReInitPID(omega_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
     motor1->SetMode(driver::MotorCANBase::SPEED_LOOP_CONTROL |
                     driver::MotorCANBase::ANGLE_LOOP_CONTROL |
-                    driver::MotorCANBase::ABSOLUTE);
+                    driver::MotorCANBase::SINGLETURN);
 
     // Snail need to be run at idle throttle for some
     motor1->Enable();
-    motor1->SetTarget(PI/2);
+    motor1->SetTarget(-PI/2);
     HAL_Delay(1000);
 }
 
@@ -92,7 +92,7 @@ void RM_RTOS_Default_Task(const void* args) {
                 osDelay(30);
             }
             motor1->Enable();
-            motor1->SetTarget(PI);
+            motor1->SetTarget(PI/2);
             osDelay(20);
         }
         motor1->PrintData();
