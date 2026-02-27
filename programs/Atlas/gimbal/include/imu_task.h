@@ -25,29 +25,24 @@
 #include "AHRS.h"
 #include "BMI088.h"
 #include "IST8310.h"
-#include "bsp_gpio.h"
-#include "bsp_os.h"
-#include "bsp_spi.h"
-#include "cmsis_os.h"
 #include "heater.h"
+#include "cmsis_os.h"
 #include "main.h"
 
+// ----------------------------- IMU Data code -----------------------------
 #define RX_SIGNAL (1 << 0)
 
-extern imu::BMI088* bmi088;
 extern control::AHRS* ahrs;
+extern driver::Heater* heater;
+extern bsp::SPIMaster* spi1_master;
+extern imu::BMI088* bmi088;
+extern imu::IST8310* ist8310;
+typedef struct {
+    float pitch;
+    float roll;
+    float yaw;
+} INS_Theta_t;
+extern INS_Theta_t INSTheta;
 
-// extern osThreadId_t IMUTaskHandle;
-// const osThreadAttr_t IMUTaskAttribute = {.name = "IMU_Task",
-//                                             .attr_bits = osThreadDetached,
-//                                             .cb_mem = nullptr,
-//                                             .cb_size = 0,
-//                                             .stack_mem = nullptr,
-//                                             .stack_size = 512 * 4,
-//                                             .priority = (osPriority_t)osPriorityHigh,
-//                                             .tz_module = 0,
-//                                             .reserved = 0};
-void IMU_print();
-
-void IMU_Init();
-// void IMU_Task(void *arg);
+// ----------------------------- IMU Main code -----------------------------
+void InitIMU();

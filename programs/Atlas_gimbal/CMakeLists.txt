@@ -8,6 +8,15 @@ uicrm_add_arm_executable(${PROJECT_NAME}m3508_example
         TARGET  DJI_Board_TypeC_general
         SOURCES m3508_theta.cpp)
 
+uicrm_add_arm_executable(${PROJECT_NAME}_m2006_example
+        TARGET DJI_Board_TypeC_general
+        SOURCES m2006_theta.cpp)
+
+uicrm_add_arm_executable(${PROJECT_NAME}_vtm-bntton
+        TARGET DJI_Board_TypeC_general
+        SOURCES
+        vtm-bntton.cpp)
+
 uicrm_add_arm_executable(Atlas_Gimbal
         TARGET  DJI_Board_TypeC_general
         SOURCES

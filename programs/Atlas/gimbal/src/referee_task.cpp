@@ -19,28 +19,20 @@
  ###########################################################*/
 
 #include "referee_task.h"
-#include "user_define.h"
 
-bsp::UART* referee_uart = nullptr;
-bsp::UART* refereerc_uart = nullptr;
+// ---------------------------- Referre Data Code ----------------------------
+
 communication::Referee* referee = nullptr;
-communication::Referee* refereerc = nullptr;
 
-void init_referee() {
+// ---------------------------- Referre Main Code ----------------------------
+
+void InitReferee() {
     // 启动裁判系统
-    referee_uart = new bsp::UART(&referee_uart_post);
-    referee_uart->SetupRx(300);
-    referee_uart->SetupTx(300);
     referee = new communication::Referee(referee_uart);
+    SysStartData.RefereeInitFlag = 1;
+}
 
-#ifdef UART_PRINT_LOG
-    print_use_uart(&debug_uart_post, false, 921600);
-#else
-    // // 启动裁判系统图传链路
-    // refereerc_uart = new bsp::UART(&refereerc_uart_post);
-    // refereerc_uart->SetupRx(300);
-    // // UART7没有打开DMA发送，所以这里需要将DMA发送关闭
-    // refereerc_uart->SetupTx(300, false);
-    // refereerc = new communication::Referee(refereerc_uart);
-#endif
+uint8_t RefereeIsOnline() {
+    RobotStatus.RefereeOnline = (uint8_t)referee->IsOnline();
+    return RobotStatus.RefereeOnline;
 }

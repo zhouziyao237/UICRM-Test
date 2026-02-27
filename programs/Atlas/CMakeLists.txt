@@ -1,1 +1,2 @@
 add_subdirectory(chassis)
+add_subdirectory(gimbal)

@@ -19,24 +19,19 @@
  ###########################################################*/
 
 #pragma once
-#include "debug_model.h"
-#include "bsp_print.h"
-#include "bsp_uart.h"
-#include "cmsis_os2.h"
-#include "dbus.h"
+
 #include "main.h"
+#include "sys.h"
 #include "protocol.h"
+
+// ---------------------------- Referre Data Code ----------------------------
 
 #define RX_SIGNAL (1 << 0)
 
-extern bsp::UART* referee_uart;
 extern communication::Referee* referee;
-extern bsp::UART* refereerc_uart;
-extern communication::Referee* refereerc;
-extern bsp::UART* minipc_uart;
-extern communication::Host* minipc;
 
-extern communication::DebugModel* CAR_DEBUG;
+// ---------------------------- Referre Main Code ----------------------------
 
+void InitReferee();
 
-void init_referee();
+uint8_t RefereeIsOnline();

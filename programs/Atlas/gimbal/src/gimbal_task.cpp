@@ -1,5 +1,5 @@
 /*###########################################################
- # Copyright (c) 2023-2024. BNU-HKBU UIC RoboMaster         #
+# Copyright (c) 2023-2024. BNU-HKBU UIC RoboMaster         #
  #                                                          #
  # This program is free software: you can redistribute it   #
  # and/or modify it under the terms of the GNU General      #
@@ -20,330 +20,252 @@
 
 #include "gimbal_task.h"
 
-#include "chassis_task.h"
-#include "dbus_package.h"
-#include "minipc_task.h"
+// ----------------------------- Gimbal Task code -----------------------------
 
-osThreadId_t gimbalTaskHandle;
+osThreadId_t GimbalTaskHandle;
+
+// ----------------------------- Gimbal Config code -----------------------------
+
+// 配置你的云台（±60度，1:6减速比）
+static control::gimbal_data_t gimbal_config = {
+    .pitch_offset_ = 0.9272f,        // 云台机械零点
+    .yaw_offset_ = 0.0f,           // 云台机械零点
+    .pitch_max_ = 0.6981f,
+    .yaw_max_ = 2 * PI,            // ±2PI度范围
+    .yaw_circle_ = false,          // 不能360度旋转
+    .pitch_inverted = true,        // 不反转
+    .yaw_inverted = false,         // 不反转
+    .pitch_reduction = 6.0f,   // 1:6减速比
+    .yaw_reduction = 1.0f          // 1:6减速比
+};
+
+#define GimbalMinTheta 0.4119
+#define FloatingRange 0.02
 
 driver::MotorCANBase* pitch_motor = nullptr;
 driver::MotorCANBase* yaw_motor = nullptr;
 control::Gimbal* gimbal = nullptr;
 control::gimbal_data_t* gimbal_param = nullptr;
 float pitch_diff, yaw_diff;
-INS_Angle_t INS_Angle;
+GimbalRatio_t GimbalRatio = {};
 
-control::gimbal_t gimbal_data;
+// ----------------------------- Gimbal Main code -----------------------------
 
-bool GimbalInitFlag = false;
-bool Gimbal_Enable_Flag = false;
+void InitGimbal() {
+    pitch_motor = new driver::Motor3508(can1, 0x204);
+    yaw_motor = new driver::Motor6020(can1, 0x205);
 
-template <typename T>
-T map(T value, T in_min, T in_max, T out_min, T out_max) {
-    return out_min + (value - in_min) * (out_max - out_min) / (in_max - in_min);
-}
-
-void GimbalEnableModel(bool Model) {
-    // 添加空指针检查，确保电机对象已正确初始化
-    if (pitch_motor == nullptr || yaw_motor == nullptr) {
-        return;  // 或者记录错误日志，根据具体需求决定处理方式
-    }
-
-    Gimbal_Enable_Flag = Model;
-    if (Model) {
-        if (!pitch_motor->IsEnable())
-            pitch_motor->Enable();
-        if (!yaw_motor->IsEnable())
-            yaw_motor->Enable();
-        return;
-    }
-
-    pitch_motor->Disable();
-    yaw_motor->Disable();
-}
-
-void Gimbal_Righting() {
-    gimbal->TargetAbs(0, 0);
-    gimbal->Update();
-}
-
-void debug_gimbal(bool newline) {
-    (void)newline;
-#ifdef GINBAL_DEBUG
-    print("Gimbal pitch: %.2f, Gimbal yaw: %.2f\r\n", INS_Angle.pitch, INS_Angle.yaw);
-    print("Gimbal pitch: %.2f, Gimbal yaw: %.2f\r\n", pitch_motor->GetOutputShaftTheta(),
-          yaw_motor->GetOutputShaftTheta());
-    if (newline) {
-        print("\r\n");
-    }
-#endif
-}
-
-void check_kill() {
-#ifdef HAS_REFEREE
-    if (remote_mode == REMOTE_MODE_KILL || !referee->game_robot_status.mains_power_gimbal_output) {
-#else
-    if (remote_mode == REMOTE_MODE_KILL) {
-#endif
-
-        GimbalEnableModel(false);
-        while (remote_mode == REMOTE_MODE_KILL) {
-            osDelay(GIMBAL_OS_DELAY);
-        }
-        if (!Gimbal_Enable_Flag) {
-            GimbalEnableModel(true);
-            Gimbal_Righting();
-        }
-    }
-}
-
-void gimbalTask(void* arg) {
-    UNUSED(arg);
-    // 任务启动时先关掉两个电机，然后等待遥控器连接
-    GimbalEnableModel(false);
-    osDelay(500);
-
-    while (remote_mode != REMOTE_MODE_KILL && protect_wraning_flag) {
-        GimbalEnableModel(false);
-        osDelay(PROTECT_OS_DELAY);
-    }
-
-    GimbalEnableModel(true);
-
-    int i;
-    for (i = 0; i < 5000; i++) {
-        // check_kill();
-        Gimbal_Righting();
-        osDelay(1);
-    }
-
-    // 云台复位完成后，播放一段音乐，代表开始校准陀螺仪
-    // 校准陀螺仪会对陀螺仪进行2000次的读取，然后取平均值作为校准值
-    Buzzer_Sing(SingCaliStart);
-
-    ahrs->Cailbrate();
-    i = 0;
-    while (!ahrs->IsCailbrated()) {
-        Gimbal_Righting();
-        osDelay(1);
-        ++i;
-    }
-    Gimbal_Righting();
-    osDelay(10);
-
-    // 校准完成后播放一段音乐
-    Buzzer_Sing(SingCaliDone);
-    GimbalInitFlag = true;
-    osDelay(100);
-
-    // 初始化当前陀螺仪角度、遥控器输入转换的角度、目标角度
-    // float pitch_ratio, yaw_ratio;
-    INS_Angle.pitch = -ahrs->INS_angle[2];
-    INS_Angle.yaw = ahrs->INS_angle[0];
-
-    float pitch_target = 0, yaw_target = 0;
-    float actural_chassis_turn_speed = chassis_vz / 6.0f;
-    Gimbal_Righting();
-    osDelay(100);
-
-    while (true) {
-        // 如果遥控器处于关闭状态，关闭两个电机
-        check_kill();
-
-        // 获取当前陀螺仪角度
-        INS_Angle.pitch = -ahrs->INS_angle[2];
-        INS_Angle.yaw = ahrs->INS_angle[0];
-
-        // if (dbus->swr == remote::UP) {
-        //   gimbal->TargetAbs(0, 0);
-        //   gimbal->Update();
-        //   pitch_target = pitch_curr;
-        //   yaw_target = yaw_curr;
-        //   control::MotorCANBase::TransmitOutput(gimbal_motors, 3);
-        //   osDelay(1);
-        //   continue;
-        // }
-
-        auto [pitch_ratio, yaw_ratio] = gimbal_remote_mode();
-
-        // 根据遥控器输入计算目标角度，并且进行限幅
-        pitch_target =
-            clip<float>(pitch_ratio, -gimbal_param->pitch_max_, gimbal_param->pitch_max_);
-        yaw_target = wrap<float>(yaw_ratio, -gimbal_param->yaw_max_, gimbal_param->yaw_max_);
-
-        pitch_diff = clip<float>(pitch_target, -PI, PI);
-        yaw_diff = wrap<float>(yaw_target, -PI, PI);
-
-        // if (-0.005 < pitch_diff && pitch_diff < 0.005) {
-        //     pitch_diff = 0;
-        // }
-
-        // 根据运动模式选择不同的控制方式
-        float yaw_speed_offset = actural_chassis_turn_speed + yaw_ratio;
-        float pitch_speed_offset = pitch_ratio;
-        yaw_motor->SetSpeedOffset(yaw_speed_offset);
-        pitch_motor->SetSpeedOffset(pitch_speed_offset);
-        // if (is_autoaim && minipc->IsOnline() && minipc->target_angle.target_robot_id != 0) {
-        //     gimbal->TargetAbs(-minipc->target_angle.target_pitch,
-        //     minipc->target_angle.target_yaw); gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
-        // } else {
-        switch (remote_mode) {
-            case REMOTE_MODE_SPIN:
-                gimbal->TargetRel(pitch_diff, yaw_diff);
-                gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
-                break;
-            case REMOTE_MODE_FOLLOW:
-                // // 如果是跟随模式或者旋转模式，将IMU作为参考系
-                gimbal->TargetRel(pitch_diff, yaw_diff);
-                gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
-                break;
-            case REMOTE_MODE_ADVANCED:
-                // 如果是高级模式，将电机获取的云台当前角度作为参考系
-                gimbal->TargetRel(pitch_diff, yaw_diff);
-                gimbal->Update();
-                break;
-            case REMOTE_MODE_AUTOAIM:
-                gimbal->TargetAbs(-minipc->target_angle.target_pitch,
-                                  minipc->target_angle.target_yaw);
-                gimbal->UpdateIMU(INS_Angle.pitch, INS_Angle.yaw);
-                break;
-            case REMOTE_MODE_PREPARE_HAND_MOVEMENT:
-                // 遥控器手动控制模式，将电机获取的云台当前角度作为参考系，直接通过遥控控制
-
-                gimbal->TargetRel(pitch_diff, yaw_diff);
-                gimbal->Update();
-                break;
-
-            default:
-                break;
-                // }
-        }
-
-        osDelay(GIMBAL_OS_DELAY);
-    }
-}
-
-void init_gimbal() {
-    // 云台需要使用两个6020电机，并且进行角度环和速度环双环控制。此时我们需要初始化两个电机对象和四个PID对象，并且将四个PID对象分别绑定到两个电机对象上。
-
-    /**
-     * pitch motor
-     */
-    pitch_motor = new driver::Motor6020(can1, 0x205, 0x1FF);
     pitch_motor->SetTransmissionRatio(1);
-    control::ConstrainedPID::PID_Init_t pitch_motor_theta_pid_init = {
-        .kp = 60,
-        .ki = 0.005,
-        .kd = 4000,
-        .max_out = 6 * PI,  // 最高旋转速度
-        .max_iout = 0,
-        .deadband = 0,                                 // 死区
-        .A = 0,                                        // 变速积分所能达到的最大值为A+B
-        .B = 0,                                        // 启动变速积分的死区
-        .output_filtering_coefficient = 0.1,           // 输出滤波系数
-        .derivative_filtering_coefficient = 0,         // 微分滤波系数
-        .mode = control::ConstrainedPID::OutputFilter  // 输出滤波
-    };
+    pitch_motor->ReInitPID(pitch_theta_pid_init, driver::MotorCANBase::ANGLE_LOOP_CONTROL);
+    pitch_motor->ReInitPID(pitch_omega_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
+    pitch_motor->SetMode(driver::MotorCANBase::SPEED_LOOP_CONTROL |
+                         driver::MotorCANBase::ANGLE_LOOP_CONTROL |
+                         driver::MotorCANBase::SINGLETURN);
 
-    pitch_motor->ReInitPID(pitch_motor_theta_pid_init, driver::MotorCANBase::ANGLE_LOOP_CONTROL);
-    control::ConstrainedPID::PID_Init_t pitch_motor_omega_pid_init = {
-        .kp = 1500,
-        .ki = 0,
-        .kd = 500,
-        .max_out = 16384,  // 最大电流输出，参考说明书
-        .max_iout = 2000,
-        .deadband = 0,                                           // 死区
-        .A = 1.5 * PI,                                           // 变速积分所能达到的最大值为A+B
-        .B = 1 * PI,                                             // 启动变速积分的死区
-        .output_filtering_coefficient = 0.1,                     // 输出滤波系数
-        .derivative_filtering_coefficient = 0,                   // 微分滤波系数
-        .mode = control::ConstrainedPID::Integral_Limit |        // 积分限幅
-                control::ConstrainedPID::OutputFilter |          // 输出滤波
-                control::ConstrainedPID::Trapezoid_Intergral |   // 梯形积分
-                control::ConstrainedPID::ChangingIntegralRate |  // 变速积分
-                control::ConstrainedPID::Derivative_On_Measurement |  // 微分在测量值上
-                control::ConstrainedPID::DerivativeFilter             // 微分在测量值上
-    };
-    pitch_motor->ReInitPID(pitch_motor_omega_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
-    // 给电机启动角度环和速度环，并且这是一个绝对角度电机，需要启动绝对角度模式
-    pitch_motor->SetMode(driver::MotorCANBase::ANGLE_LOOP_CONTROL |
-                         driver::MotorCANBase::SPEED_LOOP_CONTROL | driver::MotorCANBase::ABSOLUTE);
-
-    /**
-     * yaw motor
-     */
-    yaw_motor = new driver::Motor6020(can1, 0x206, 0x1FF);
     yaw_motor->SetTransmissionRatio(1);
-    control::ConstrainedPID::PID_Init_t yaw_motor_theta_pid_init = {
-        .kp = 60,
-        .ki = 0,
-        .kd = 4000,
-        .max_out = 6 * PI,  // 最高旋转速度
-        .max_iout = 0,
-        .deadband = 0,                                 // 死区
-        .A = 0,                                        // 变速积分所能达到的最大值为A+B
-        .B = 0,                                        // 启动变速积分的死区
-        .output_filtering_coefficient = 0.15,          // 输出滤波系数
-        .derivative_filtering_coefficient = 0,         // 微分滤波系数
-        .mode = control::ConstrainedPID::OutputFilter  // 输出滤波
-    };
-    yaw_motor->ReInitPID(yaw_motor_theta_pid_init, driver::MotorCANBase::ANGLE_LOOP_CONTROL);
-    control::ConstrainedPID::PID_Init_t yaw_motor_omega_pid_init = {
-        .kp = 1500,
-        .ki = 0,
-        .kd = 500,
-        .max_out = 16384,  // 最大电流输出，参考说明书
-        .max_iout = 2000,
-        .deadband = 0,                                           // 死区
-        .A = 0.5 * PI,                                           // 变速积分所能达到的最大值为A+B
-        .B = 0.5 * PI,                                           // 启动变速积分的死区
-        .output_filtering_coefficient = 0.03,                    // 输出滤波系数
-        .derivative_filtering_coefficient = 0.1,                 // 微分滤波系数
-        .mode = control::ConstrainedPID::Integral_Limit |        // 积分限幅
-                control::ConstrainedPID::OutputFilter |          // 输出滤波
-                control::ConstrainedPID::Trapezoid_Intergral |   // 梯形积分
-                control::ConstrainedPID::ChangingIntegralRate |  // 变速积分
-                control::ConstrainedPID::Derivative_On_Measurement |  // 微分在测量值上
-                control::ConstrainedPID::DerivativeFilter             // 微分在测量值上
-    };
-    yaw_motor->ReInitPID(yaw_motor_omega_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
-    // 给电机启动角度环和速度环，并且这是一个绝对角度电机，需要启动绝对角度模式
-    yaw_motor->SetMode(driver::MotorCANBase::ANGLE_LOOP_CONTROL |
-                       driver::MotorCANBase::SPEED_LOOP_CONTROL | driver::MotorCANBase::ABSOLUTE);
+    yaw_motor->ReInitPID(yaw_theta_pid_init, driver::MotorCANBase::ANGLE_LOOP_CONTROL);
+    yaw_motor->ReInitPID(yaw_omega_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
+    yaw_motor->SetMode(driver::MotorCANBase::SPEED_LOOP_CONTROL |
+                       driver::MotorCANBase::ANGLE_LOOP_CONTROL | driver::MotorCANBase::ABSOLUTE);
 
-    // 初始化云台对象
+    control::gimbal_t gimbal_data;
+    gimbal_data.data = gimbal_config;
     gimbal_data.pitch_motor = pitch_motor;
     gimbal_data.yaw_motor = yaw_motor;
-    gimbal_data.data = gimbal_init_data;
     gimbal = new control::Gimbal(gimbal_data);
     gimbal_param = gimbal->GetData();
 }
 
-Gimbal_Ratio_data gimbal_remote_mode() {
-#ifdef DBUS_MODE
-    // 如果遥控器处于开机状态，优先使用遥控器输入，否则使用裁判系统图传输入
-    Gimbal_Ratio_data Gimbal_Ratio;
-    const float mouse_ratio = 0.8;
-    const float remote_ratio = 0.005;
-    if (dbus->IsOnline()) {
-        if (dbus->mouse.x != 0 || dbus->mouse.y != 0) {
-            Gimbal_Ratio.pitch_ratio_ratio = -(float)dbus->mouse.y / mouse_xy_max * mouse_ratio;
-            Gimbal_Ratio.yaw_ratio_ratio = (float)dbus->mouse.x / mouse_xy_max * mouse_ratio;
+void GimbalRCUpdata() {
+    if (RCIsOnline()) {
+        rc_offline_start_time = 0;
+
+        if (rcData[GIMBAL_MOUSE_Y_CH] != 0 || rcData[GIMBAL_MOUSE_X_CH] != 0) {
+            if (MOUSE_PitchInverted) {
+                rcData[GIMBAL_MOUSE_Y_CH] = -rcData[GIMBAL_MOUSE_Y_CH];
+            }
+            if (MOUSE_YawInverted) {
+                rcData[GIMBAL_MOUSE_X_CH] = -rcData[GIMBAL_MOUSE_X_CH];
+            }
+            GimbalRatio.pitch_ratio = rcData[GIMBAL_MOUSE_Y_CH] / mouse_xy_max * mouse_ratio;
+            GimbalRatio.yaw_ratio = rcData[GIMBAL_MOUSE_X_CH] / mouse_xy_max * mouse_ratio;
         } else {
-            Gimbal_Ratio.pitch_ratio_ratio = (float)dbus->ch3 / dbus->ROCKER_MAX * remote_ratio;
-            Gimbal_Ratio.yaw_ratio_ratio = -(float)dbus->ch2 / dbus->ROCKER_MAX * remote_ratio;
+            if (CH_PitchInverted) {
+                rcData[GIMBAL_PITCH_CH] = -rcData[GIMBAL_PITCH_CH];
+            }
+            if (CH_YawInverted) {
+                rcData[GIMBAL_YAW_CH] = -rcData[GIMBAL_YAW_CH];
+            }
+            GimbalRatio.pitch_ratio = rcData[GIMBAL_PITCH_CH] / MAXCHECK * remote_ratio;
+            GimbalRatio.yaw_ratio = rcData[GIMBAL_YAW_CH] / MAXCHECK * remote_ratio;
         }
-    } else if (refereerc->IsOnline()) {
-        Gimbal_Ratio.pitch_ratio_ratio =
-            -refereerc->remote_control.mouse.y / mouse_xy_max * mouse_ratio;
-        Gimbal_Ratio.yaw_ratio_ratio =
-            refereerc->remote_control.mouse.x / mouse_xy_max * mouse_ratio;
     } else {
-        Gimbal_Ratio.pitch_ratio_ratio = 0;
-        Gimbal_Ratio.yaw_ratio_ratio = 0;
+        // 离线计时
+        if (rc_offline_start_time == 0) {
+            rc_offline_start_time = bsp::GetHighresTickMilliSec();
+        }
+
+        // 双重确认：VTM(100ms) + 应用层 (200ms) = 总共 300ms 才触发急停
+        if (bsp::GetHighresTickMilliSec() - rc_offline_start_time > APP_OFFLINE_DEBOUNCE_MS) {
+            GimbalMode = GKILLMODE;
+        }
+        // 否则保持当前模式
+    }
+}
+
+uint8_t GimbalIsOnline() {
+    return RobotStatus.GimbalOnline;
+}
+
+void GimbalTask(void* arg) {
+    UNUSED(arg);
+
+    if (!gimbal || !pitch_motor || !yaw_motor)
+        RM_ASSERT_TRUE(false, "Gimbal Init Failed!");
+
+    yaw_motor->Disable();
+    pitch_motor->Disable();
+
+    bool InitFlag = false;
+    while (true){
+
+        if (!pitch_motor->IsOnline() || !yaw_motor->IsOnline()) {
+            osDelay(10);
+            GimbalMode = GKILLMODE;
+            RobotStatus.GimbalOnline = 0;
+            InitFlag = false;
+        }
+        RobotStatus.GimbalOnline = 1;
+
+        if (GimbalMode == GKILLMODE) {
+            yaw_motor->Disable();
+            pitch_motor->Disable();
+            InitFlag = false;
+            osDelay(10);
+            continue;
+        }
+
+        if (GimbalMode == GMANUALMODE) {
+
+            if ((gimbal->getPitchByMotor() <= GimbalMinTheta + FloatingRange) &&
+                gimbal->getPitchByMotor() >= GimbalMinTheta - FloatingRange) {
+                yaw_motor->Enable();
+                pitch_motor->Enable();
+            }
+
+            int i = 0;
+            for (i = 0; i < 5000; i++) {
+                if (GimbalMode == GKILLMODE) {
+                    yaw_motor->Disable();
+                    pitch_motor->Disable();
+                    InitFlag = false;
+                    return;
+                }
+                gimbal->TargetAbs(0, 0);
+                gimbal->Update();
+                osDelay(1);
+            }
+
+            ahrs->Cailbrate();
+            i = 0;
+            while (!ahrs->IsCailbrated()) {
+                if (GimbalMode == GKILLMODE) {
+                    yaw_motor->Disable();
+                    pitch_motor->Disable();
+                    InitFlag = false;
+                    return;
+                }
+                gimbal->TargetAbs(0, 0);
+                gimbal->Update();
+                osDelay(1);
+                ++i;
+            }
+
+            print("Start Calibration.\r\n");
+            ahrs->Cailbrate();
+            InitFlag = true;
+        }
+
+
+        if (InitFlag) {
+            if (GimbalMode == GKILLMODE) {
+                yaw_motor->Disable();
+                pitch_motor->Disable();
+                SysStartData.GimbalInitFlag = 0;
+                InitFlag = false;
+                continue;
+            }
+            SysStartData.GimbalInitFlag = 1;
+            break;
+        }
+        osDelay(100);
     }
 
-#endif
+    while (true) {
+        if (GimbalMode == GKILLMODE) {
+            while (true) {
+                if (GimbalMode != GKILLMODE) {
+                    pitch_motor->Enable();
+                    yaw_motor->Enable();
+                    osDelay(10);
+                    break;
+                }
+                pitch_motor->Disable();
+                yaw_motor->Disable();
+                osDelay(10);
+            }
+        }
 
-    return Gimbal_Ratio;
+        if (!pitch_motor->IsOnline() || !yaw_motor->IsOnline()) {
+            GimbalMode = GKILLMODE;
+            pitch_motor->Disable();
+            yaw_motor->Disable();
+            RobotStatus.GimbalOnline = 0;
+            continue;
+        }
+        RobotStatus.GimbalOnline = 1;
+
+        GimbalRCUpdata();
+
+        float pitch_target = clip<float>(GimbalRatio.pitch_ratio, -gimbal_param->pitch_max_, gimbal_param->pitch_max_);
+        float yaw_target = wrap<float>(GimbalRatio.yaw_ratio, -gimbal_param->yaw_max_, gimbal_param->yaw_max_);
+        pitch_diff = clip<float>(pitch_target, -PI, PI);
+        yaw_diff = wrap<float>(yaw_target, -PI, PI);
+
+        // 根据运动模式选择不同的控制方式
+        float yaw_speed_offset = actural_chassis_turn_speed + GimbalRatio.yaw_ratio;
+        float pitch_speed_offset = GimbalRatio.pitch_ratio;
+        yaw_motor->SetSpeedOffset(yaw_speed_offset);
+        pitch_motor->SetSpeedOffset(pitch_speed_offset);
+
+        switch (GimbalMode) {
+            case GMANUALMODE:{
+                // 如果是高级模式，将电机获取的云台当前角度作为参考系
+                gimbal->TargetRel(pitch_diff, yaw_diff);
+                gimbal->Update();
+                break;
+            }
+            case GFOLLOWMODE:
+                // 如果是跟随模式或者旋转模式，将IMU作为参考系
+                gimbal->TargetRel(pitch_diff, yaw_diff);
+                gimbal->UpdateIMU(INSTheta.pitch, INSTheta.yaw);
+                break;
+            case GAUTOAIMODE: {
+                gimbal->TargetAbs(minipc->target_angle.target_pitch,
+                                  minipc->target_angle.target_yaw);
+                gimbal->UpdateIMU(INSTheta.pitch, INSTheta.yaw);
+                break;
+            }
+            case GSPINMODE:
+                gimbal->TargetRel(pitch_diff, yaw_diff);
+                gimbal->UpdateIMU(INSTheta.pitch, INSTheta.yaw);
+                break;
+
+            default:
+                break;
+        }
+
+        osDelay(10);
+    }
 }
+

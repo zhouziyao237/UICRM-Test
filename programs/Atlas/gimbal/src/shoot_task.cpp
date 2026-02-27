@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2025. BNU-HKBU UIC RoboMaster
+// Copyright (c) 2026. BNU-HKBU UIC RoboMaster
 //
 // This program is free software: you can redistribute it
 // and/or modify it under the terms of the GNU General
@@ -16,353 +16,337 @@
 // Public License along with this program.  If not, see
 // <https://www.gnu.org/licenses/>.
 
+//
+// Created by Administrator on 2026/3/2.
+//
+
 #include "shoot_task.h"
 
-static driver::Motor3508* flywheel_left = nullptr;
-static driver::Motor3508* flywheel_right = nullptr;
+// ----------------------------- Shoot Task code -----------------------------
 
-driver::Motor2006* steering_motor = nullptr;
-driver::ServoMG995* MG995;
+osThreadId_t ShootTaskHandle;
 
-int shoot_17mm_num = 0;
+// ----------------------------- Shoot data code -----------------------------
 
-control::ConstrainedPID::PID_Init_t flywheel_pid_init = {
- .kp = 100,
- .ki = 1,
- .kd = 0,
- .max_out = 1000,
- .max_iout = 4000,
- .deadband = 0,                          // 死区
- .A = 3 * PI,                            // 变速积分所能达到的最大值为A+B
- .B = 2 * PI,                            // 启动变速积分的死区
- .output_filtering_coefficient = 0.1,    // 输出滤波系数
- .derivative_filtering_coefficient = 0,  // 微分滤波系数
- .mode = control::ConstrainedPID::Integral_Limit |       // 积分限幅
-         control::ConstrainedPID::OutputFilter |         // 输出滤波
-         control::ConstrainedPID::Trapezoid_Intergral |  // 梯形积分
-         control::ConstrainedPID::ChangingIntegralRate,  // 变速积分
-};
+#define FW_LEFT_MOTOR_ID 0x0202
+#define FW_RIGHT_MOTOR_ID 0x0203
+#define FEEDING_MOTOR_ID 0x0205
 
+FrictionWheelMode_e FWMode = FW_MODE_OFF;
+driver::MotorCANBase* FWMotor[FW_NUM] = {nullptr};
+driver::MotorCANBase* FeedingMotror = nullptr;
 
-control::ConstrainedPID::PID_Init_t steering_motor_theta_pid_init = {
-    .kp = 30,
-    .ki = 0,
-    .kd = 0,
-    .max_out = 5 * PI,
-    .max_iout = 0,
-    .deadband = 0,                                 // 死区
-    .A = 0,                                        // 变速积分所能达到的最大值为A+B
-    .B = 0,                                        // 启动变速积分的死区
-    .output_filtering_coefficient = 0.1,           // 输出滤波系数
-    .derivative_filtering_coefficient = 0,         // 微分滤波系数
-    .mode = control::ConstrainedPID::OutputFilter  // 输出滤波
-};
-control::ConstrainedPID::PID_Init_t steering_motor_omega_pid_init = {
-    .kp = 200,
-    .ki = 0,
-    .kd = 10000,
-    .max_out = 10000,
-    .max_iout = 4000,
-    .deadband = 0,                          // 死区
-    .A = 3 * PI,                            // 变速积分所能达到的最大值为A+B
-    .B = 2 * PI,                            // 启动变速积分的死区
-    .output_filtering_coefficient = 0.1,    // 输出滤波系数
-    .derivative_filtering_coefficient = 0,  // 微分滤波系数
-    .mode = control::ConstrainedPID::Integral_Limit |        // 积分限幅
-            control::ConstrainedPID::OutputFilter |          // 输出滤波
-            control::ConstrainedPID::Trapezoid_Intergral |   // 梯形积分
-            control::ConstrainedPID::ChangingIntegralRate |  // 变速积分
-            control::ConstrainedPID::ErrorHandle,            // 错误处理
+BoolEdgeDetector* shoot_edge[SEDGENUM] = {nullptr};
 
-};
-bool jam_notify_flags = false;
+StallDetection stall_detector;
 
-void jam_callback(void* args) {
-    driver::Motor2006* motor = static_cast<driver::Motor2006*>(args);
-    jam_notify_flags = true;
-    float target = motor->GetTarget();
-    if (target > motor->GetOutputShaftTheta()) {
-        float prev_target = motor->GetTarget() - 2 * PI / 32;
-        motor->SetTarget(prev_target);
-    } else {
-        float prev_target = motor->GetTarget() + 2 * PI / 32;
-        motor->SetTarget(prev_target);
-    }
-}
+// --------------------------- Shoot Callback code ---------------------------
 
-osThreadId_t shootTaskHandle;
+void trigger_callback(uint8_t channel, rc_key_mode_t mode) {
+    if (channel == TRIGGER_CHANNEL || channel == MOUSE_LEFT_CHANNEL) {
+        if (FWMode == FW_MODE_OFF || ShootMode != SHOOTILDE)
+            return;
 
-void init_shoot(){
-    flywheel_left = new driver::Motor3508(can2, 0x202);
-    flywheel_right = new driver::Motor3508(can2, 0x201);
-    steering_motor = new driver::Motor2006(can2, 0x203);
-
-    MG995 = new driver::ServoMG995(&MG995_htim, MG995_channel);
-
-    flywheel_left->SetTransmissionRatio(19);
-    flywheel_right->SetTransmissionRatio(19);
-    steering_motor->SetTransmissionRatio(36);
-
-    steering_motor->ReInitPID(steering_motor_omega_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
-    steering_motor->ReInitPID(steering_motor_theta_pid_init, driver::MotorCANBase::ANGLE_LOOP_CONTROL);
-    steering_motor->SetMode(driver::MotorCANBase::ANGLE_LOOP_CONTROL | driver::MotorCANBase::SPEED_LOOP_CONTROL);
-    steering_motor->RegisterErrorCallback(jam_callback, steering_motor);
-
-    flywheel_left->ReInitPID(flywheel_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
-    flywheel_left->SetMode(driver::MotorCANBase::SPEED_LOOP_CONTROL);
-
-    flywheel_right->ReInitPID(flywheel_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
-    flywheel_right->SetMode(driver::MotorCANBase::SPEED_LOOP_CONTROL);
-
-
-    flywheel_left->SetTarget(0);
-    flywheel_right->SetTarget(0);
-    MG995->SetOutput(90);
-
-    if(CAR_DEBUG->RM_Debug_mode.shooter_debug_mode == Debug_true){
-        print("SHOOT_INIT_OK\n");
-    }
-}
-
-void shootTask(void* arg){
-    UNUSED(arg);
-    motor_Disable();
-    osDelay(500);
-
-    while(remote_mode == REMOTE_MODE_KILL || protect_wraning_flag) {
-        motor_Disable();
-        osDelay(SHOOT_OS_DELAY);
-    }
-
-    // 等待IMU初始化
-    while (!ahrs->IsCailbrated()) {
-        osDelay(1);
-    }
-
-    motor_Enable();
-
-    Ease* flywheel_speed_ease = new Ease(0, 0.3);
-    while (true) {
-
-        if (remote_mode != REMOTE_MODE_KILL && shoot_flywheel_mode == SHOOT_FRIC_MODE_STOP) {
-            switch (magazine_Mode) {
-
-                case Magazine_MODE_ON:
-                    MG995->SetOutput(0);
-                    break;
-                case Magazine_MODE_OFF:
-                    MG995->SetOutput(90);
-                    break;
-                default:
-                    break;
-            }
-        }
-
-#ifdef HAS_REFEREE
-        while(remote_mode == REMOTE_MODE_KILL || !referee->game_robot_status.mains_power_shooter_output) {
-#else
-        while (remote_mode == REMOTE_MODE_KILL){
-#endif
-            shoot_kill();
-            osDelay(SHOOT_OS_DELAY);
-        }
-
-        switch (shoot_flywheel_mode) {
-            case SHOOT_FRIC_MODE_PREPARED:
-                motor_Enable();
-                // 启动摩擦轮电机(旋转)
-                // todo:测试目标摩擦轮转速用[12 * PI], 最后改回[16 * PI]比赛使用
-                flywheel_speed_ease->SetTarget(10 * PI);  // 摩擦轮转速(转速控制)
+        switch (mode) {
+            case RC_KEY_NONE:
                 break;
-            case SHOOT_FRIC_MODE_PREPARING:
-                motor_Enable();
-                // todo:同上
-                flywheel_speed_ease->SetTarget(8 * PI);  // 摩擦轮转速(转速控制)
-                // 检测摩擦轮是否就绪
-                if(flywheel_speed_ease->IsAtTarget()) {
-                    shoot_flywheel_mode = SHOOT_FRIC_MODE_PREPARED;
-                }
+            case RC_KEY_CLICK:
+                ShootMode = SINGLESHOT;
                 break;
-            case SHOOT_FRIC_MODE_STOP:
-                // 关闭摩擦轮电机(停止旋转)
-                flywheel_speed_ease->SetTarget(0);    // 摩擦轮转速(转速控制)
-                shoot_load_mode = SHOOT_MODE_STOP;
+            case RC_KEY_DOUBLE_CLICK:
+                ShootMode = DOUBLETAP;
+                break;
+            case RC_KEY_LONG_PRESS:
+                ShootMode = RAPIDFIRE;
+                break;
+
             default:
                 break;
-        }
+        };
+    }
+}
 
-        flywheel_speed_ease->Calc();
-        flywheel_left->SetTarget(flywheel_speed_ease->GetOutput());
-        flywheel_right->SetTarget(-flywheel_speed_ease->GetOutput());
+void stall_detection_callback(void* instance) {
+    driver::Motor2006* motor = static_cast<driver::Motor2006*>(instance);
+    stall_detector.Update(motor);
+}
 
+void StallCallback(void* instance) {
+    UNUSED(instance);
+    ShootMode = SUNLOADMODE;
+}
+
+// ----------------------------- Shoot Main code -----------------------------
+
+void InitShoot() {
+    FWMotor[FW_LEFT] = new driver::Motor3508(can2, FW_LEFT_MOTOR_ID);
+    FWMotor[FW_RIGHT] = new driver::Motor3508(can2, FW_RIGHT_MOTOR_ID);
+
+    for (int i = 0; i < FW_NUM; i++) {
+        FWMotor[i]->SetTransmissionRatio(19);
+        FWMotor[i]->ReInitPID(flywheel_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
+        FWMotor[i]->SetMode(driver::MotorCANBase::SPEED_LOOP_CONTROL);
+        FWMotor[i]->SetTarget(0);
+        FWMode = FW_MODE_OFF;
+    }
+
+    FeedingMotror = new driver::Motor2006(can2, FEEDING_MOTOR_ID);
+    FeedingMotror->SetTransmissionRatio(36);
+    FeedingMotror->ReInitPID(steering_motor_omega_pid_init,
+                             driver::MotorCANBase::SPEED_LOOP_CONTROL);
+    FeedingMotror->ReInitPID(steering_motor_theta_pid_init,
+                             driver::MotorCANBase::ANGLE_LOOP_CONTROL);
+    FeedingMotror->SetMode(driver::MotorCANBase::ANGLE_LOOP_CONTROL |
+                           driver::MotorCANBase::SPEED_LOOP_CONTROL);
+    FeedingMotror->RegisterDataUpdateCallback(stall_detection_callback, FeedingMotror);
+    stall_detector.SetCallback(StallCallback, nullptr);
+
+    for (int i = 0; i < FW_NUM; i++) {
+        FWMotor[i]->Disable();
+        FWMode = FW_MODE_OFF;
+    }
+
+    for (int i = 0; i < SEDGENUM; i++) {
+        shoot_edge[i] = new BoolEdgeDetector(false);
+    }
+
+    rc_key_add_callback(trigger_callback);
+}
+
+void unloadAmmo() {
+    FeedingMotror->SetTarget(FeedingMotror->GetTarget() + UNLOAD_FEED_THETA);
+    osDelay(200);
+    FeedingMotror->SetTarget(FeedingMotror->GetTarget() - UNLOAD_FEED_THETA);
+}
+
+void ShootHeatControl() {
 #ifdef HAS_REFEREE
-        uint8_t game_progress = referee->game_status.game_progress;
-        uint16_t game_progress_shifted = game_progress >> 3;
-        uint8_t game_progress_bit = game_progress_shifted & 0x01;
-        if (game_progress_bit == 4) {
-            uint16_t bullet_remaining_num_17mm = referee->bullet_remaining.bullet_remaining_num_17mm;
-            if (bullet_remaining_num_17mm == 0) {
-                print("not have bullet!\n");
-                steering_motor->Hold();
-                continue;
+    uint8_t game_progress = referee->game_status.game_progress;
+    uint16_t game_progress_shifted = game_progress >> 3;
+    uint8_t game_progress_bit = game_progress_shifted & 0x01;
+    if (game_progress_bit == 4) {
+        uint16_t bullet_remaining_num_17mm = referee->bullet_remaining.bullet_remaining_num_17mm;
+        if (bullet_remaining_num_17mm == 0) {
+            print("not have bullet!\n");
+            ShootMode = SHOOTILDE;
+        }
+    }
+
+    float bullet_speed = referee->shoot_data.bullet_speed;
+    if (bullet_speed >= 23.0f) {
+        osDelay(SHOOT_OS_DELAY);
+        bullet_speed = 0;
+    }
+
+    int heat_limit = referee->game_robot_status.shooter_heat_limit;
+    int heat_buffer = referee->power_heat_data.shooter_id1_17mm_cooling_heat;
+    const int shooter_heat_threashold = 10;
+    if (heat_buffer > heat_limit - shooter_heat_threashold) {
+        // 临时解决方案
+        ShootMode = SHOOTILDE;
+        print("overheat!\n");
+        osDelay(SHOOT_OS_DELAY);
+    }
+    UNUSED(heat_limit);
+    UNUSED(heat_buffer);
+    UNUSED(bullet_speed);
+
+#endif
+}
+
+uint8_t ShootIsOnline() {
+    return RobotStatus.ShootOnline;
+}
+
+void ShootRCUpdata() {
+    if (RCIsOnline()) {
+        rc_offline_start_time = 0;
+
+        shoot_edge[FEMODE_EDGE_CH]->input((bool)rcData[CH_FRIC_ONOFF]);
+        shoot_edge[FEMODE_EDGE_KEYBOARD]->input((bool)rcData[KEYBORAD_FRIC_ONOFF]);
+        if (shoot_edge[FEMODE_EDGE_CH]->posEdge() || shoot_edge[FEMODE_EDGE_KEYBOARD]->posEdge()) {
+            if (FWMode == FW_MODE_OFF) {
+                FWMode = FW_MODE_ON;
+                ShootMode = SHOOTILDE;
+            } else if (FWMode == FW_MODE_ON) {
+                FWMode = FW_MODE_OFF;
+                ShootMode = SKILLMODE;
             }
         }
 
-        float bullet_speed = referee->shoot_data.bullet_speed;
-        if (bullet_speed >= 23.0f) {
-            osDelay(SHOOT_OS_DELAY);
-            bullet_speed = 0;
+        shoot_edge[CLEAR_FEEDER_CH]->input((bool)rcData[CH_UNLOAD]);
+        shoot_edge[CLEAR_FEEDER_KEYBOARD]->input((bool)rcData[KEYBORAD_UNLOAD]);
+        if (shoot_edge[CLEAR_FEEDER_CH]->posEdge() ||
+            shoot_edge[CLEAR_FEEDER_KEYBOARD]->posEdge()) {
+            ShootMode = SUNLOADMODE;
+            }
+
+    } else {
+        // 离线计时
+        if (rc_offline_start_time == 0) {
+            rc_offline_start_time = bsp::GetHighresTickMilliSec();
         }
 
-        int heat_limit = referee->game_robot_status.shooter_heat_limit;
-        int heat_buffer = referee->power_heat_data.shooter_id1_17mm_cooling_heat;
-        const int shooter_heat_threashold = 10;
-        if (heat_buffer > heat_limit - shooter_heat_threashold) {
-            // 临时解决方案
-            steering_motor->Hold();
-            print("overheat!\n");
-            osDelay(SHOOT_OS_DELAY);
+        // 双重确认：VTM(100ms) + 应用层 (200ms) = 总共 300ms
+        if (bsp::GetHighresTickMilliSec() - rc_offline_start_time > APP_OFFLINE_DEBOUNCE_MS) {
+            ShootMode = SKILLMODE;
+            FWMode = FW_MODE_OFF;
+        }
+        // 否则保持当前模式
+    }
+}
+
+void ShootTask(void* arg) {
+    UNUSED(arg);
+
+    for (int i = 0; i < FW_NUM; i++) {
+        if (!FWMotor[i] || !FeedingMotror)
+            RM_ASSERT_TRUE(false, "Shoot Init Failed!");
+    }
+
+    for (int i = 0; i < FW_NUM; i++) {
+        FWMotor[i]->Disable();
+    }
+    FeedingMotror->Disable();
+
+    bool InitFlag = false;
+    while (true) {
+        for (int i = 0; i < FW_NUM; i++) {
+            if (!FWMotor[i]->IsOnline() || !FeedingMotror->IsOnline()) {
+                osDelay(10);
+                ShootMode = SKILLMODE;
+                FWMode = FW_MODE_OFF;
+                RobotStatus.ShootOnline = 0;
+                InitFlag = false;
+            }
+        }
+        RobotStatus.ShootOnline = 1;
+
+        if (ShootMode == SKILLMODE) {
+            for (int i = 0; i < FW_NUM; i++) {
+                FWMotor[i]->Disable();
+            }
+            FWMode = FW_MODE_OFF;
+            FeedingMotror->Disable();
+            InitFlag = false;
+            osDelay(10);
             continue;
         }
-        UNUSED(heat_limit);
-        UNUSED(heat_buffer);
-        UNUSED(bullet_speed);
 
-#endif
+        if (SysStartData.GimbalInitFlag && ShootMode == SHOOTILDE) {
+            InitFlag = true;
+            osDelay(10);
+        }
 
-        switch (shoot_load_mode){
-            case SHOOT_MODE_STOP:
-                steering_motor->Hold(true);
-                break;
-            case SHOOT_MODE_IDLE:
-                break;
-            case SHOOT_MODE_SINGLE:
-                Shoot_Mode_SINGLE(steering_motor->GetTarget() + 2 * PI / singleShotDivider, 2);
-                break;
-            case SHOOT_MODE_BURST:
-                Shoot_Mode_BURST(steering_motor->GetTarget() + 2 * PI / 8);
-                break;
-            case SHOOT_MODE_UNLOAD:
-                Shoot_Mode_UNLOAD(-steering_motor->GetTarget() - PI / 8);
+        if (InitFlag) {
+            if (ShootMode == SKILLMODE) {
+                for (int i = 0; i < FW_NUM; i++) {
+                    FWMotor[i]->Disable();
+                }
+                FeedingMotror->Disable();
+                SysStartData.ShootInitFlag = 0;
+                InitFlag = false;
+                continue;
+            }
+            SysStartData.ShootInitFlag = 1;
+            for (int i = 0; i < FW_NUM; i++) {
+                FWMotor[i]->Enable();
+                FWMotor[i]->SetTarget(0);
+            }
+            FeedingMotror->Enable();
+            break;
+        }
+        osDelay(100);
+    }
+
+    while (true) {
+        if (ShootMode == SKILLMODE) {
+            while (true) {
+                if (ShootMode != SKILLMODE) {
+                    FWMode = FW_MODE_OFF;
+                    for (int i = 0; i < FW_NUM; i++) {
+                        FWMotor[i]->Enable();
+                    }
+                    FeedingMotror->Enable();
+                    osDelay(10);
+                    break;
+                }
+                for (int i = 0; i < FW_NUM; i++) {
+                    FWMotor[i]->Disable();
+                }
+                FeedingMotror->Disable();
+                osDelay(10);
+            }
+        }
+
+        for (int i = 0; i < FW_NUM; i++) {
+            if (!FWMotor[i]->IsOnline() || !FeedingMotror->IsOnline()) {
+                osDelay(10);
+                ShootMode = SKILLMODE;
+                FWMode = FW_MODE_OFF;
+                RobotStatus.ShootOnline = 0;
+            }
+        }
+        if (RobotStatus.ShootOnline == 0) {
+            ShootMode = SKILLMODE;
+            FWMode = FW_MODE_OFF;
+            for (int i = 0; i < FW_NUM; i++) {
+                FWMotor[i]->Disable();
+            }
+            FeedingMotror->Disable();
+            continue;
+        }
+        RobotStatus.ShootOnline = 1;
+
+        ShootRCUpdata();
+
+        ShootHeatControl();
+
+        switch (FWMode) {
+            case FW_MODE_OFF: {
+                for (int i = 0; i < FW_NUM; i++) {
+                    FWMotor[i]->Disable();
+                    FWMotor[i]->SetTarget(0);
+                }
+            } break;
+            case FW_MODE_ON: {
+                FWMotor[FW_LEFT]->Enable();
+                FWMotor[FW_LEFT]->SetTarget(-FW_SPEED);
+                FWMotor[FW_RIGHT]->Enable();
+                FWMotor[FW_RIGHT]->SetTarget(FW_SPEED);
+            } break;
 
             default:
                 break;
         }
 
-        osDelay(SHOOT_OS_DELAY);
-    }
-}
-
-void Shoot_Mode_SINGLE(float target, int num) {
-    int last_steering_target = steering_motor->GetTheta();
-    steering_motor->SetTarget(target, true);
-    shoot_17mm_num += num;
-    while (true){
-        if(steering_motor->GetTheta() != last_steering_target){
-            break;
-        } else {
-            osDelay(SHOOT_SINGLE_OS_DELAY);
+        switch (ShootMode) {
+            case SUNLOADMODE: {
+                unloadAmmo();
+                ShootMode = SHOOTILDE;
+            } break;
+            case SKILLMODE:
+                break;
+            case SHOOTILDE:
+                break;
+            case SINGLESHOT: {
+                FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
+                ShootMode = SHOOTILDE;
+            } break;
+            case DOUBLETAP: {
+                FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
+                osDelay(200);
+                FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
+                ShootMode = SHOOTILDE;
+            } break;
+            case RAPIDFIRE: {
+                FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
+                ShootMode = SHOOTILDE;
+            } break;
+            default:
+                break;
         }
+
+        osDelay(1);
     }
-    shoot_load_mode = SHOOT_MODE_IDLE;
-}
-
-void Shoot_Mode_BURST(float target, int num) {
-    steering_motor->SetTarget(target, true);
-    shoot_17mm_num += num;
-    // shoot_load_mode = SHOOT_MODE_IDLE;
-}
-
-void Shoot_Mode_UNLOAD(float target) {
-    int last_steering_target = steering_motor->GetTheta();
-    steering_motor->SetTarget(target, true);
-    while (true){
-        if(steering_motor->GetTheta() != last_steering_target){
-            break;
-        } else {
-            osDelay(SHOOT_SINGLE_OS_DELAY);
-        }
-    }
-    shoot_load_mode = SHOOT_MODE_IDLE;
-}
-
-void motor_Enable() {
-    steering_motor->Enable();
-    flywheel_left->Enable();
-    flywheel_right->Enable();
-}
-
-void motor_Disable() {
-    // steering_motor->Disable();
-    flywheel_left->Disable();
-    flywheel_right->Disable();
-}
-
-void shoot_kill() {
-    steering_motor->Hold(true);
-    flywheel_left->Hold(true);
-    flywheel_right->Hold(true);
-    motor_Disable();
-}
-
-void shoot_remote_mode(){
-    char s[20];
-    switch (shoot_flywheel_mode) {
-        case SHOOT_FRIC_MODE_PREPARING:
-            strcpy(s, "PREPAREING");
-        break;
-        case SHOOT_FRIC_MODE_STOP:
-            strcpy(s, "STOP");
-        break;
-        case SHOOT_FRIC_MODE_PREPARED:
-            strcpy(s, "PREPARED");
-        break;
-        case SHOOT_FRIC_MODE_DISABLE:
-            strcpy(s, "DISABLE");
-        break;
-        default:
-            strcpy(s, "UNKNOWN");
-        break;
-    }
-
-    print("Shoot Fric Mode:%s\r\n", s);
-    switch (shoot_load_mode) {
-        case SHOOT_MODE_STOP:
-            strcpy(s, "STOP");
-        break;
-        case SHOOT_MODE_IDLE:
-            strcpy(s, "IDLE");
-        break;
-        case SHOOT_MODE_DISABLE:
-            strcpy(s, "DISABLE");
-        break;
-        case SHOOT_MODE_UNLOAD:
-            strcpy(s, "UNLOAD");
-        break;
-        case SHOOT_MODE_SINGLE:
-            strcpy(s, "SINGLE");
-        break;
-        case SHOOT_MODE_BURST:
-            strcpy(s, "BURST");
-        break;
-        case SHOOT_MODE_RELOADING:
-            strcpy(s, "RELOADING");
-        break;
-        default:
-            strcpy(s, "UNKNOWN");
-        break;
-    }
-    print("Shoot Lode Mode:%s\r\n", s);
-
-    switch (magazine_Mode) {
-        case Magazine_MODE_ON:
-            strcpy(s, "MODE_ON");
-        break;
-        case Magazine_MODE_OFF:
-            strcpy(s, "MODE_OFF");
-        break;
-        default:
-            break;
-    }
-    print("Magazine Mode:%s\r\n", s);
 }
