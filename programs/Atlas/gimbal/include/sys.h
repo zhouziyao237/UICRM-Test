@@ -39,7 +39,7 @@ typedef struct SysStartData_s {
     uint8_t ShootInitFlag : 1;
     uint8_t AHRSInitFlag : 1;
 } SysStartData_t;
-extern SysStartData_t SysStartData;
+extern volatile SysStartData_t SysStartData;
 
 typedef struct {
     uint8_t RemoteOnline : 1;
@@ -50,7 +50,7 @@ typedef struct {
     uint8_t ShootOnline : 1;
     uint8_t RCOnline : 1;
 } RobotStatus_t;
-extern RobotStatus_t RobotStatus;
+extern volatile  RobotStatus_t RobotStatus;
 
 /**
  * @brief 云台控制模式枚举
@@ -70,7 +70,7 @@ enum GimbalMode_e {
  *
  * 用于在程序中引用当前云台工作模式
  */
-extern GimbalMode_e GimbalMode;
+extern volatile GimbalMode_e GimbalMode;
 
 /**
  * @brief 底盘控制模式枚举
@@ -90,7 +90,7 @@ enum ChassisMode_e {
  *
  * 用于在程序中引用当前底盘工作模式
  */
-extern ChassisMode_e ChassisMode;
+extern volatile ChassisMode_e ChassisMode;
 
 /**
  * @brief 射击控制模式枚举
@@ -111,7 +111,7 @@ enum ShootMode_e {
  *
  * 用于在程序中引用当前射击工作模式
  */
-extern ShootMode_e ShootMode;
+extern volatile ShootMode_e ShootMode;
 
 /**
  * @brief 机器人整体控制模式枚举
@@ -132,7 +132,7 @@ enum RobotMode_e {
  *
  * 用于在程序中引用当前机器人整体工作模式
  */
-extern RobotMode_e RobotMode;
+extern volatile RobotMode_e RobotMode;
 
 
 // ----------------------------- sys Hardware Code -----------------------------
@@ -336,13 +336,13 @@ void InitPWMGPIO();
 // 标准按键配置格式：{通道号, 按下阈值, 释放阈值, 长按时间(ms), 双击超时(ms)}
 #define RCKEYSNUM 2
 #define CONFIGS {TRIGGERKEYCONFIG, MOUSELEFTCONFIG}
-#define TRIGGERKEYCONFIG {TRIGGER_CHANNEL, 1, 0, 1000, 200}     // 扳机 trigger
+#define TRIGGERKEYCONFIG {TRIGGER_CHANNEL, 0, 1, 500, 150}     // 扳机 trigger
 // #define PAUSEKEYCONFIG {PAUSE_BUTTON_CHANNEL, 1, 0, 1500, 200}       // 暂停按钮 pause_button
 // #define CUSTOMLEFTKEYCONFIG {CUSTOM_LEFT_CHANNEL, 1, 0, 1500, 200}  // 左键自定义按键 custom_left
 // #define CUSTOMRIGHTKEYCONFIG {CUSTOM_RIGHT_CHANNEL, 1, 0, 800, 200}  // 右键自定义按键 custom_right
 
 // 鼠标按键配置
-#define MOUSELEFTCONFIG {MOUSE_LEFT_CHANNEL, 1, 0, 500, 150}      // 鼠标左键 mouse_left
+#define MOUSELEFTCONFIG {MOUSE_LEFT_CHANNEL, 0, 1, 500, 150}      // 鼠标左键 mouse_left
 // #define MOUSERIGHTCONFIG {MOUSE_RIGHT_CHANNEL, 1, 0, 500, 150}     // 鼠标右键 mouse_right
 // #define MOUSEMIDDLECONFIG {MOUSE_MIDDLE_CHANNEL, 1, 0, 1000, 150}   // 鼠标中键 mouse_middle
 

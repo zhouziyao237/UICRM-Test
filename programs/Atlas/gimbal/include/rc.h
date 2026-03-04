@@ -92,9 +92,6 @@ extern float rcData[MAX_SUPPORTED_RC_CHANNEL_COUNT];
 #define mouse_xy_max 32767.0
 #endif
 
-// todo:临时定义 actural_chassis_turn_speed
-#define actural_chassis_turn_speed 0
-
 #define MAXCHECK 660
 extern remote::VTM* vtm;
 

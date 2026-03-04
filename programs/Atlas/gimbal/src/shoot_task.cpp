@@ -28,9 +28,9 @@ osThreadId_t ShootTaskHandle;
 
 // ----------------------------- Shoot data code -----------------------------
 
-#define FW_LEFT_MOTOR_ID 0x0202
-#define FW_RIGHT_MOTOR_ID 0x0203
-#define FEEDING_MOTOR_ID 0x0205
+#define FW_LEFT_MOTOR_ID 0x202
+#define FW_RIGHT_MOTOR_ID 0x203
+#define FEEDING_MOTOR_ID 0x201
 
 FrictionWheelMode_e FWMode = FW_MODE_OFF;
 driver::MotorCANBase* FWMotor[FW_NUM] = {nullptr};
@@ -50,19 +50,22 @@ void trigger_callback(uint8_t channel, rc_key_mode_t mode) {
         switch (mode) {
             case RC_KEY_NONE:
                 break;
-            case RC_KEY_CLICK:
+            case RC_KEY_CLICK: {
                 ShootMode = SINGLESHOT;
-                break;
-            case RC_KEY_DOUBLE_CLICK:
+            }break;
+
+            case RC_KEY_DOUBLE_CLICK:{
                 ShootMode = DOUBLETAP;
-                break;
-            case RC_KEY_LONG_PRESS:
+            }break;
+
+            case RC_KEY_LONG_PRESS: {
                 ShootMode = RAPIDFIRE;
-                break;
+            }break;
 
             default:
                 break;
         };
+
     }
 }
 
@@ -90,7 +93,7 @@ void InitShoot() {
         FWMode = FW_MODE_OFF;
     }
 
-    FeedingMotror = new driver::Motor2006(can2, FEEDING_MOTOR_ID);
+    FeedingMotror = new driver::Motor2006(can1, FEEDING_MOTOR_ID);
     FeedingMotror->SetTransmissionRatio(36);
     FeedingMotror->ReInitPID(steering_motor_omega_pid_init,
                              driver::MotorCANBase::SPEED_LOOP_CONTROL);
@@ -167,10 +170,8 @@ void ShootRCUpdata() {
         if (shoot_edge[FEMODE_EDGE_CH]->posEdge() || shoot_edge[FEMODE_EDGE_KEYBOARD]->posEdge()) {
             if (FWMode == FW_MODE_OFF) {
                 FWMode = FW_MODE_ON;
-                ShootMode = SHOOTILDE;
             } else if (FWMode == FW_MODE_ON) {
                 FWMode = FW_MODE_OFF;
-                ShootMode = SKILLMODE;
             }
         }
 
@@ -179,7 +180,7 @@ void ShootRCUpdata() {
         if (shoot_edge[CLEAR_FEEDER_CH]->posEdge() ||
             shoot_edge[CLEAR_FEEDER_KEYBOARD]->posEdge()) {
             ShootMode = SUNLOADMODE;
-            }
+        }
 
     } else {
         // 离线计时
@@ -233,7 +234,8 @@ void ShootTask(void* arg) {
             continue;
         }
 
-        if (SysStartData.GimbalInitFlag && ShootMode == SHOOTILDE) {
+        if (SysStartData.GimbalInitFlag && ShootMode == SHOOTILDE
+            && RobotMode != RKILLMODE) {
             InitFlag = true;
             osDelay(10);
         }
@@ -320,6 +322,10 @@ void ShootTask(void* arg) {
                 break;
         }
 
+        if (FWMode == FW_MODE_OFF && ShootMode != SUNLOADMODE) {
+            ShootMode = SHOOTILDE;
+        }
+
         switch (ShootMode) {
             case SUNLOADMODE: {
                 unloadAmmo();
@@ -340,7 +346,7 @@ void ShootTask(void* arg) {
                 ShootMode = SHOOTILDE;
             } break;
             case RAPIDFIRE: {
-                FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
+                FeedingMotror->SetTarget(FeedingMotror->GetTarget() + 2 * SINGLE_FEED_THETA);
                 ShootMode = SHOOTILDE;
             } break;
             default:

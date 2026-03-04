@@ -26,7 +26,7 @@
 
 // ----------------------------- sys start data -----------------------------
 
-SysStartData_t SysStartData = {
+volatile SysStartData_t SysStartData = {
     .SystemInitFlag = 0,
     .RefereeInitFlag = 0,
     .ImuInitFlag = 0,
@@ -37,7 +37,7 @@ SysStartData_t SysStartData = {
     .AHRSInitFlag=0,
 };
 
-RobotStatus_t RobotStatus = {
+volatile RobotStatus_t RobotStatus = {
     .RemoteOnline = 0,
     .GimbalOnline = 0,
     .ChassisOnline = 0,
@@ -47,9 +47,9 @@ RobotStatus_t RobotStatus = {
     .RCOnline = 0,
 };
 
-GimbalMode_e GimbalMode = GKILLMODE;
-ChassisMode_e ChassisMode = CKILLMODE;
-ShootMode_e ShootMode = SKILLMODE;
+volatile GimbalMode_e GimbalMode = GKILLMODE;
+volatile ChassisMode_e ChassisMode = CKILLMODE;
+volatile ShootMode_e ShootMode = SKILLMODE;
 
 // ----------------------------- sys Hardware Code -----------------------------
 
@@ -190,9 +190,13 @@ void InitRMSys() {
 
 osThreadId_t SysTaskHandle;
 
-RobotMode_e RobotMode = RKILLMODE;
+volatile RobotMode_e RobotMode = RMANUALMODE;
+volatile RobotMode_e LastRobotMode = RMANUALMODE;
 
 bool rc_offline = false;
+bool is_killed = false;
+bool is_robot_dead = false;
+bool is_shoot_available = false;
 
 // ---------------------------- Sys Main Code ----------------------------
 
@@ -211,20 +215,16 @@ void SysTask(void* arg) {
         osDelay(10);
     }
 
+    osDelay(500);
+
     if (rcData[MODE_SWITCH_CHANNEL] != MODE_KILL) {
         while (true) {
 
             if (rcData[MODE_SWITCH_CHANNEL] == MODE_KILL) {
-                RobotMode = RMANUALMODE;
-                GimbalMode = GMANUALMODE;
                 osDelay(100);
                 break;
             }
 
-            RobotMode = RKILLMODE;
-            ChassisMode = CKILLMODE;
-            GimbalMode = GKILLMODE;
-            ShootMode = SKILLMODE;
             Buzzer_Sing(ProtectWarning);
             osDelay(100);
         }
@@ -234,8 +234,45 @@ void SysTask(void* arg) {
     Buzzer_Sing(DJI);
 
     while (true) {
-        rc_offline = (!RCIsOnline() || rcData[MODE_SWITCH_CHANNEL] == MODE_KILL);
+        rc_offline = !RCIsOnline();
 
+#ifdef HAS_REFEREE
+        is_robot_dead = referee->game_robot_status.remain_HP == 0 || rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
+        is_shoot_available = referee->game_robot_status.mains_power_shooter_output != 0;
+#else
+        is_robot_dead = rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
+#endif
+        if (rc_offline || is_robot_dead) {
+            if (!is_killed) {
+                LastRobotMode = RobotMode;
+                RobotMode = RKILLMODE;
+                ChassisMode = CKILLMODE;
+                GimbalMode = GKILLMODE;
+                ShootMode = SKILLMODE;
+                is_killed = true;
+            }
+        }else {
+            if (is_killed) {
+                RobotMode = LastRobotMode;
+
+                switch (RobotMode) {
+                    case RMANUALMODE: {
+                        ChassisMode = CMANUALMODE;
+                        GimbalMode = GMANUALMODE;
+                        ShootMode = SHOOTILDE;
+                    }break;
+                    default:
+                        break;
+                }
+
+                is_killed = false;
+            }
+        }
+
+        if (RobotMode == RKILLMODE || is_killed) {
+            osDelay(10);
+            continue;
+        }
 
         osDelay(1);
     }

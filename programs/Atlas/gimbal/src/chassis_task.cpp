@@ -205,7 +205,8 @@ void ChassisTask(void *arg) {
             continue;
         }
 
-        if (SysStartData.GimbalInitFlag && ChassisMode == CMANUALMODE) {
+        if (SysStartData.GimbalInitFlag && ChassisMode == CMANUALMODE
+            && RobotMode != RKILLMODE) {
             InitFlag = true;
             osDelay(10);
         }
@@ -229,7 +230,7 @@ while (true) {
         if (ChassisMode == CKILLMODE) {
             while (true) {
                 if (ChassisMode != CKILLMODE) {
-                    chassis->Disable();
+                    chassis->Enable();
                     // 清除所有 Ramp 状态
                     for (int i = 0; i < CVRAMPNUM; i++) {
                         v_ramp[i]->SetCurrent(0);
@@ -245,6 +246,10 @@ while (true) {
                 osDelay(10);
             }
         }
+
+    if (ChassisMode != CKILLMODE) {
+        chassis->Enable();
+    }
 
         RobotStatus.ChassisOnline = 1;
 

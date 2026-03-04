@@ -31,6 +31,7 @@
 
 #include "minipc_task.h"
 #include "referee_task.h"
+#include "chassis_task.h"
 #include "buzzer_notes.h"
 #include "buzzer_task.h"
 #include "minipc_task.h"

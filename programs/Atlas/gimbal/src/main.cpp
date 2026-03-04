@@ -82,6 +82,12 @@ void RM_RTOS_Default_Task(const void* arg) {
         print("VTM Status: %s | Updates: %lu\r\n",
               is_connected ? "CONNECTED" : "DISCONNECTED", vtm->timestamp);
 
+        print("RobotMode %d \r\n", RobotMode);
+
+        print("GimbalMode %d \r\n", GimbalMode);
+        print("ShootMode %d \r\n", ShootMode);
+        print("ChassisMode %d \r\n", ChassisMode);
+
         // print("Chassis Volt: %.3f\r\n", referee->power_heat_data.chassis_volt / 1000.0);
         // print("Chassis Curr: %.3f\r\n", referee->power_heat_data.chassis_current / 1000.0);
         // print("Chassis Power: %.3f\r\n", referee->power_heat_data.chassis_power);

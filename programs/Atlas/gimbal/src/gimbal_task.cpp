@@ -48,6 +48,7 @@ control::Gimbal* gimbal = nullptr;
 control::gimbal_data_t* gimbal_param = nullptr;
 float pitch_diff, yaw_diff;
 GimbalRatio_t GimbalRatio = {};
+float actural_chassis_turn_speed = 0.0f;
 
 // ----------------------------- Gimbal Main code -----------------------------
 
@@ -129,7 +130,8 @@ void GimbalTask(void* arg) {
     bool InitFlag = false;
     while (true){
 
-        if (!pitch_motor->IsOnline() || !yaw_motor->IsOnline()) {
+        // todo: 暂时测试头时yaw没有所有没加  “!yaw_motor->IsOnline()”
+        if (!pitch_motor->IsOnline()) {
             osDelay(10);
             GimbalMode = GKILLMODE;
             RobotStatus.GimbalOnline = 0;
@@ -145,7 +147,7 @@ void GimbalTask(void* arg) {
             continue;
         }
 
-        if (GimbalMode == GMANUALMODE) {
+        if (GimbalMode == GMANUALMODE && RobotMode != RKILLMODE) {
 
             if ((gimbal->getPitchByMotor() <= GimbalMinTheta + FloatingRange) &&
                 gimbal->getPitchByMotor() >= GimbalMinTheta - FloatingRange) {
@@ -155,37 +157,32 @@ void GimbalTask(void* arg) {
 
             int i = 0;
             for (i = 0; i < 5000; i++) {
-                if (GimbalMode == GKILLMODE) {
-                    yaw_motor->Disable();
-                    pitch_motor->Disable();
-                    InitFlag = false;
-                    return;
-                }
                 gimbal->TargetAbs(0, 0);
                 gimbal->Update();
                 osDelay(1);
             }
 
+            if (GimbalMode == GKILLMODE) {
+                yaw_motor->Disable();
+                pitch_motor->Disable();
+                InitFlag = false;
+                continue;
+            }
+
+            Buzzer_Sing(SingCaliStart);
             ahrs->Cailbrate();
             i = 0;
             while (!ahrs->IsCailbrated()) {
-                if (GimbalMode == GKILLMODE) {
-                    yaw_motor->Disable();
-                    pitch_motor->Disable();
-                    InitFlag = false;
-                    return;
-                }
                 gimbal->TargetAbs(0, 0);
                 gimbal->Update();
                 osDelay(1);
                 ++i;
             }
 
+            Buzzer_Sing(SingCaliDone);
             print("Start Calibration.\r\n");
-            ahrs->Cailbrate();
             InitFlag = true;
         }
-
 
         if (InitFlag) {
             if (GimbalMode == GKILLMODE) {
@@ -195,6 +192,7 @@ void GimbalTask(void* arg) {
                 InitFlag = false;
                 continue;
             }
+            actural_chassis_turn_speed = ChassisMotion.chassis_vz / 6.0f;
             SysStartData.GimbalInitFlag = 1;
             break;
         }
@@ -207,7 +205,6 @@ void GimbalTask(void* arg) {
                 if (GimbalMode != GKILLMODE) {
                     pitch_motor->Enable();
                     yaw_motor->Enable();
-                    osDelay(10);
                     break;
                 }
                 pitch_motor->Disable();
@@ -216,7 +213,13 @@ void GimbalTask(void* arg) {
             }
         }
 
-        if (!pitch_motor->IsOnline() || !yaw_motor->IsOnline()) {
+        if (GimbalMode != GKILLMODE) {
+            pitch_motor->Enable();
+            yaw_motor->Enable();
+        }
+
+        // todo: 暂时测试头时yaw没有所有没加  “!yaw_motor->IsOnline()”
+        if (!pitch_motor->IsOnline()) {
             GimbalMode = GKILLMODE;
             pitch_motor->Disable();
             yaw_motor->Disable();
@@ -227,10 +230,8 @@ void GimbalTask(void* arg) {
 
         GimbalRCUpdata();
 
-        float pitch_target = clip<float>(GimbalRatio.pitch_ratio, -gimbal_param->pitch_max_, gimbal_param->pitch_max_);
-        float yaw_target = wrap<float>(GimbalRatio.yaw_ratio, -gimbal_param->yaw_max_, gimbal_param->yaw_max_);
-        pitch_diff = clip<float>(pitch_target, -PI, PI);
-        yaw_diff = wrap<float>(yaw_target, -PI, PI);
+        pitch_diff = clip<float>(GimbalRatio.pitch_ratio, -gimbal_param->pitch_max_, gimbal_param->pitch_max_);
+        yaw_diff = wrap<float>(GimbalRatio.yaw_ratio, -gimbal_param->yaw_max_, gimbal_param->yaw_max_);
 
         // 根据运动模式选择不同的控制方式
         float yaw_speed_offset = actural_chassis_turn_speed + GimbalRatio.yaw_ratio;
