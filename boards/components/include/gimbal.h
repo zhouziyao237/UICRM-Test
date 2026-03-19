@@ -232,12 +232,14 @@ namespace control {
         // 多圈累积状态结构体
         struct MotorWrapState {
             float offset_angle_;      // 电机轴累积圈数（有符号）
-            float theta;         // 电机轴角度
-            FloatEdgeDetector* inner_wrap_detector_; // 输入电机屁股的角度到边界检测器
+            float theta;              // 电机轴角度
+            float last_motor_angle_;  // 上一次电机角度（用于差分检测）
+            bool initialized_;        // 是否已初始化
             MotorWrapState() :
-            offset_angle_(0){
-                inner_wrap_detector_ = new FloatEdgeDetector(0, PI);
-            }
+            offset_angle_(0),
+            theta(0),
+            last_motor_angle_(0),
+            initialized_(false) {}
         };
 
         MotorWrapState pitch_wrap_;

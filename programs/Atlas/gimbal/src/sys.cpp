@@ -20,8 +20,9 @@
 // Created by Administrator on 2026/2/27.
 //
 
-#include "main.h"
 #include "sys.h"
+
+#include "main.h"
 #include "rc.h"
 
 // ----------------------------- sys start data -----------------------------
@@ -34,7 +35,7 @@ volatile SysStartData_t SysStartData = {
     .ChassisInitFlag = 0,
     .VisionInitFlag = 0,
     .ShootInitFlag = 0,
-    .AHRSInitFlag=0,
+    .AHRSInitFlag = 0,
 };
 
 volatile RobotStatus_t RobotStatus = {
@@ -114,7 +115,7 @@ bsp::SPI* SPIS[HSPI_NUM] = {};
 
 void InitSPIPort() {
     for (int i = 0; i < HSPI_NUM; i++) {
-        SPIS[i]= new bsp::SPI(SPICFGS[i]);
+        SPIS[i] = new bsp::SPI(SPICFGS[i]);
     }
 }
 
@@ -160,12 +161,8 @@ bsp::PWM* PWMS[PWM_GPIO_NUM] = {};
 
 void InitPWMGPIO() {
     for (int i = 0; i < PWM_GPIO_NUM; i++) {
-         PWMS[i] = new bsp::PWM(
-                 PWMCFG[i].htim,
-                 PWMCFG[i].channel,
-                 PWMCFG[i].clock_freq,
-                 PWMCFG[i].output_freq,
-                 PWMCFG[i].pulse_width);
+        PWMS[i] = new bsp::PWM(PWMCFG[i].htim, PWMCFG[i].channel, PWMCFG[i].clock_freq,
+                               PWMCFG[i].output_freq, PWMCFG[i].pulse_width);
     }
 }
 
@@ -183,7 +180,6 @@ void InitRMSys() {
     InitPWMGPIO();
     InitSPIPort();
     InitI2CPort();
-
 }
 
 // ---------------------------- sys Task Code ----------------------------
@@ -193,15 +189,54 @@ osThreadId_t SysTaskHandle;
 volatile RobotMode_e RobotMode = RMANUALMODE;
 volatile RobotMode_e LastRobotMode = RMANUALMODE;
 
+BoolEdgeDetector* RoboModeSwitch_CH = nullptr;
+BoolEdgeDetector* RoboModeSwitch_KEY[SwitchKEYNUM] = {nullptr};
+
 bool rc_offline = false;
 bool is_killed = false;
 bool is_robot_dead = false;
 bool is_shoot_available = false;
 
+const int8_t remote_mode_max = 1;
+const int8_t remote_mode_min = 4;
+
+BoolEdgeDetector* game_start_edge = nullptr;
+
 // ---------------------------- Sys Main Code ----------------------------
 
-void SysInit() {
+void RoboSysInit() {
+    RoboModeSwitch_CH = new BoolEdgeDetector(false);
+    for (int i = 0; i < SwitchKEYNUM; i++) {
+        RoboModeSwitch_KEY[i] = new BoolEdgeDetector(false);
+    }
+    game_start_edge = new BoolEdgeDetector(false);
+}
 
+void SwitchRobotMode() {
+    switch (RobotMode) {
+        case RMANUALMODE: {
+            ChassisMode = CMANUALMODE;
+            GimbalMode = GMANUALMODE;
+            ShootMode = SHOOTILDE;
+        } break;
+        case RAUTOMODE: {
+            ChassisMode = CMANUALMODE;
+            GimbalMode = GAUTOAIMODE;
+            ShootMode = SHOOTILDE;
+        } break;
+        case RSPINMODE: {
+            ChassisMode = CSPINMODE;
+            GimbalMode = GSPINMODE;
+            ShootMode = SHOOTILDE;
+        } break;
+        case RFOLLOWMODE: {
+            ChassisMode = CFOLLOWMODE;
+            GimbalMode = GFOLLOWMODE;
+            ShootMode = SHOOTILDE;
+        } break;
+        default:
+            break;
+    }
 }
 
 void SysTask(void* arg) {
@@ -217,9 +252,20 @@ void SysTask(void* arg) {
 
     osDelay(500);
 
+#ifdef HAS_REFEREE
+    if (RefereeIsOnline()) {
+        while (!referee->game_robot_status.mains_power_gimbal_output) {
+            RobotMode = RKILLMODE;
+            ChassisMode = CKILLMODE;
+            GimbalMode = GKILLMODE;
+            ShootMode = SKILLMODE;
+            osDelay(10);
+        }
+    }
+#endif
+
     if (rcData[MODE_SWITCH_CHANNEL] != MODE_KILL) {
         while (true) {
-
             if (rcData[MODE_SWITCH_CHANNEL] == MODE_KILL) {
                 osDelay(100);
                 break;
@@ -237,11 +283,17 @@ void SysTask(void* arg) {
         rc_offline = !RCIsOnline();
 
 #ifdef HAS_REFEREE
-        is_robot_dead = referee->game_robot_status.remain_HP == 0 || rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
-        is_shoot_available = referee->game_robot_status.mains_power_shooter_output != 0;
-#else
+        game_start_edge->input(referee->game_status.game_progress == 4);
+        if (game_start_edge && RefereeIsOnline()) {
+             is_robot_dead =
+            referee->game_robot_status.remain_HP == 0 || rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
+        }else {
+            is_robot_dead = rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
+        }
+       #else
         is_robot_dead = rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
 #endif
+
         if (rc_offline || is_robot_dead) {
             if (!is_killed) {
                 LastRobotMode = RobotMode;
@@ -251,19 +303,10 @@ void SysTask(void* arg) {
                 ShootMode = SKILLMODE;
                 is_killed = true;
             }
-        }else {
+        } else {
             if (is_killed) {
                 RobotMode = LastRobotMode;
-
-                switch (RobotMode) {
-                    case RMANUALMODE: {
-                        ChassisMode = CMANUALMODE;
-                        GimbalMode = GMANUALMODE;
-                        ShootMode = SHOOTILDE;
-                    }break;
-                    default:
-                        break;
-                }
+                SwitchRobotMode();
 
                 is_killed = false;
             }
@@ -273,6 +316,36 @@ void SysTask(void* arg) {
             osDelay(10);
             continue;
         }
+
+        RoboModeSwitch_KEY[SwitchKEY]->input(rcData[ROBOMODE_SWITCH_CH]);
+        RoboModeSwitch_CH->input(rcData[ROBOMODE_SWITCH_KEY]);
+
+        if (RoboModeSwitch_KEY[SwitchKEY]->posEdge() || RoboModeSwitch_CH->posEdge()) {
+            RobotMode_e next_mode = (RobotMode_e)(RobotMode + 1);
+            if ((int8_t)next_mode > (int8_t)remote_mode_max) {
+                next_mode = (RobotMode_e)remote_mode_min;
+            }
+            RobotMode = next_mode;
+            SwitchRobotMode();
+        }
+
+        RoboModeSwitch_KEY[FOLLOWMODEKEY]->input(rcData[KEYBOARD_C_CHANNEL]);
+        RoboModeSwitch_KEY[RSPINMODEKEY]->input(rcData[KEYBOARD_V_CHANNEL]);
+        RoboModeSwitch_KEY[MANUALMODEKEY]->input(rcData[KEYBOARD_B_CHANNEL]);
+
+        if (RoboModeSwitch_KEY[FOLLOWMODEKEY]->posEdge()) {
+            RobotMode = RFOLLOWMODE;
+            SwitchRobotMode();
+        }
+        if (RoboModeSwitch_KEY[RSPINMODEKEY]->posEdge()) {
+            RobotMode = RMANUALMODE;
+            SwitchRobotMode();
+        }
+        if (RoboModeSwitch_KEY[MANUALMODEKEY]->posEdge()) {
+            RobotMode = RSPINMODE;
+            SwitchRobotMode();
+        }
+
 
         osDelay(1);
     }

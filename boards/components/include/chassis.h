@@ -25,6 +25,7 @@
 #include "connection_driver.h"
 #include "pid.h"
 #include "power_limit_new.h"
+#include "power_limit_lqr.h"
 #include "supercap.h"
 
 #define MAX_WHEEL_NUM 8
@@ -48,13 +49,17 @@ namespace control {
      * @brief structure used when chassis instance is initialized
      */
     struct chassis_t {
-        driver::MotorCANBase** motors; /* motor instances of all chassis motors */
-        chassis_model_t model;         /* chassis model                         */
+        driver::MotorCANBase** motors;
+        chassis_model_t model;
         float offset = 0;
         bool power_limit_on = false;
         bool has_super_capacitor = false;
         driver::SuperCap* super_capacitor = nullptr;
         OMNI_Wheel_set_up omni_wheel_setup_;
+        
+        bool use_lqr_power_limit = false;
+        SeasonRuleManager::SeasonType season = SeasonRuleManager::SEASON_2026;
+        bool blood_priority = true;
     };
 
     /**
@@ -130,6 +135,22 @@ namespace control {
         void Disable();
 
         void SetMaxMotorSpeed(float max_speed);
+        
+        float GetPowerEstimate() const;
+        
+        float GetPowerPrediction() const;
+        
+        float GetBuffer() const;
+        
+        bool IsPowerWarning() const;
+        
+        SeasonRuleManager::WarnType GetWarnType() const;
+        
+        float GetSpeedScale() const;
+        
+        void SetBloodPriority(bool blood_priority);
+        
+        void SetSeason(SeasonRuleManager::SeasonType season);
 
       public:
         // 在所有电机的PID计算完成、准备发送CAN前，调用此函数直接设置电机输出，以进行功率限制
@@ -176,6 +197,11 @@ namespace control {
             .chassis_radius = 0.085f,
         };
 
+        volatile float can_bridge_vx_ = 0;
+        volatile float can_bridge_vy_ = 0;
+        volatile float can_bridge_vt_ = 0;
+        bool chassis_enable_ = true;
+
       private:
         // acquired from user
         driver::MotorCANBase** motors_ = nullptr;
@@ -194,15 +220,13 @@ namespace control {
 
             NewPowerLimit* limiter = nullptr;
         } power_limit_;
+        
+        LQRPowerLimit* lqr_power_limit_ = nullptr;
+        bool use_lqr_power_limit_ = false;
 
         float chassis_offset_;
 
         uint8_t can_bridge_tx_id_ = 0x00;
-        volatile float can_bridge_vx_ = 0;
-        volatile float can_bridge_vy_ = 0;
-        volatile float can_bridge_vt_ = 0;
-
-        bool chassis_enable_ = true;
 
         bool has_super_capacitor_ = false;
         bool super_capacitor_enable_ = false;

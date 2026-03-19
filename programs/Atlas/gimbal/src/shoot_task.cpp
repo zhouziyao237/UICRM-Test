@@ -40,6 +40,8 @@ BoolEdgeDetector* shoot_edge[SEDGENUM] = {nullptr};
 
 StallDetection stall_detector;
 
+control::HeatController heat_controller(HEAT_SHOOTER_TYPE);
+
 // --------------------------- Shoot Callback code ---------------------------
 
 void trigger_callback(uint8_t channel, rc_key_mode_t mode) {
@@ -53,11 +55,9 @@ void trigger_callback(uint8_t channel, rc_key_mode_t mode) {
             case RC_KEY_CLICK: {
                 ShootMode = SINGLESHOT;
             }break;
-
             case RC_KEY_DOUBLE_CLICK:{
                 ShootMode = DOUBLETAP;
             }break;
-
             case RC_KEY_LONG_PRESS: {
                 ShootMode = RAPIDFIRE;
             }break;
@@ -77,6 +77,9 @@ void stall_detection_callback(void* instance) {
 void StallCallback(void* instance) {
     UNUSED(instance);
     ShootMode = SUNLOADMODE;
+    unloadAmmo();
+    ShootMode = SHOOTILDE;
+    print("StallDetection\r\n");
 }
 
 // ----------------------------- Shoot Main code -----------------------------
@@ -120,40 +123,50 @@ void unloadAmmo() {
     FeedingMotror->SetTarget(FeedingMotror->GetTarget() + UNLOAD_FEED_THETA);
     osDelay(200);
     FeedingMotror->SetTarget(FeedingMotror->GetTarget() - UNLOAD_FEED_THETA);
+    osDelay(200);
 }
 
 void ShootHeatControl() {
 #ifdef HAS_REFEREE
+    bool is_shoot_available = referee->game_robot_status.mains_power_shooter_output != 0;
+    if (!is_shoot_available) {
+        ShootMode = SHOOTILDE;
+        return;
+    }
+
     uint8_t game_progress = referee->game_status.game_progress;
     uint16_t game_progress_shifted = game_progress >> 3;
     uint8_t game_progress_bit = game_progress_shifted & 0x01;
+
     if (game_progress_bit == 4) {
         uint16_t bullet_remaining_num_17mm = referee->bullet_remaining.bullet_remaining_num_17mm;
         if (bullet_remaining_num_17mm == 0) {
-            print("not have bullet!\n");
+            print("not have bullet!\r\n");
             ShootMode = SHOOTILDE;
         }
     }
 
     float bullet_speed = referee->shoot_data.bullet_speed;
     if (bullet_speed >= 23.0f) {
-        osDelay(SHOOT_OS_DELAY);
+        osDelay(5);
         bullet_speed = 0;
     }
 
-    int heat_limit = referee->game_robot_status.shooter_heat_limit;
-    int heat_buffer = referee->power_heat_data.shooter_id1_17mm_cooling_heat;
-    const int shooter_heat_threashold = 10;
-    if (heat_buffer > heat_limit - shooter_heat_threashold) {
-        // 临时解决方案
+    uint16_t heat_limit = referee->game_robot_status.shooter_heat_limit;
+    uint16_t current_heat = referee->power_heat_data.shooter_id1_17mm_cooling_heat;
+    
+    heat_controller.Update(current_heat, heat_limit);
+    
+    if (current_heat > heat_controller.GetSafeLimit()) {
         ShootMode = SHOOTILDE;
-        print("overheat!\n");
-        osDelay(SHOOT_OS_DELAY);
+        print("overheat! heat: %d, limit: %d\n", current_heat, heat_controller.GetSafeLimit());
+        osDelay(5);
     }
-    UNUSED(heat_limit);
-    UNUSED(heat_buffer);
+    
     UNUSED(bullet_speed);
 
+#else
+    heat_controller.Update(0, 200);
 #endif
 }
 
@@ -326,31 +339,58 @@ void ShootTask(void* arg) {
             ShootMode = SHOOTILDE;
         }
 
+        bool fieeflag = false;
+
         switch (ShootMode) {
             case SUNLOADMODE: {
                 unloadAmmo();
                 ShootMode = SHOOTILDE;
+                fieeflag = true;
             } break;
             case SKILLMODE:
                 break;
             case SHOOTILDE:
                 break;
             case SINGLESHOT: {
-                FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
+                if (heat_controller.CanShoot()) {
+                    FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
+                    heat_controller.RecordShot();
+                }
                 ShootMode = SHOOTILDE;
+                fieeflag = true;
             } break;
             case DOUBLETAP: {
-                FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
-                osDelay(200);
-                FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
+                if (heat_controller.CanShoot(2)) {
+                    FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
+                    heat_controller.RecordShot();
+                    FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
+                    heat_controller.RecordShot();
+                } else if (heat_controller.CanShoot()) {
+                    FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
+                    heat_controller.RecordShot();
+                }
                 ShootMode = SHOOTILDE;
+                fieeflag = true;
             } break;
             case RAPIDFIRE: {
-                FeedingMotror->SetTarget(FeedingMotror->GetTarget() + 2 * SINGLE_FEED_THETA);
+                uint16_t max_shots = heat_controller.GetMaxShootCount();
+                if (max_shots > 7) max_shots = 7;
+                for (uint16_t i = 0; i < max_shots; i++) {
+                    FeedingMotror->SetTarget(FeedingMotror->GetTarget() + 7 * SINGLE_FEED_THETA);
+                    heat_controller.RecordShot();
+                }
                 ShootMode = SHOOTILDE;
+                fieeflag = true;
             } break;
             default:
                 break;
+        }
+
+        if (ShootMode == SHOOTILDE && fieeflag) {
+            osDelay(200);
+            FeedingMotror->Hold();
+            FeedingMotror->Stop();
+            fieeflag = false;
         }
 
         osDelay(1);

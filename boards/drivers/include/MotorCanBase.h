@@ -343,6 +343,19 @@ namespace driver {
         void Hold(bool override = true);
 
         /**
+         * @brief 停止电机并重置PID控制器
+         *
+         * 该函数通过重新初始化PID控制器来停止电机控制。
+         * 根据当前电机的工作模式，会选择性地重置速度环或角度环的PID控制器。
+         *
+         * - 如果工作在速度环控制模式(SPEED_LOOP_CONTROL)，则重置omega_pid_
+         * - 如果工作在角度环控制模式(ANGLE_LOOP_CONTROL)，则重置theta_pid_
+         *
+         * 此操作会清除PID控制器的积分项和历史数据，使控制器回到初始状态。
+         */
+        void Stop();
+
+        /**
          * @brief 设置电机的速度偏移量，一般用于前馈控制，仅针对速度环控制有效
          * @param offset 速度偏移量的值
          */
@@ -351,6 +364,8 @@ namespace driver {
         bsp::CAN* GetCan() const { return can_; }
         uint16_t GetRxId() const { return rx_id_; }
         uint16_t GetTxId() const { return tx_id_; }
+
+        volatile float align_angle_ = 0; /* 对齐角度，开机时的角度，单位为[rad] */
 
       protected:
         volatile float theta_;
@@ -363,7 +378,6 @@ namespace driver {
         uint8_t mode_ = 0;
 
         // angle control
-        volatile float align_angle_ = 0; /* 对齐角度，开机时的角度，单位为[rad] */
         volatile float motor_angle_ = 0; /* 当前电机相比于开机的角度的旋转的角度，单位为[rad] */
         volatile float offset_angle_ = 0; /* cumulative offset angle of motor shaft, range between
                                                     [0, 2PI] in [rad] */

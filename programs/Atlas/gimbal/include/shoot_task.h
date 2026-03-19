@@ -28,6 +28,7 @@
 #include "bsp_os.h"
 #include "MotorCanBase.h"
 #include "RCKEY.h"
+#include "heat_control.h"
 
 #include "minipc_task.h"
 #include "referee_task.h"
@@ -105,8 +106,8 @@ inline control::ConstrainedPID::PID_Init_t steering_motor_omega_pid_init = {
 
 // ----------------------------- Shoot data code -----------------------------
 
-#define FW_SPEED 8 * PI
-#define SINGLE_FEED_THETA 4 * PI/7
+#define FW_SPEED 14 * PI
+#define SINGLE_FEED_THETA (2 * PI)/7
 #define UNLOAD_FEED_THETA PI / 7
 
 enum FrictionWheelMode_e {
@@ -193,6 +194,12 @@ struct StallDetection {
 };
 
 extern StallDetection stall_detector;
+
+// ----------------------------- Heat Control code -----------------------------
+
+#define HEAT_SHOOTER_TYPE control::SHOOTER_TYPE_BURST
+
+extern control::HeatController heat_controller;
 
 
 // --------------------------- Shoot Callback code ---------------------------

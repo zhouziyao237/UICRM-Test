@@ -27,7 +27,12 @@
 osThreadId_t ChassisTaskHandle;
 // --------------------------- Chassis CanBridge data code -------------------------
 
-ChassisRegConfig_t ChassisRegConfig;
+ChassisRegConfig_t ChassisRegConfig = {.tx_id = 0x51,
+                                       .rx_id = 0x52,
+                                       .xy_reg_id = 0x69,
+                                       .turn_on_reg_id = 0x71,
+                                       .power_limit_reg_id = 0x72,
+                                       .current_power_reg_id = 0x73};
 communication::CanBridge* can_bridge = nullptr;
 control::ChassisCanBridgeSender* chassis = nullptr;
 
@@ -46,34 +51,45 @@ float chassis_max[CVRAMPNUM] = {chassis_vx_max, chassis_vy_max, chassis_vz_max};
 RampSource* v_ramp[CVRAMPNUM] = {nullptr};
 BoolEdgeDetector* keyboard_edge[CKEY_EDGE_NUM] = {nullptr};
 BoolEdgeDetector* ch_edge[CCH_EDGE_NUM] = {nullptr};
+bsp::BatteryVol* battery_vol = nullptr;
 ChassisMotion_t ChassisMotion;
 
 // ----------------------------- Chassis Main code -----------------------------
 
 void InitChassis() {
-    for (int i =0; i < CVRAMPNUM; i++) {
+    for (int i = 0; i < CVRAMPNUM; i++) {
         v_ramp[i] = new RampSource(0, -chassis_max[i], chassis_max[i], 0.01);
     }
 
-    for (int i =0; i < CKEY_EDGE_NUM; i++) {
+    for (int i = 0; i < CKEY_EDGE_NUM; i++) {
         keyboard_edge[i] = new BoolEdgeDetector(false);
     }
+
+    for (int i = 0; i < CCH_EDGE_NUM; i++) {
+        ch_edge[i] = new BoolEdgeDetector(false);
+    }
+
+    manual_mode_pid = new control::ConstrainedPID(
+        manual_theta_pid_init.kp, manual_theta_pid_init.ki, manual_theta_pid_init.kd,
+        manual_theta_pid_init.max_iout, manual_theta_pid_init.max_out);
+
+    battery_vol = new bsp::BatteryVol(&hadc3, ADC_CHANNEL_8, 1, ADC_SAMPLETIME_3CYCLES);
 
     can_bridge = new communication::CanBridge(can1, ChassisRegConfig.tx_id);
     chassis = new control::ChassisCanBridgeSender(can_bridge, ChassisRegConfig.rx_id);
     chassis->SetChassisRegId(ChassisRegConfig.xy_reg_id, ChassisRegConfig.turn_on_reg_id,
-        ChassisRegConfig.power_limit_reg_id, ChassisRegConfig.current_power_reg_id);
+                             ChassisRegConfig.power_limit_reg_id,
+                             ChassisRegConfig.current_power_reg_id);
     chassis->Disable();
 }
 
 void ChassisRCUpdate() {
-
     if (RCIsOnline()) {
         rc_offline_start_time = 0;
 
         // 更新按键边沿检测
-        if (rcData[CFORWARD] || rcData[CLEFT] || rcData[CBACKWARD] || rcData[CRIGHT]
-            || rcData[CROTATELEFT] || rcData[CROTATERIGHT] || rcData[CSPEEDUP] || rcData[CSPEEDDOWN]) {
+        if (rcData[CFORWARD] || rcData[CLEFT] || rcData[CBACKWARD] || rcData[CRIGHT] ||
+            rcData[CROTATELEFT] || rcData[CROTATERIGHT] || rcData[CSPEEDUP] || rcData[CSPEEDDOWN]) {
             keyboard_edge[CFORWARD_EDGE]->input(rcData[CFORWARD]);
             keyboard_edge[CLEFT_EDGE]->input(rcData[CLEFT]);
             keyboard_edge[CBACKWARD_EDGE]->input(rcData[CBACKWARD]);
@@ -118,7 +134,8 @@ void ChassisRCUpdate() {
             ChassisMotion.vx_set_org = v_ramp[CVRAMP_X]->Calc(-ChassisData.current_speed_offset);
         } else {
             if (ChassisMotion.vx_set_org > 0) {
-                ChassisMotion.vx_set_org = v_ramp[CVRAMP_X]->Calc(-ChassisData.current_speed_offset);
+                ChassisMotion.vx_set_org =
+                    v_ramp[CVRAMP_X]->Calc(-ChassisData.current_speed_offset);
             } else if (ChassisMotion.vx_set_org < 0) {
                 ChassisMotion.vx_set_org = v_ramp[CVRAMP_X]->Calc(ChassisData.current_speed_offset);
             }
@@ -131,12 +148,13 @@ void ChassisRCUpdate() {
             ChassisMotion.vy_set_org = 0;
             v_ramp[CVRAMP_Y]->SetCurrent(0);
         } else if (keyboard_edge[CFORWARD_EDGE]->get()) {
-           ChassisMotion.vy_set_org = v_ramp[CVRAMP_Y]->Calc(ChassisData.current_speed_offset);
+            ChassisMotion.vy_set_org = v_ramp[CVRAMP_Y]->Calc(ChassisData.current_speed_offset);
         } else if (keyboard_edge[CBACKWARD_EDGE]->get()) {
             ChassisMotion.vy_set_org = v_ramp[CVRAMP_Y]->Calc(-ChassisData.current_speed_offset);
         } else {
             if (ChassisMotion.vy_set_org > 0) {
-                ChassisMotion.vy_set_org = v_ramp[CVRAMP_Y]->Calc(-ChassisData.current_speed_offset);
+                ChassisMotion.vy_set_org =
+                    v_ramp[CVRAMP_Y]->Calc(-ChassisData.current_speed_offset);
             } else if (ChassisMotion.vy_set_org < 0) {
                 ChassisMotion.vy_set_org = v_ramp[CVRAMP_Y]->Calc(ChassisData.current_speed_offset);
             }
@@ -154,7 +172,8 @@ void ChassisRCUpdate() {
             ChassisMotion.offset_yaw = v_ramp[CVRAMP_Z]->Calc(-ChassisData.current_speed_offset);
         } else {
             if (ChassisMotion.offset_yaw > 0) {
-                ChassisMotion.offset_yaw = v_ramp[CVRAMP_Z]->Calc(-ChassisData.current_speed_offset);
+                ChassisMotion.offset_yaw =
+                    v_ramp[CVRAMP_Z]->Calc(-ChassisData.current_speed_offset);
             } else if (ChassisMotion.offset_yaw < 0) {
                 ChassisMotion.offset_yaw = v_ramp[CVRAMP_Z]->Calc(ChassisData.current_speed_offset);
             }
@@ -183,12 +202,21 @@ void ChassisRCUpdate() {
     }
 }
 
-
 uint8_t ChassisOnline() {
     return RobotStatus.ChassisOnline;
 }
 
-void ChassisTask(void *arg) {
+void Power_Ctrl() {
+#ifdef HAS_REFEREE
+    chassis->UpdatePower(true, referee->game_robot_status.chassis_power_limit,
+                         referee->power_heat_data.chassis_power,
+                         referee->power_heat_data.chassis_power_buffer);
+#else
+    chassis->UpdatePower(true, 60, battery_vol->GetBatteryVol(), 60);
+#endif
+}
+
+void ChassisTask(void* arg) {
     UNUSED(arg);
 
     bool InitFlag = false;
@@ -197,7 +225,6 @@ void ChassisTask(void *arg) {
     chassis->Disable();
 
     while (true) {
-
         if (ChassisMode == CKILLMODE) {
             chassis->Disable();
             InitFlag = false;
@@ -205,8 +232,7 @@ void ChassisTask(void *arg) {
             continue;
         }
 
-        if (SysStartData.GimbalInitFlag && ChassisMode == CMANUALMODE
-            && RobotMode != RKILLMODE) {
+        if (SysStartData.GimbalInitFlag && ChassisMode == CMANUALMODE && RobotMode != RKILLMODE) {
             InitFlag = true;
             osDelay(10);
         }
@@ -218,7 +244,7 @@ void ChassisTask(void *arg) {
                 InitFlag = false;
                 continue;
             }
-            SysStartData.ShootInitFlag = 1;
+            SysStartData.ChassisInitFlag = 1;
             manual_mode_pid->Reset();
             chassis->Enable();
             break;
@@ -226,7 +252,7 @@ void ChassisTask(void *arg) {
         osDelay(100);
     }
 
-while (true) {
+    while (true) {
         if (ChassisMode == CKILLMODE) {
             while (true) {
                 if (ChassisMode != CKILLMODE) {
@@ -238,18 +264,20 @@ while (true) {
                     ChassisMotion.vx_set_org = 0;
                     ChassisMotion.vy_set_org = 0;
                     ChassisMotion.offset_yaw = 0;
-                    RobotStatus.ChassisOnline = 0;
+                    RobotStatus.ChassisOnline = 1;
+                    chassis->Enable();
                     osDelay(10);
-                    continue;  // 直接跳回循环开头
+                    break;
                 }
                 chassis->Disable();
+                RobotStatus.ChassisOnline = 0;
                 osDelay(10);
             }
         }
 
-    if (ChassisMode != CKILLMODE) {
-        chassis->Enable();
-    }
+        if (ChassisMode != CKILLMODE) {
+            chassis->Enable();
+        }
 
         RobotStatus.ChassisOnline = 1;
 
@@ -259,31 +287,37 @@ while (true) {
         ChassisMotion.chassis_vy = ChassisMotion.vy_set_org * ChassisData.ratio;
         ChassisMotion.chassis_vz = ChassisMotion.offset_yaw * ChassisData.ratio;
         ChassisMotion.vx_set = ChassisMotion.cos_yaw * ChassisMotion.chassis_vx +
-            ChassisMotion.sin_yaw * ChassisMotion.chassis_vy;
+                               ChassisMotion.sin_yaw * ChassisMotion.chassis_vy;
         ChassisMotion.vy_set = -ChassisMotion.sin_yaw * ChassisMotion.chassis_vx +
-            ChassisMotion.cos_yaw * ChassisMotion.chassis_vy;
+                               ChassisMotion.cos_yaw * ChassisMotion.chassis_vy;
 
         switch (ChassisMode) {
             case CKILLMODE:
                 break;
             case CMANUALMODE: {
                 ChassisMotion.vz_set = ChassisMotion.chassis_vz;
+                Power_Ctrl();
+                osDelay(5);
                 chassis->SetSpeed(ChassisMotion.chassis_vx, ChassisMotion.chassis_vy,
-                    ChassisMotion.vz_set);
-            }break;
+                                  ChassisMotion.vz_set);
+            } break;
             case CFOLLOWMODE: {
                 ChassisData.yaw_pid_error = yaw_motor->GetThetaDelta(gimbal_param->yaw_offset_);
-                ChassisData.manual_mode_pid_output = manual_mode_pid->ComputeOutput(ChassisData.yaw_pid_error);
+                ChassisData.manual_mode_pid_output =
+                    manual_mode_pid->ComputeOutput(ChassisData.yaw_pid_error);
                 ChassisMotion.vz_set = ChassisData.manual_mode_pid_output * ChassisData.ratio;
-                chassis->SetSpeed(ChassisMotion.vx_set, ChassisMotion.vy_set,
-                    ChassisMotion.vz_set);
+                Power_Ctrl();
+                osDelay(5);
+                chassis->SetSpeed(ChassisMotion.vx_set, ChassisMotion.vy_set, ChassisMotion.vz_set);
 
-            }break;
+            } break;
             case CAUTOAIMODE: {
                 ChassisMotion.vz_set = ChassisMotion.chassis_vz;
+                Power_Ctrl();
+                osDelay(5);
                 chassis->SetSpeed(ChassisMotion.chassis_vx, ChassisMotion.chassis_vy,
-                    ChassisMotion.vz_set);
-            }break;
+                                  ChassisMotion.vz_set);
+            } break;
             case CSPINMODE: {
                 if (ChassisMotion.offset_yaw != 0) {
                     ChassisData.spin_speed = ChassisData.spin_speed + ChassisData.offset_yaw;
@@ -291,22 +325,14 @@ while (true) {
                     ChassisData.spin_speed = clip<float>(ChassisData.spin_speed, -660, 660);
                 }
                 ChassisMotion.vz_set = ChassisData.spin_speed * ChassisData.ratio;
-                chassis->SetSpeed(ChassisMotion.vx_set, ChassisMotion.vy_set,
-                    ChassisMotion.vz_set);
-            }break;
+                Power_Ctrl();
+                osDelay(5);
+                chassis->SetSpeed(ChassisMotion.vx_set, ChassisMotion.vy_set, ChassisMotion.vz_set);
+            } break;
             default:
                 break;
         }
 
-#ifdef HAS_REFEREE
-    chassis->SetPower(true, referee->game_robot_status.chassis_power_limit,
-                      referee->power_heat_data.chassis_power,
-                      referee->power_heat_data.chassis_power_buffer);
-#else
-    chassis->SetPower(false, 30, 20, 60);
-#endif
-
-        osDelay(1);
+        osDelay(5);
     }
-
 }

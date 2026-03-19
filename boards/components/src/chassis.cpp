@@ -84,6 +84,15 @@ namespace control {
         power_limit_.enabled = chassis.power_limit_on;
         power_limit_.limiter = new NewPowerLimit(power_model);
         driver::MotorCANBase::RegisterPreOutputCallback(ApplyPowerLimitWrapper, this);
+        
+        // LQR功率限制系统
+        use_lqr_power_limit_ = chassis.use_lqr_power_limit;
+        if (use_lqr_power_limit_) {
+            LQRPowerLimit::Config lqr_config;
+            lqr_config.season = chassis.season;
+            lqr_config.blood_priority = chassis.blood_priority;
+            lqr_power_limit_ = new LQRPowerLimit(lqr_config);
+        }
 
         // 底盘是否有超级电容
         if (chassis.has_super_capacitor) {
@@ -335,29 +344,48 @@ namespace control {
         if (!power_limit_.enabled) {
             return;
         }
+        
+        if (use_lqr_power_limit_ && lqr_power_limit_) {
+            int16_t turn_current[FourWheel::motor_num];
+            float angular_velocity[FourWheel::motor_num];
+            
+            for (uint8_t i = 0; i < FourWheel::motor_num; ++i) {
+                turn_current[i] = motors_[i]->GetOutput();
+                angular_velocity[i] = motors_[i]->GetOmega();
+            }
+            
+            lqr_power_limit_->UpdatePowerState(true, power_limit_.max_watt, power_limit_.voltage, 
+                                               power_limit_.buffer_percent);
+            lqr_power_limit_->UpdateMotorData(angular_velocity, turn_current, FourWheel::motor_num);
+            lqr_power_limit_->ApplyLimit(turn_current, angular_velocity, FourWheel::motor_num);
+            
+            for (uint8_t i = 0; i < FourWheel::motor_num; ++i) {
+                motors_[i]->SetOutput(turn_current[i]);
+            }
+        } else {
+            // 电流(A) = 功率(W) / 电压(V)
+            float max_current = power_limit_.max_watt / power_limit_.voltage;
 
-        // 电流(A) = 功率(W) / 电压(V)
-        float max_current = power_limit_.max_watt / power_limit_.voltage;
+            // 根据缓冲区剩余能量，使用线性插值，计算最大电流。
+            max_current = max_current *
+                          linear_interpolation<int>(20, 80, 80, 150, power_limit_.buffer_percent) / 100;
 
-        // 根据缓冲区剩余能量，使用线性插值，计算最大电流。
-        max_current = max_current *
-                      linear_interpolation<int>(20, 80, 80, 150, power_limit_.buffer_percent) / 100;
+            // 获取数据
+            int16_t turn_current[FourWheel::motor_num];
+            float angular_velocity[FourWheel::motor_num];
+            for (uint8_t i = 0; i < FourWheel::motor_num; ++i) {
+                turn_current[i] = motors_[i]->GetOutput();
+                angular_velocity[i] = motors_[i]->GetOmega();
+            }
 
-        // 获取数据
-        int16_t turn_current[FourWheel::motor_num];
-        float angular_velocity[FourWheel::motor_num];
-        for (uint8_t i = 0; i < FourWheel::motor_num; ++i) {
-            turn_current[i] = motors_[i]->GetOutput();
-            angular_velocity[i] = motors_[i]->GetOmega();
+            // 在转矩电流之上应用功率限制
+            power_limit_.limiter->LimitPower(turn_current, angular_velocity,
+                                             (int16_t)(max_current * 1000));
+
+            // 应用限制后的转矩电流
+            for (uint8_t i = 0; i < FourWheel::motor_num; ++i)
+                motors_[i]->SetOutput((int16_t)turn_current[i]);
         }
-
-        // 在转矩电流之上应用功率限制
-        power_limit_.limiter->LimitPower(turn_current, angular_velocity,
-                                         (int16_t)(max_current * 1000));
-
-        // 应用限制后的转矩电流
-        for (uint8_t i = 0; i < FourWheel::motor_num; ++i)
-            motors_[i]->SetOutput((int16_t)turn_current[i]);
     }
     void Chassis::Enable() {
         chassis_enable_ = true;
@@ -374,6 +402,60 @@ namespace control {
 
     void Chassis::SetMaxMotorSpeed(float max_speed) {
         max_motor_speed_ = max_speed;
+    }
+    
+    float Chassis::GetPowerEstimate() const {
+        if (use_lqr_power_limit_ && lqr_power_limit_) {
+            return lqr_power_limit_->GetPowerEstimate();
+        }
+        return 0.0f;
+    }
+    
+    float Chassis::GetPowerPrediction() const {
+        if (use_lqr_power_limit_ && lqr_power_limit_) {
+            return lqr_power_limit_->GetPowerPrediction();
+        }
+        return 0.0f;
+    }
+    
+    float Chassis::GetBuffer() const {
+        if (use_lqr_power_limit_ && lqr_power_limit_) {
+            return lqr_power_limit_->GetBuffer();
+        }
+        return 0.0f;
+    }
+    
+    bool Chassis::IsPowerWarning() const {
+        if (use_lqr_power_limit_ && lqr_power_limit_) {
+            return lqr_power_limit_->IsWarning();
+        }
+        return false;
+    }
+    
+    SeasonRuleManager::WarnType Chassis::GetWarnType() const {
+        if (use_lqr_power_limit_ && lqr_power_limit_) {
+            return lqr_power_limit_->GetWarnType();
+        }
+        return SeasonRuleManager::WARN_NONE;
+    }
+    
+    float Chassis::GetSpeedScale() const {
+        if (use_lqr_power_limit_ && lqr_power_limit_) {
+            return lqr_power_limit_->GetSpeedScale();
+        }
+        return 1.0f;
+    }
+    
+    void Chassis::SetBloodPriority(bool blood_priority) {
+        if (use_lqr_power_limit_ && lqr_power_limit_) {
+            lqr_power_limit_->SetBloodPriority(blood_priority);
+        }
+    }
+    
+    void Chassis::SetSeason(SeasonRuleManager::SeasonType season) {
+        if (use_lqr_power_limit_ && lqr_power_limit_) {
+            lqr_power_limit_->SetSeason(season);
+        }
     }
 
     ChassisCanBridgeSender::ChassisCanBridgeSender(communication::CanBridge* can_bridge,

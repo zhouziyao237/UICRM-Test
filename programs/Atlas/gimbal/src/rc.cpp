@@ -80,6 +80,7 @@ void RCTask(void* arg) {
 
         if (!vtm->IsOnline()) {
             RestartRC();
+            osDelay(1);
             continue;
         }
 
@@ -111,9 +112,9 @@ void RCTask(void* arg) {
         rcData[AUX11] = static_cast<float>(vtm->mouse.r);  // 鼠标右键
         rcData[AUX12] = static_cast<float>(vtm->mouse.m);  // 鼠标中键
 
-        // 键盘数据映射 [AUX17-AUX26] - 按位存储
+        // 键盘数据映射 [AUX13-AUX30] - 按位存储
         uint16_t keyCode = vtm->keyboard.code;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i <16; i++) {
             rcData[AUX13 + i] = static_cast<float>((keyCode >> i) & 0x1);
         }
 

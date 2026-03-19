@@ -27,19 +27,13 @@
 #include "utils.h"
 #include "user_define.h"
 
-typedef enum {
-    REMOTE_MODE_FOLLOW = 1,
-    REMOTE_MODE_SPIN = 2,
-    REMOTE_MODE_ADVANCED = 3,
-
-}remote_mode;
-
 void chassisMain();
 void init_chassis();
-void kill_chassis();
 
 void update_channel_data(communication::can_bridge_ext_id_t ext_id,
                          communication::can_bridge_data_t data, void* args);
+
+extern uint8_t CassisMode;
 
 extern control::Chassis* chassis;
 extern driver::MotorCANBase* fl_motor;

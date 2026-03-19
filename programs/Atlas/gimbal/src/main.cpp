@@ -33,16 +33,40 @@
 #include "rc.h"
 #include "referee_task.h"
 #include "shoot_task.h"
+#include "ui_task.h"
 #include "sys.h"
 
+void PrintInitStatus() {
+    print("\r\n=== System Init Status ===\r\n");
+    print("System:     [%c]\r\n", SysStartData.SystemInitFlag ? 'X' : ' ');
+    print("IMU:        [%c]\r\n", SysStartData.ImuInitFlag ? 'X' : ' ');
+    print("AHRS:       [%c]\r\n", SysStartData.AHRSInitFlag ? 'X' : ' ');
+    print("Referee:    [%c]\r\n", SysStartData.RefereeInitFlag ? 'X' : ' ');
+    print("Vision:     [%c]\r\n", SysStartData.VisionInitFlag ? 'X' : ' ');
+    print("Gimbal:     [%c]\r\n", SysStartData.GimbalInitFlag ? 'X' : ' ');
+    print("Chassis:    [%c]\r\n", SysStartData.ChassisInitFlag ? 'X' : ' ');
+    print("Shoot:      [%c]\r\n", SysStartData.ShootInitFlag ? 'X' : ' ');
+    print("===========================\r\n");
+    
+    if (!SysStartData.SystemInitFlag) print("ERROR: System not initialized!\r\n");
+    bool is_connected = vtm->IsOnline();
+    print("VTM Status: %s | Updates: %lu\r\n",
+          is_connected ? "CONNECTED" : "DISCONNECTED", vtm->timestamp);
+    if (!SysStartData.ImuInitFlag) print("ERROR: IMU not initialized!\r\n");
+    if (!SysStartData.AHRSInitFlag) print("ERROR: AHRS not initialized!\r\n");
+    if (!SysStartData.GimbalInitFlag) print("ERROR: Gimbal not initialized!\r\n");
+    if (!SysStartData.ChassisInitFlag) print("ERROR: Chassis not initialized!\r\n");
+    if (!SysStartData.ShootInitFlag) print("ERROR: Shoot not initialized!\r\n");
+}
+
 void RM_RTOS_Init(void){
-    // 设置高精度定时器以能够获取微秒级别的精度的运行时间数据
     bsp::SetHighresClockTimer(&htim5);
-    // 初始化调试模式
 
     InitRMSys();
-    InitRC();
+    RoboSysInit();
+    SysStartData.SystemInitFlag = 1;
 
+    InitRC();
     InitIMU();
     init_buzzer();
     InitReferee();
@@ -50,7 +74,9 @@ void RM_RTOS_Init(void){
     InitGimbal();
     InitChassis();
     InitShoot();
-
+    InitUI();
+    PrintInitStatus();
+    
     HAL_Delay(1000);
 }
 
@@ -62,6 +88,8 @@ void RM_RTOS_Threads_Init(void) {
     GimbalTaskHandle = osThreadNew(GimbalTask, nullptr, &GimbalTaskAttribute);
     ChassisTaskHandle = osThreadNew(ChassisTask, nullptr, &ChassisTaskAttribute);
     ShootTaskHandle = osThreadNew(ShootTask, nullptr, &ShootTaskAttribute);
+    if (ENABLE_UI)
+        uiTaskHandle = osThreadNew(uiTask, nullptr, &uiTaskAttribute);
 }
 
 void RM_RTOS_Default_Task(const void* arg) {
@@ -78,35 +106,36 @@ void RM_RTOS_Default_Task(const void* arg) {
         }
         print("\r\n");
 
-        bool is_connected = vtm->IsOnline();
-        print("VTM Status: %s | Updates: %lu\r\n",
-              is_connected ? "CONNECTED" : "DISCONNECTED", vtm->timestamp);
+        print("RobotMode %d Init %d\r\n", RobotMode, SysStartData.SystemInitFlag);
 
-        print("RobotMode %d \r\n", RobotMode);
+        print("GimbalMode %d Init %d\r\n", GimbalMode, SysStartData.GimbalInitFlag);
+        print("ShootMode %d Init %d\r\n", ShootMode, SysStartData.ShootInitFlag);
+        print("ChassisMode %d Init %d\r\n", ChassisMode, SysStartData.ChassisInitFlag);
 
-        print("GimbalMode %d \r\n", GimbalMode);
-        print("ShootMode %d \r\n", ShootMode);
-        print("ChassisMode %d \r\n", ChassisMode);
+        print("Chassis Motion - vx: %.2f, vy: %.2f, vz: %.2f\r\n",
+              ChassisMotion.vx_set, ChassisMotion.vy_set, ChassisMotion.vz_set);
 
-        // print("Chassis Volt: %.3f\r\n", referee->power_heat_data.chassis_volt / 1000.0);
-        // print("Chassis Curr: %.3f\r\n", referee->power_heat_data.chassis_current / 1000.0);
-        // print("Chassis Power: %.3f\r\n", referee->power_heat_data.chassis_power);
-        // print("\r\n");
-        // print("Shooter Cooling Heat: %hu\r\n",
-        //       referee->power_heat_data.shooter_id1_17mm_cooling_heat);
-        // print("Bullet Frequency: %hhu\r\n", referee->shoot_data.bullet_freq);
-        // print("Bullet Speed: %.3f\r\n", referee->shoot_data.bullet_speed);
-        // print("INS Angle: %.3f %.3f %.3f\r\n", ahrs->INS_angle[0], ahrs->INS_angle[1],
-        //       ahrs->INS_angle[2]);
-        // print("Vision Target: %.3f %.3f\r\n", minipc->target_angle.target_pitch,
-        //       minipc->target_angle.target_yaw);
+#ifdef HAS_REFEREE
+        print("Chassis Volt: %.3f\r\n", referee->power_heat_data.chassis_volt / 1000.0);
+        print("Chassis Curr: %.3f\r\n", referee->power_heat_data.chassis_current / 1000.0);
+        print("Chassis Power: %.3f\r\n", referee->power_heat_data.chassis_power);
+        print("\r\n");
+        print("Shooter Cooling Heat: %hu\r\n",
+              referee->power_heat_data.shooter_id1_17mm_cooling_heat);
+        print("Bullet Frequency: %hhu\r\n", referee->shoot_data.bullet_freq);
+        print("Bullet Speed: %.3f\r\n", referee->shoot_data.bullet_speed);
+#endif
 
+        print("Vision Target: %.3f %.3f\r\n", minipc->target_angle.target_pitch,
+              minipc->target_angle.target_yaw);
         print("IMU data:\r\n");
         print("gyro: x:%.2f, y:%.2f, z:%.2f\r\n", bmi088->gyro_[0], bmi088->gyro_[1], bmi088->gyro_[2]);
         print("accel: x:%.2f, y:%.2f, z:%.2f\r\n", bmi088->accel_[0], bmi088->accel_[1],
               bmi088->accel_[2]);
         print("INS Angle: %.3f %.3f %.3f\r\n", ahrs->INS_angle[0], ahrs->INS_angle[1],
               ahrs->INS_angle[2]);
+        print("Pitch Motor %s, getPitchByMotor %.4f\r\n", pitch_motor->IsOnline() ? "Online" : "Offline", gimbal->getPitchByMotor());
+        print("Yaw Motor %s, getYawByMotor %.4f\r\n", yaw_motor->IsOnline() ? "Online" : "Offline", gimbal->getYawByMotor());
 
         osDelay(50);
     }

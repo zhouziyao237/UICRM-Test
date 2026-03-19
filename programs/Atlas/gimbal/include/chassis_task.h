@@ -32,6 +32,7 @@
 #include "MotorCanBase.h"
 
 #include "gimbal_task.h"
+#include "bsp_batteryvol.h"
 #include "referee_task.h"
 #include "minipc_task.h"
 #include "imu_task.h"
@@ -60,6 +61,11 @@ struct ChassisRegConfig_t {
     uint8_t current_power_reg_id; // 当前功率寄存器 ID
 };
 
+typedef enum {
+    RoboMode_Kill = 0,
+    RoboMode_LIDE = 1,
+}CassisMode_e;
+
 extern ChassisRegConfig_t ChassisRegConfig;
 extern communication::CanBridge* can_bridge;
 extern control::ChassisCanBridgeSender* chassis;
@@ -84,7 +90,7 @@ struct ChassisData_t {
     float spin_speed = 350;
     float yaw_pid_error = 0;
     float manual_mode_pid_output = 0;
-    float current_speed_offset;
+    float current_speed_offset = 330.0f;
 };
 
 extern ChassisData_t ChassisData;
@@ -147,10 +153,12 @@ extern float chassis_max[CVRAMPNUM];
 extern RampSource* v_ramp[CVRAMPNUM];
 extern BoolEdgeDetector* keyboard_edge[CKEY_EDGE_NUM];
 extern BoolEdgeDetector* ch_edge[CCH_EDGE_NUM];
+extern bsp::BatteryVol* battery_vol;
 
 // ----------------------------- Chassis Main code -----------------------------
 
 void InitChassis();
 void ChassisRCUpdate();
 uint8_t ChassisOnline();
+void Power_Ctrl();
 void ChassisTask(void *arg);

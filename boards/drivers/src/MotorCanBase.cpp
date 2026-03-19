@@ -448,6 +448,14 @@ namespace driver {
         }
     }
 
+    void MotorCANBase::Stop(){
+        if (mode_ & SPEED_LOOP_CONTROL) {
+            omega_pid_.Reset();
+        } else if (mode_ & ANGLE_LOOP_CONTROL) {
+            omega_pid_.Reset();
+        }
+    }
+
     void MotorCANBase::SetSpeedOffset(float offset) {
         speed_offset_ = offset;
     }

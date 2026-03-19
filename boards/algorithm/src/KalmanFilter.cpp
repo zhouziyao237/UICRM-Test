@@ -66,3 +66,90 @@ namespace control {
     }
 
 }  // namespace control
+
+namespace control {
+
+    KFPowerEstimator::KFPowerEstimator(float dt) : dt_(dt), P_est_(0), P_pred_(0) {
+        A_[0][0] = 1.0f; A_[0][1] = dt_;
+        A_[1][0] = 0.0f; A_[1][1] = 1.0f;
+        
+        H_[0] = 1.0f;
+        H_[1] = 0.0f;
+        
+        Q_[0][0] = 0.1f;  Q_[0][1] = 0.0f;
+        Q_[1][0] = 0.0f;  Q_[1][1] = 0.01f;
+        
+        R_ = 1.0f;
+        
+        P_[0][0] = 1.0f;  P_[0][1] = 0.0f;
+        P_[1][0] = 0.0f;  P_[1][1] = 1.0f;
+        
+        x_[0] = 0.0f;
+        x_[1] = 0.0f;
+    }
+    
+    void KFPowerEstimator::Update(float P_meas) {
+        float x_pred[2];
+        x_pred[0] = A_[0][0] * x_[0] + A_[0][1] * x_[1];
+        x_pred[1] = A_[1][0] * x_[0] + A_[1][1] * x_[1];
+        
+        float P_pred_mat[2][2];
+        P_pred_mat[0][0] = A_[0][0] * (A_[0][0] * P_[0][0] + A_[0][1] * P_[1][0]) + 
+                           A_[0][1] * (A_[0][0] * P_[0][1] + A_[0][1] * P_[1][1]) + Q_[0][0];
+        P_pred_mat[0][1] = A_[0][0] * (A_[1][0] * P_[0][0] + A_[1][1] * P_[1][0]) + 
+                           A_[0][1] * (A_[1][0] * P_[0][1] + A_[1][1] * P_[1][1]) + Q_[0][1];
+        P_pred_mat[1][0] = A_[1][0] * (A_[0][0] * P_[0][0] + A_[0][1] * P_[1][0]) + 
+                           A_[1][1] * (A_[0][0] * P_[0][1] + A_[0][1] * P_[1][1]) + Q_[1][0];
+        P_pred_mat[1][1] = A_[1][0] * (A_[1][0] * P_[0][0] + A_[1][1] * P_[1][0]) + 
+                           A_[1][1] * (A_[1][0] * P_[0][1] + A_[1][1] * P_[1][1]) + Q_[1][1];
+        
+        float y = P_meas - (H_[0] * x_pred[0] + H_[1] * x_pred[1]);
+        
+        float S = H_[0] * (H_[0] * P_pred_mat[0][0] + H_[1] * P_pred_mat[1][0]) + 
+                  H_[1] * (H_[0] * P_pred_mat[0][1] + H_[1] * P_pred_mat[1][1]) + R_;
+        
+        float K[2];
+        K[0] = (P_pred_mat[0][0] * H_[0] + P_pred_mat[0][1] * H_[1]) / S;
+        K[1] = (P_pred_mat[1][0] * H_[0] + P_pred_mat[1][1] * H_[1]) / S;
+        
+        x_[0] = x_pred[0] + K[0] * y;
+        x_[1] = x_pred[1] + K[1] * y;
+        
+        P_[0][0] = (1.0f - K[0] * H_[0]) * P_pred_mat[0][0] - K[0] * H_[1] * P_pred_mat[1][0];
+        P_[0][1] = (1.0f - K[0] * H_[0]) * P_pred_mat[0][1] - K[0] * H_[1] * P_pred_mat[1][1];
+        P_[1][0] = -K[1] * H_[0] * P_pred_mat[0][0] + (1.0f - K[1] * H_[1]) * P_pred_mat[1][0];
+        P_[1][1] = -K[1] * H_[0] * P_pred_mat[0][1] + (1.0f - K[1] * H_[1]) * P_pred_mat[1][1];
+        
+        P_est_ = x_[0];
+        
+        float A_100[2][2] = {{1.0f, 0.1f}, {0.0f, 1.0f}};
+        P_pred_ = A_100[0][0] * x_[0] + A_100[0][1] * x_[1];
+    }
+    
+    float KFPowerEstimator::GetEstimate() const {
+        return P_est_;
+    }
+    
+    float KFPowerEstimator::GetPrediction() const {
+        return P_pred_;
+    }
+    
+    void KFPowerEstimator::Reset() {
+        x_[0] = 0.0f;
+        x_[1] = 0.0f;
+        P_[0][0] = 1.0f;  P_[0][1] = 0.0f;
+        P_[1][0] = 0.0f;  P_[1][1] = 1.0f;
+        P_est_ = 0.0f;
+        P_pred_ = 0.0f;
+    }
+    
+    void KFPowerEstimator::SetProcessNoise(float q0, float q1) {
+        Q_[0][0] = q0;
+        Q_[1][1] = q1;
+    }
+    
+    void KFPowerEstimator::SetMeasureNoise(float r) {
+        R_ = r;
+    }
+
+}  // namespace control

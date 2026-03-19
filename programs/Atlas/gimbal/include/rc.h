@@ -36,7 +36,7 @@ const osThreadAttr_t RCTaskAttribute = {
     .cb_size = 0,
     .stack_mem = nullptr,
     .stack_size = 512 * 2,
-    .priority = (osPriority_t)osPriorityNormal,
+    .priority = (osPriority_t)osPriorityHigh,
     .tz_module = 0,
     .reserved = 0
 };
@@ -75,6 +75,10 @@ typedef enum rc_alias {
     AUX24,
     AUX25,
     AUX26,
+    AUX27,
+    AUX28,
+    AUX29,
+    AUX30,
     MOUSE_X_AXIS = AUX7,
     MOUSE_Y_AXIS = AUX8,
     MOUSE_WHEEL = AUX9,

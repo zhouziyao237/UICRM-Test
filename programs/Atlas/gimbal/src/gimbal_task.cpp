@@ -28,19 +28,20 @@ osThreadId_t GimbalTaskHandle;
 
 // 配置你的云台（±60度，1:6减速比）
 static control::gimbal_data_t gimbal_config = {
-    .pitch_offset_ = 0.9272f,        // 云台机械零点
-    .yaw_offset_ = 0.0f,           // 云台机械零点
+    .pitch_offset_ = 0.9371f,        // 云台机械零点
+    .yaw_offset_ = -0.3632f,           // 云台机械零点
     .pitch_max_ = 0.6981f,
-    .yaw_max_ = 2 * PI,            // ±2PI度范围
-    .yaw_circle_ = false,          // 不能360度旋转
-    .pitch_inverted = true,        // 不反转
-    .yaw_inverted = false,         // 不反转
+    .yaw_max_ = PI,            // ±PI度范围
+    .yaw_circle_ = true,          // 能360度旋转
+    .pitch_inverted = false,        // 不反转
+    .yaw_inverted = true,         // 不反转
     .pitch_reduction = 6.0f,   // 1:6减速比
     .yaw_reduction = 1.0f          // 1:6减速比
 };
 
-#define GimbalMinTheta 0.4119
-#define FloatingRange 0.02
+#define GimbalMinTheta -0.4588
+#define FloatingRange 0.03
+#define MinPositionStableTimeMs 500  // 最低点稳定时间阈值（毫秒）
 
 driver::MotorCANBase* pitch_motor = nullptr;
 driver::MotorCANBase* yaw_motor = nullptr;
@@ -49,11 +50,12 @@ control::gimbal_data_t* gimbal_param = nullptr;
 float pitch_diff, yaw_diff;
 GimbalRatio_t GimbalRatio = {};
 float actural_chassis_turn_speed = 0.0f;
+static uint32_t min_position_start_time = 0;  // 记录进入最低点的时间
 
 // ----------------------------- Gimbal Main code -----------------------------
 
 void InitGimbal() {
-    pitch_motor = new driver::Motor3508(can1, 0x204);
+    pitch_motor = new driver::Motor3508(can2, 0x204);
     yaw_motor = new driver::Motor6020(can1, 0x205);
 
     pitch_motor->SetTransmissionRatio(1);
@@ -121,6 +123,16 @@ uint8_t GimbalIsOnline() {
 void GimbalTask(void* arg) {
     UNUSED(arg);
 
+#ifdef HAS_REFEREE
+    if (RefereeIsOnline()) {
+        while (!referee->game_robot_status.mains_power_gimbal_output) {
+            RobotMode = RKILLMODE;
+            GimbalMode = GKILLMODE;
+            osDelay(10);
+        }
+    }
+#endif
+
     if (!gimbal || !pitch_motor || !yaw_motor)
         RM_ASSERT_TRUE(false, "Gimbal Init Failed!");
 
@@ -131,7 +143,7 @@ void GimbalTask(void* arg) {
     while (true){
 
         // todo: 暂时测试头时yaw没有所有没加  “!yaw_motor->IsOnline()”
-        if (!pitch_motor->IsOnline()) {
+        if (!pitch_motor->IsOnline() || !yaw_motor->IsOnline()) {
             osDelay(10);
             GimbalMode = GKILLMODE;
             RobotStatus.GimbalOnline = 0;
@@ -149,10 +161,34 @@ void GimbalTask(void* arg) {
 
         if (GimbalMode == GMANUALMODE && RobotMode != RKILLMODE) {
 
-            if ((gimbal->getPitchByMotor() <= GimbalMinTheta + FloatingRange) &&
-                gimbal->getPitchByMotor() >= GimbalMinTheta - FloatingRange) {
-                yaw_motor->Enable();
-                pitch_motor->Enable();
+            float pitch_theta = gimbal->getPitchByMotor();
+            bool in_min_range = (pitch_theta <= GimbalMinTheta + FloatingRange) &&
+                                (pitch_theta >= GimbalMinTheta - FloatingRange);
+            if (in_min_range) {
+                // 在最低点范围内，检查稳定时间
+                if (min_position_start_time == 0) {
+                    min_position_start_time = bsp::GetHighresTickMilliSec();
+                }
+                
+                uint32_t stable_time = bsp::GetHighresTickMilliSec() - min_position_start_time;
+                if (stable_time >= MinPositionStableTimeMs) {
+                    // 稳定在最低点足够长时间，开始初始化
+                    pitch_motor->align_angle_ = 0;
+
+                    yaw_motor->Enable();
+                    pitch_motor->Enable();
+                } else {
+                    // 等待稳定
+                    osDelay(10);
+                    continue;
+                }
+            } else {
+                // 不在最低点范围内，重置计时器
+                min_position_start_time = 0;
+                is_robot_dead = true;
+                osDelay(10);
+                print("Gimbal is floating.\r\n");
+                continue;
             }
 
             int i = 0;
@@ -219,7 +255,7 @@ void GimbalTask(void* arg) {
         }
 
         // todo: 暂时测试头时yaw没有所有没加  “!yaw_motor->IsOnline()”
-        if (!pitch_motor->IsOnline()) {
+        if (!pitch_motor->IsOnline() || !yaw_motor->IsOnline()) {
             GimbalMode = GKILLMODE;
             pitch_motor->Disable();
             yaw_motor->Disable();
@@ -230,9 +266,11 @@ void GimbalTask(void* arg) {
 
         GimbalRCUpdata();
 
-        pitch_diff = clip<float>(GimbalRatio.pitch_ratio, -gimbal_param->pitch_max_, gimbal_param->pitch_max_);
-        yaw_diff = wrap<float>(GimbalRatio.yaw_ratio, -gimbal_param->yaw_max_, gimbal_param->yaw_max_);
+        float pitch_target = clip<float>(GimbalRatio.pitch_ratio, -gimbal_param->pitch_max_, gimbal_param->pitch_max_);
+        float yaw_target = wrap<float>(GimbalRatio.yaw_ratio, -gimbal_param->yaw_max_, gimbal_param->yaw_max_);
 
+        pitch_diff = clip<float>(pitch_target, -PI, PI);
+        yaw_diff = wrap<float>(yaw_target, -PI, PI);
         // 根据运动模式选择不同的控制方式
         float yaw_speed_offset = actural_chassis_turn_speed + GimbalRatio.yaw_ratio;
         float pitch_speed_offset = GimbalRatio.pitch_ratio;

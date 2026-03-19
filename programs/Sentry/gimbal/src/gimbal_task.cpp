@@ -126,10 +126,6 @@ void gimbalTask(void* arg) {
         pitch_diff = clip<float>(pitch_target, -PI, PI);
         yaw_diff = wrap<float>(yaw_target, -PI, PI);
 
-        //        if (-0.005 < pitch_diff && pitch_diff < 0.005) {
-        //            pitch_diff = 0;
-        //        }
-
         // 根据运动模式选择不同的控制方式
         const float ratio = 0.1875;
         float speed_offset = chassis_vt * ratio;

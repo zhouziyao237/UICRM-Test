@@ -24,6 +24,8 @@
 
 #include "bsp_thread.h"
 #include "main.h"
+#include "utils.h"
+#include "referee_task.h"
 #include "buzzer_notes.h"
 #include "buzzer_task.h"
 
@@ -121,10 +123,10 @@ extern volatile ShootMode_e ShootMode;
 enum RobotMode_e {
     RKILLMODE = 0,      /**< 急停模式 - 整机紧急停止 */
     RMANUALMODE = 1,    /**< 手动模式 - 全手动控制 */
-    RAUTOMODE = 2,      /**< 自动模式 - 全自动运行 */
-    RSPINMODE = 3,      /**< 旋转模式 - 扫射模式 */
+    RAUTOAIMODE = 2,     /**< 自瞄模式 - 自动瞄准攻击 */
+    RSPINMODE = 3,      /**< 旋转模式 - 小陀螺模式 */
     RFOLLOWMODE = 4,    /**< 跟随模式 - 跟随操作 */
-    RAUTOAIMODE = 5     /**< 自瞄模式 - 自动瞄准攻击 */
+    RAUTOMODE = 5,      /**< 自动模式 - 全自动运行 */
 };
 
 /**
@@ -291,10 +293,19 @@ void InitPWMGPIO();
 #define KEYBOARD_E_CHANNEL      AUX20    // E键 - 右转
 #define KEYBOARD_R_CHANNEL      AUX21    // R键 - 补给
 #define KEYBOARD_F_CHANNEL      AUX22    // F键 - 功能键
+#define KEYBOARD_G_CHANNEL      AUX23    // G键 - 模式顺序切换
+#define KEYBOARD_Z_CHANNEL      AUX24    // Z键 - 摩擦轮模式切换
+#define KEYBOARD_X_CHANNEL      AUX25    // X键 - 清理UI消息
+
+#define KEYBOARD_C_CHANNEL      AUX26
+#define KEYBOARD_V_CHANNEL      AUX27
+#define KEYBOARD_B_CHANNEL      AUX28
+
+#define CLEARGUIMSGKEY KEYBOARD_X_CHANNEL
 
 // 建议添加的宏定义
 #define CH_FRIC_ONOFF           CUSTOM_LEFT_CHANNEL
-#define KEYBORAD_FRIC_ONOFF     KEYBOARD_F_CHANNEL
+#define KEYBORAD_FRIC_ONOFF     KEYBOARD_Z_CHANNEL
 #define CH_UNLOAD               PAUSE_BUTTON_CHANNEL
 #define KEYBORAD_UNLOAD         KEYBOARD_R_CHANNEL
 
@@ -329,15 +340,18 @@ void InitPWMGPIO();
 #define CHASSIS_LR_REV     false
 #define CHASSIS_ROT_REV    false
 
+#define ROBOMODE_SWITCH_CH CUSTOM_RIGHT_CHANNEL
+#define ROBOMODE_SWITCH_KEY KEYBOARD_G_CHANNEL
+
 // 模式选择开关通道（三档开关）
 #define MODE_SWITCH_CHANNEL RC_CHANNEL_AUX3  // 模式选择开关（UP/MID/DOWN）
 
 
 // 标准按键配置格式：{通道号, 按下阈值, 释放阈值, 长按时间(ms), 双击超时(ms)}
-#define RCKEYSNUM 2
-#define CONFIGS {TRIGGERKEYCONFIG, MOUSELEFTCONFIG}
+#define RCKEYSNUM 3
+#define CONFIGS {TRIGGERKEYCONFIG, MOUSELEFTCONFIG, CLEARGUIMSGKEYCONFIG}
 #define TRIGGERKEYCONFIG {TRIGGER_CHANNEL, 0, 1, 500, 150}     // 扳机 trigger
-// #define PAUSEKEYCONFIG {PAUSE_BUTTON_CHANNEL, 1, 0, 1500, 200}       // 暂停按钮 pause_button
+#define CLEARGUIMSGKEYCONFIG {KEYBOARD_X_CHANNEL, 0, 1, 500, 200}       // 清理 UI
 // #define CUSTOMLEFTKEYCONFIG {CUSTOM_LEFT_CHANNEL, 1, 0, 1500, 200}  // 左键自定义按键 custom_left
 // #define CUSTOMRIGHTKEYCONFIG {CUSTOM_RIGHT_CHANNEL, 1, 0, 800, 200}  // 右键自定义按键 custom_right
 
@@ -358,7 +372,23 @@ enum SWITCHMode {
     NONE = 3,
 };
 
+enum ModeSwitchKEY {
+    SwitchKEY = 1,
+    FOLLOWMODEKEY = 2,
+    RSPINMODEKEY = 3,
+    MANUALMODEKEY = 4,
+
+    SwitchKEYNUM
+};
+
 extern bool rc_offline;
+extern bool is_robot_dead;
+
+extern BoolEdgeDetector* RoboModeSwitch_CH;
+extern BoolEdgeDetector* RoboModeSwitch_KEY[SwitchKEYNUM];
+
+#define ENABLE_UI true
+#define HAS_REFEREE
 
 // ---------------------------- sys Task Code ----------------------------
 
@@ -377,5 +407,6 @@ const osThreadAttr_t SysTaskAttribute = {
 // ----------------------------- sys Main Code -----------------------------
 
 void InitRMSys();
-void SysInit();
+void RoboSysInit();
+void SwitchRobotMode();
 void SysTask(void* arg);

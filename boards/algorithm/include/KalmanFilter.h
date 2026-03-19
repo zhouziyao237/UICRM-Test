@@ -91,3 +91,35 @@ namespace control {
     };
 
 }  // namespace control
+
+namespace control {
+
+    class KFPowerEstimator {
+    public:
+        explicit KFPowerEstimator(float dt = 0.001f);
+        
+        void Update(float P_meas);
+        
+        float GetEstimate() const;
+        
+        float GetPrediction() const;
+        
+        void Reset();
+        
+        void SetProcessNoise(float q0, float q1);
+        
+        void SetMeasureNoise(float r);
+
+    private:
+        float A_[2][2];
+        float H_[2];
+        float Q_[2][2];
+        float R_;
+        float P_[2][2];
+        float x_[2];
+        float dt_;
+        float P_est_;
+        float P_pred_;
+    };
+
+}  // namespace control
