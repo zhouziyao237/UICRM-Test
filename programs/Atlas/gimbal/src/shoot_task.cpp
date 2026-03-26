@@ -128,32 +128,32 @@ void unloadAmmo() {
 
 void ShootHeatControl() {
 #ifdef HAS_REFEREE
-    bool is_shoot_available = referee->game_robot_status.mains_power_shooter_output != 0;
+    bool is_shoot_available = Referee_data->game_robot_status.mains_power_shooter_output != 0;
     if (!is_shoot_available) {
         ShootMode = SHOOTILDE;
         return;
     }
 
-    uint8_t game_progress = referee->game_status.game_progress;
+    uint8_t game_progress = Referee_data->game_status.game_progress;
     uint16_t game_progress_shifted = game_progress >> 3;
     uint8_t game_progress_bit = game_progress_shifted & 0x01;
 
     if (game_progress_bit == 4) {
-        uint16_t bullet_remaining_num_17mm = referee->bullet_remaining.bullet_remaining_num_17mm;
+        uint16_t bullet_remaining_num_17mm = Referee_data->bullet_remaining.bullet_remaining_num_17mm;
         if (bullet_remaining_num_17mm == 0) {
             print("not have bullet!\r\n");
             ShootMode = SHOOTILDE;
         }
     }
 
-    float bullet_speed = referee->shoot_data.bullet_speed;
+    float bullet_speed = Referee_data->shoot_data.bullet_speed;
     if (bullet_speed >= 23.0f) {
         osDelay(5);
         bullet_speed = 0;
     }
 
-    uint16_t heat_limit = referee->game_robot_status.shooter_heat_limit;
-    uint16_t current_heat = referee->power_heat_data.shooter_id1_17mm_cooling_heat;
+    uint16_t heat_limit = Referee_data->game_robot_status.shooter_heat_limit;
+    uint16_t current_heat = Referee_data->power_heat_data.shooter_id1_17mm_cooling_heat;
     
     heat_controller.Update(current_heat, heat_limit);
     

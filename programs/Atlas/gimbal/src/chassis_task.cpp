@@ -208,9 +208,9 @@ uint8_t ChassisOnline() {
 
 void Power_Ctrl() {
 #ifdef HAS_REFEREE
-    chassis->UpdatePower(true, referee->game_robot_status.chassis_power_limit,
-                         referee->power_heat_data.chassis_power,
-                         referee->power_heat_data.chassis_power_buffer);
+    chassis->UpdatePower(true, Referee_data->game_robot_status.chassis_power_limit,
+                         Referee_data->power_heat_data.chassis_power,
+                         Referee_data->power_heat_data.chassis_power_buffer);
 #else
     chassis->UpdatePower(true, 60, battery_vol->GetBatteryVol(), 60);
 #endif

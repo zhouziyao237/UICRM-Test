@@ -54,7 +54,7 @@ void uiTask(void* arg) {
         osDelay(10);
     }
 
-    UI->SetID(referee->game_robot_status.robot_id);
+    UI->SetID(Referee_data->game_robot_status.robot_id);
     osDelay(UI_OS_DELAY);
 
     communication::graphic_data_t graphEmpty1;
@@ -371,7 +371,7 @@ void UI_callback(uint8_t channel, rc_key_mode_t mode) {
 }
 
 void InitUI() {
-    UI = new communication::UserInterface(referee_uart, referee);
+    UI = new communication::UserInterface(referee_uart, Referee_data);
     rc_key_add_callback(UI_callback);
 }
 

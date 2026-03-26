@@ -69,8 +69,8 @@ bsp::UART* referee_uart = nullptr;
 void InitRefereeUart() {
 #ifdef RefereePort
     referee_uart = new bsp::UART(&RefereePort);
-    referee_uart->SetupRx(300);
-    referee_uart->SetupTx(300);
+    referee_uart->SetupRx(300, true);
+    referee_uart->SetupTx(300, true);
 #endif
 }
 
@@ -197,8 +197,8 @@ bool is_killed = false;
 bool is_robot_dead = false;
 bool is_shoot_available = false;
 
-const int8_t remote_mode_max = 1;
-const int8_t remote_mode_min = 4;
+const int8_t remote_mode_max = 4;
+const int8_t remote_mode_min = 1;
 
 BoolEdgeDetector* game_start_edge = nullptr;
 
@@ -242,6 +242,10 @@ void SwitchRobotMode() {
 void SysTask(void* arg) {
     UNUSED(arg);
 
+    while (!SysStartData.SystemInitFlag) {
+        osDelay(10);
+    }
+
     while (!RCIsOnline()) {
         RobotMode = RKILLMODE;
         ChassisMode = CKILLMODE;
@@ -254,7 +258,7 @@ void SysTask(void* arg) {
 
 #ifdef HAS_REFEREE
     if (RefereeIsOnline()) {
-        while (!referee->game_robot_status.mains_power_gimbal_output) {
+        while (!Referee_data->game_robot_status.mains_power_gimbal_output) {
             RobotMode = RKILLMODE;
             ChassisMode = CKILLMODE;
             GimbalMode = GKILLMODE;
@@ -283,10 +287,10 @@ void SysTask(void* arg) {
         rc_offline = !RCIsOnline();
 
 #ifdef HAS_REFEREE
-        game_start_edge->input(referee->game_status.game_progress == 4);
+        game_start_edge->input(Referee_data->game_status.game_progress == 4);
         if (game_start_edge && RefereeIsOnline()) {
              is_robot_dead =
-            referee->game_robot_status.remain_HP == 0 || rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
+            Referee_data->game_robot_status.remain_HP == 0 || rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
         }else {
             is_robot_dead = rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
         }

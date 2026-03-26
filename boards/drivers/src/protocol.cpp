@@ -96,6 +96,7 @@ namespace communication {
             return;
         uart_ = uart;
         uart_->SetupRxData(&read_ptr_, &read_len_);
+
         uart_->RegisterCallback(CallbackWrapper, this);
         bsp::thread_init_t thread_init = {
             .func = callback_thread_func_,
@@ -311,7 +312,7 @@ namespace communication {
 
     Referee::Referee(bsp::UART* uart) : UARTProtocol(uart) {
         // 设置100ms离线阈值
-        SetThreshold(100);
+        SetThreshold(500);
     }
 
     bool Referee::ProcessDataRx(int cmd_id, const uint8_t* data, int length) {

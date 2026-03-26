@@ -32,8 +32,8 @@
 namespace remote {
 
     VTM::VTM(bsp::UART* uart) {
-        if (uart == nullptr)
-            return;
+        if (!uart)
+            RM_ASSERT_TRUE(false, "VTM is NULL");
         uart_ = uart;
         uart_->RegisterCallback(RxCallback, this);
 

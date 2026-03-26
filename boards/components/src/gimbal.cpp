@@ -151,34 +151,38 @@ namespace control {
     void Gimbal::UpdataYawByMotor(void* arg){
         Gimbal* self = static_cast<Gimbal*>(arg);
         float motor_angle = self->yaw_motor_->GetTheta();
-        
-        if (!self->yaw_wrap_.initialized_) {
-            self->yaw_wrap_.last_motor_angle_ = motor_angle;
-            self->yaw_wrap_.initialized_ = true;
-        } else {
-            float angle_diff = motor_angle - self->yaw_wrap_.last_motor_angle_;
-            
-            if (angle_diff < -PI) {
-                self->yaw_wrap_.offset_angle_ += 2 * PI / self->data_.yaw_reduction;
-            } else if (angle_diff > PI) {
-                self->yaw_wrap_.offset_angle_ -= 2 * PI / self->data_.yaw_reduction;
+
+        if (self->data_.yaw_reduction != 1){
+            if (!self->yaw_wrap_.initialized_) {
+                self->yaw_wrap_.last_motor_angle_ = motor_angle;
+                self->yaw_wrap_.initialized_ = true;
+            } else {
+                float angle_diff = motor_angle - self->yaw_wrap_.last_motor_angle_;
+
+                if (angle_diff < -PI) {
+                    self->yaw_wrap_.offset_angle_ += 2 * PI / self->data_.yaw_reduction;
+                } else if (angle_diff > PI) {
+                    self->yaw_wrap_.offset_angle_ -= 2 * PI / self->data_.yaw_reduction;
+                }
+
+                self->yaw_wrap_.last_motor_angle_ = motor_angle;
             }
-            
-            self->yaw_wrap_.last_motor_angle_ = motor_angle;
+
+            float gimbal_angle = wrap<float>(
+                self->yaw_wrap_.offset_angle_ + motor_angle / self->data_.yaw_reduction,
+                0, 2 * PI);
+            self->yaw_wrap_.theta = wrap<float>(gimbal_angle - self->data_.yaw_offset_, -PI, PI);
+        } else {
+            self->yaw_wrap_.theta = self->yaw_motor_->GetTheta();
         }
-        
-        float gimbal_angle = wrap<float>(
-            self->yaw_wrap_.offset_angle_ + motor_angle / self->data_.yaw_reduction, 
-            0, 2 * PI);
-        self->yaw_wrap_.theta = wrap<float>(gimbal_angle - self->data_.yaw_offset_, -PI, PI);
     }
 
     float Gimbal::getPitchByMotor() {
-        return pitch_wrap_.theta;
+        return pitch_wrap_.theta - data_.pitch_offset_;
     }
 
     float Gimbal::getYawByMotor() {
-        return yaw_wrap_.theta;
+        return yaw_wrap_.theta - data_.yaw_offset_;
     }
 
     int Gimbal::GetDebugString(char* buffer, size_t size) const {

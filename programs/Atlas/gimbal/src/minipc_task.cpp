@@ -72,7 +72,7 @@ void minipc_task(void* args) {
             minipc->gimbal_current_status.current_imu_pitch = INSTheta.pitch;
             minipc->gimbal_current_status.current_imu_yaw = INSTheta.yaw;
             minipc->gimbal_current_status.current_imu_roll = INSTheta.roll;
-            minipc->gimbal_current_status.robot_id = referee->game_robot_status.robot_id;
+            minipc->gimbal_current_status.robot_id = Referee_data->game_robot_status.robot_id;
             minipc->gimbal_current_status.shooter_id = 0;
             minipc->Transmit(communication::GIMBAL_CURRENT_STATUS);
         }
@@ -86,11 +86,11 @@ void minipc_task(void* args) {
 
         if (i == 1000) {
             // Secend event
-            minipc->robot_status_upload.robot_id = referee->game_robot_status.robot_id;
+            minipc->robot_status_upload.robot_id = Referee_data->game_robot_status.robot_id;
             minipc->robot_status_upload.vision_reset = 0;
             minipc->robot_status_upload.location_data[0] = 0;
             minipc->robot_status_upload.location_data[1] = 0;
-            minipc->robot_status_upload.is_killed = (referee->game_robot_status.remain_HP == 0);
+            minipc->robot_status_upload.is_killed = (Referee_data->game_robot_status.remain_HP == 0);
             minipc->robot_status_upload.is_killed |= (RobotMode == RKILLMODE);
             switch (RobotMode) {
                 case RFOLLOWMODE:

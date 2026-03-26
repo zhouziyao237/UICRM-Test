@@ -28,10 +28,10 @@
 
 #define RX_SIGNAL (1 << 0)
 
-extern communication::Referee* referee;
+extern communication::Referee* Referee_data;
 
 // ---------------------------- Referre Main Code ----------------------------
 
-void InitReferee();
+void InitRefPort();
 
 uint8_t RefereeIsOnline();

@@ -22,7 +22,7 @@
 
 #include "bsp_print.h"
 #include "bsp_uart.h"
-#include "cmsis_os.h"
+#include "cmsis_os2.h"
 #include "protocol.h"
 
 #define RX_SIGNAL (1 << 0)
@@ -30,28 +30,12 @@
 communication::Referee* referee = nullptr;
 bsp::UART* referee_uart = nullptr;
 
-void refereeTask(void* arg) {
-    UNUSED(arg);
-    uint32_t length;
-    uint8_t* data;
-
-    while (true) {
-        /* wait until rx data is available */
-        uint32_t flags = osThreadFlagsWait(RX_SIGNAL, osFlagsWaitAll, osWaitForever);
-        if (flags & RX_SIGNAL) {  // unnecessary check
-            /* time the non-blocking rx / tx calls (should be <= 1 osTick) */
-            length = referee_uart->Read(&data);
-            referee->Receive(communication::package_t{data, (int)length});
-        }
-    }
-}
-
 void RM_RTOS_Init(void) {
-    print_use_uart(&huart1);
+    print_use_uart(&huart6, true, 915200);
 
-    referee_uart = new bsp::UART(&huart6);
-    referee_uart->SetupRx(300);
-    referee_uart->SetupTx(300);
+    referee_uart = new bsp::UART(&huart1);
+    referee_uart->SetupRx(300, true);
+    referee_uart->SetupTx(300, true);
 
     referee = new communication::Referee(referee_uart);
 }
@@ -65,19 +49,22 @@ void RM_RTOS_Default_Task(const void* argument) {
     while (true) {
         set_cursor(0, 0);
         clear_screen();
-        print("Chassis Volt: %.3f\r\n", referee->power_heat_data.chassis_volt / 1000.0);
-        print("Chassis Curr: %.3f\r\n", referee->power_heat_data.chassis_current / 1000.0);
-        print("Chassis Power: %.3f\r\n", referee->power_heat_data.chassis_power);
-        print("Chassis Power Limit: %d\r\n", referee->game_robot_status.chassis_power_limit);
-        print("\r\n");
-        print("Shooter Cooling Heat: %hu\r\n",
-              referee->power_heat_data.shooter_id1_17mm_cooling_heat);
-        print("Bullet Frequency: %hhu\r\n", referee->shoot_data.bullet_freq);
-        print("Bullet Speed: %.3f\r\n", referee->shoot_data.bullet_speed);
-        print("\r\n");
-        print("Current HP %d/%d\n", referee->game_robot_status.remain_HP,
+        print("---------- Received from Referee ----------\r\n");
+        print("Robot ID:    %d\r\n", referee->game_robot_status.robot_id);
+        print("Robot Level: %d\r\n", referee->game_robot_status.robot_level);
+        print("Remain HP:   %d / %d\r\n",
+              referee->game_robot_status.remain_HP,
               referee->game_robot_status.max_HP);
-        print("Remain bullet %d\n", referee->bullet_remaining.bullet_remaining_num_17mm);
+        print("Power Limit: %d W\r\n\n",
+              referee->game_robot_status.chassis_power_limit);
+
+        print("---------- Power & Heat ----------\r\n");
+        print("Voltage: %d mV\r\n", referee->power_heat_data.chassis_volt);
+        print("Current: %d mA\r\n", referee->power_heat_data.chassis_current);
+        print("Power:   %.2f W\r\n", referee->power_heat_data.chassis_power);
+        print("Buffer:  %d J\r\n\n", referee->power_heat_data.chassis_power_buffer);
+
+        print("[Note] Data auto-sent via CAN when received from UART\r\n");
         osDelay(100);
     }
 }

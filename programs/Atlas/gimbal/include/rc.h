@@ -87,7 +87,7 @@ typedef enum rc_alias {
     MOUSE_MIDDLE_BUTTON = AUX12
 } rc_alias_e;
 
-#define MAX_SUPPORTED_RC_CHANNEL_COUNT 26
+#define MAX_SUPPORTED_RC_CHANNEL_COUNT 34
 extern float rcData[MAX_SUPPORTED_RC_CHANNEL_COUNT];
 
 // ----------------------------- VTM Data Code ------------------------------

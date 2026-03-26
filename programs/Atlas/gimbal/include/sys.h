@@ -151,9 +151,9 @@ void InitCAN();
 // ----------------------------- UART Code -----------------------------
 #include "bsp_uart.h"
 
-// #define RefereePort huart1
-// #define HAS_REFEREE
-// #define SHOOT_OS_DELAY 10
+#define RefereePort huart1
+#define ENABLE_UI false
+#define HAS_REFEREE
 
 #define RCPort huart6
 #define RCPortBaudrate 912600
@@ -176,7 +176,7 @@ void InitMinipcUSB();
 // ----------------------------- LOG Code -----------------------------
 #include "bsp_print.h"
 
-#define LOGPort huart1
+// #define LOGPort huart1
 
 void InitLOGPort();
 
@@ -386,9 +386,6 @@ extern bool is_robot_dead;
 
 extern BoolEdgeDetector* RoboModeSwitch_CH;
 extern BoolEdgeDetector* RoboModeSwitch_KEY[SwitchKEYNUM];
-
-#define ENABLE_UI true
-#define HAS_REFEREE
 
 // ---------------------------- sys Task Code ----------------------------
 

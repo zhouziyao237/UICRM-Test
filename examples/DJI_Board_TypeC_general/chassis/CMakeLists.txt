@@ -22,3 +22,8 @@ uicrm_add_arm_executable(${PROJECT_NAME}_power_limit_test
         TARGET ${BOARD_NAME}
         SOURCES power_limit_test.cpp
 )
+
+uicrm_add_arm_executable(${PROJECT_NAME}_lqr_power_testw
+        TARGET ${BOARD_NAME}
+        SOURCES lqr_power_test.cpp
+)

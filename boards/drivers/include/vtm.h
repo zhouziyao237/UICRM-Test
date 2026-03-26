@@ -36,7 +36,7 @@ namespace remote {
     #define BAUD_RATE 921600                    // 波特率
     #define TIME_INTERVAL_MS 14                 // 时间间隔(毫秒)
     #define PACKET_SIZE 21                      // 单包字节数
-    #define BUFFER_SIZE 100
+    #define VTM_BUFFER_SIZE 100
 
     // VTM相关常量
     #define VTM_FRAME_HEADER_1 0xA9             // 帧头第一字节
@@ -193,7 +193,7 @@ namespace remote {
 
         uint8_t* read_ptr_ = nullptr;
         uint32_t read_len_ = 0;
-        uint8_t bufferRx[BUFFER_SIZE] = {0};
+        uint8_t bufferRx[VTM_BUFFER_SIZE] = {0};
 
         static void RxCallback(void* args);
 

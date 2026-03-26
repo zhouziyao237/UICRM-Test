@@ -73,10 +73,11 @@ void RestartRC(int stage) {
 
 void RCTask(void* arg) {
     UNUSED(arg);
+    osDelay(1);
     while (true) {
-        if (!vtm) {
+        if (!vtm)
             RM_ASSERT_TRUE(false, "VTM init failed!\r\n");
-        }
+
 
         if (!vtm->IsOnline()) {
             RestartRC();

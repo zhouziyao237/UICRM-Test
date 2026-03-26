@@ -39,7 +39,7 @@ static control::gimbal_data_t gimbal_config = {
     .yaw_reduction = 1.0f          // 1:6减速比
 };
 
-#define GimbalMinTheta -0.4588
+#define GimbalMinTheta -1.4588
 #define FloatingRange 0.03
 #define MinPositionStableTimeMs 500  // 最低点稳定时间阈值（毫秒）
 
@@ -50,7 +50,7 @@ control::gimbal_data_t* gimbal_param = nullptr;
 float pitch_diff, yaw_diff;
 GimbalRatio_t GimbalRatio = {};
 float actural_chassis_turn_speed = 0.0f;
-static uint32_t min_position_start_time = 0;  // 记录进入最低点的时间
+// static uint32_t min_position_start_time = 0;  // 记录进入最低点的时间
 
 // ----------------------------- Gimbal Main code -----------------------------
 
@@ -125,7 +125,7 @@ void GimbalTask(void* arg) {
 
 #ifdef HAS_REFEREE
     if (RefereeIsOnline()) {
-        while (!referee->game_robot_status.mains_power_gimbal_output) {
+        while (!Referee_data->game_robot_status.mains_power_gimbal_output) {
             RobotMode = RKILLMODE;
             GimbalMode = GKILLMODE;
             osDelay(10);
@@ -161,35 +161,35 @@ void GimbalTask(void* arg) {
 
         if (GimbalMode == GMANUALMODE && RobotMode != RKILLMODE) {
 
-            float pitch_theta = gimbal->getPitchByMotor();
-            bool in_min_range = (pitch_theta <= GimbalMinTheta + FloatingRange) &&
-                                (pitch_theta >= GimbalMinTheta - FloatingRange);
-            if (in_min_range) {
-                // 在最低点范围内，检查稳定时间
-                if (min_position_start_time == 0) {
-                    min_position_start_time = bsp::GetHighresTickMilliSec();
-                }
-                
-                uint32_t stable_time = bsp::GetHighresTickMilliSec() - min_position_start_time;
-                if (stable_time >= MinPositionStableTimeMs) {
-                    // 稳定在最低点足够长时间，开始初始化
-                    pitch_motor->align_angle_ = 0;
-
-                    yaw_motor->Enable();
-                    pitch_motor->Enable();
-                } else {
-                    // 等待稳定
-                    osDelay(10);
-                    continue;
-                }
-            } else {
-                // 不在最低点范围内，重置计时器
-                min_position_start_time = 0;
-                is_robot_dead = true;
-                osDelay(10);
-                print("Gimbal is floating.\r\n");
-                continue;
-            }
+            // float pitch_theta = gimbal->getPitchByMotor();
+            // bool in_min_range = (pitch_theta <= GimbalMinTheta + FloatingRange) &&
+            //                     (pitch_theta >= GimbalMinTheta - FloatingRange);
+            // if (in_min_range) {
+            //     // 在最低点范围内，检查稳定时间
+            //     if (min_position_start_time == 0) {
+            //         min_position_start_time = bsp::GetHighresTickMilliSec();
+            //     }
+            //
+            //     uint32_t stable_time = bsp::GetHighresTickMilliSec() - min_position_start_time;
+            //     if (stable_time >= MinPositionStableTimeMs) {
+            //         // 稳定在最低点足够长时间，开始初始化
+            //         pitch_motor->align_angle_ = 0;
+            //
+            //         yaw_motor->Enable();
+            //         pitch_motor->Enable();
+            //     } else {
+            //         // 等待稳定
+            //         osDelay(10);
+            //         continue;
+            //     }
+            // } else {
+            //     // 不在最低点范围内，重置计时器
+            //     min_position_start_time = 0;
+            //     is_robot_dead = true;
+            //     osDelay(10);
+            //     print("Gimbal is floating.\r\n");
+            //     continue;
+            // }
 
             int i = 0;
             for (i = 0; i < 5000; i++) {

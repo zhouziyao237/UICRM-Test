@@ -64,20 +64,20 @@ void RM_RTOS_Init(void){
 
     InitRMSys();
     RoboSysInit();
-    SysStartData.SystemInitFlag = 1;
 
     InitRC();
     InitIMU();
     init_buzzer();
-    InitReferee();
-    init_minipc();
+    InitRefPort();
+    // init_minipc();
     InitGimbal();
     InitChassis();
     InitShoot();
     InitUI();
     PrintInitStatus();
-    
-    HAL_Delay(1000);
+
+    SysStartData.SystemInitFlag = 1;
+
 }
 
 void RM_RTOS_Threads_Init(void) {
@@ -94,6 +94,10 @@ void RM_RTOS_Threads_Init(void) {
 
 void RM_RTOS_Default_Task(const void* arg) {
     UNUSED(arg);
+
+    while (!SysStartData.SystemInitFlag) {
+        osDelay(10);
+    }
 
     osDelay(500);
     while (true) {
@@ -116,18 +120,17 @@ void RM_RTOS_Default_Task(const void* arg) {
               ChassisMotion.vx_set, ChassisMotion.vy_set, ChassisMotion.vz_set);
 
 #ifdef HAS_REFEREE
-        print("Chassis Volt: %.3f\r\n", referee->power_heat_data.chassis_volt / 1000.0);
-        print("Chassis Curr: %.3f\r\n", referee->power_heat_data.chassis_current / 1000.0);
-        print("Chassis Power: %.3f\r\n", referee->power_heat_data.chassis_power);
-        print("\r\n");
-        print("Shooter Cooling Heat: %hu\r\n",
-              referee->power_heat_data.shooter_id1_17mm_cooling_heat);
-        print("Bullet Frequency: %hhu\r\n", referee->shoot_data.bullet_freq);
-        print("Bullet Speed: %.3f\r\n", referee->shoot_data.bullet_speed);
+
+        print("Robot ID:    %d\r\n", Referee_data->game_robot_status.robot_id);
+        print("Robot Level: %d\r\n", Referee_data->game_robot_status.robot_level);
+        print("Remain HP:   %d / %d\r\n",
+              Referee_data->game_robot_status.remain_HP,
+              Referee_data->game_robot_status.max_HP);
+
 #endif
 
-        print("Vision Target: %.3f %.3f\r\n", minipc->target_angle.target_pitch,
-              minipc->target_angle.target_yaw);
+        // print("Vision Target: %.3f %.3f\r\n", minipc->target_angle.target_pitch,
+        //       minipc->target_angle.target_yaw);3
         print("IMU data:\r\n");
         print("gyro: x:%.2f, y:%.2f, z:%.2f\r\n", bmi088->gyro_[0], bmi088->gyro_[1], bmi088->gyro_[2]);
         print("accel: x:%.2f, y:%.2f, z:%.2f\r\n", bmi088->accel_[0], bmi088->accel_[1],
@@ -135,7 +138,7 @@ void RM_RTOS_Default_Task(const void* arg) {
         print("INS Angle: %.3f %.3f %.3f\r\n", ahrs->INS_angle[0], ahrs->INS_angle[1],
               ahrs->INS_angle[2]);
         print("Pitch Motor %s, getPitchByMotor %.4f\r\n", pitch_motor->IsOnline() ? "Online" : "Offline", gimbal->getPitchByMotor());
-        print("Yaw Motor %s, getYawByMotor %.4f\r\n", yaw_motor->IsOnline() ? "Online" : "Offline", gimbal->getYawByMotor());
+        print("Yaw Motor %s, getYawByMotor %.4f, getYaw %.4f\r\n", yaw_motor->IsOnline() ? "Online" : "Offline", gimbal->getYawByMotor(), yaw_motor->GetOutputShaftTheta());
 
         osDelay(50);
     }

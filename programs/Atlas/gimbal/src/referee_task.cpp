@@ -22,17 +22,20 @@
 
 // ---------------------------- Referre Data Code ----------------------------
 
-communication::Referee* referee = nullptr;
+communication::Referee* Referee_data = nullptr;
 
 // ---------------------------- Referre Main Code ----------------------------
 
-void InitReferee() {
+void InitRefPort() {
     // 启动裁判系统
-    referee = new communication::Referee(referee_uart);
+    if (!referee_uart)
+        RM_ASSERT_TRUE(false, "Referee init failed!\r\n");
+    Referee_data = new communication::Referee(referee_uart);
     SysStartData.RefereeInitFlag = 1;
+    osDelay(50);
 }
 
 uint8_t RefereeIsOnline() {
-    RobotStatus.RefereeOnline = (uint8_t)referee->IsOnline();
+    RobotStatus.RefereeOnline = (uint8_t)Referee_data->IsOnline();
     return RobotStatus.RefereeOnline;
 }
