@@ -20,6 +20,7 @@
 
 #include "bsp_print.h"
 
+#include "bsp_error_handler.h"
 #include "bsp_uart.h"
 #include "bsp_usb.h"
 #include "main.h"
@@ -40,6 +41,20 @@ void print_use_uart(UART_HandleTypeDef* huart, bool dma, uint32_t baudrate) {
     print_uart = new bsp::UART(huart);
     if (baudrate != huart->Init.BaudRate)
         print_uart->SetBaudrate(baudrate);
+    print_uart->SetupTx(MAX_PRINT_LEN * 2, dma);  // burst transfer size up to 2x max buffer size
+#ifndef NO_USB
+    print_usb = NULL;
+#endif
+}
+
+void print_use(bsp::UART* huart, bool dma) {
+    if (print_uart)
+        delete print_uart;
+
+    if (!huart)
+        RM_ASSERT_TRUE(false, "Not Have huart");
+
+    print_uart = huart;
     print_uart->SetupTx(MAX_PRINT_LEN * 2, dma);  // burst transfer size up to 2x max buffer size
 #ifndef NO_USB
     print_usb = NULL;

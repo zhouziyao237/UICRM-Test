@@ -78,9 +78,9 @@ void minipc_task(void* args) {
         }
         if (i % 10 == 0) {
             minipc->chassis_current_status.chassis_enabled = 1;  // 暂时底盘默认为打开
-            minipc->chassis_current_status.speed_x = ChassisMotion.chassis_vx;
-            minipc->chassis_current_status.speed_y = ChassisMotion.chassis_vy;
-            minipc->chassis_current_status.speed_turn = ChassisMotion.chassis_vz;
+            minipc->chassis_current_status.speed_x = chassis_vx;
+            minipc->chassis_current_status.speed_y = chassis_vy;
+            minipc->chassis_current_status.speed_turn = chassis_vt;
             minipc->Transmit(communication::CHASSIS_CURRENT_STATUS);
         }
 

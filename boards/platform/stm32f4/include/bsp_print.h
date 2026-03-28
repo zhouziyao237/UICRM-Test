@@ -41,6 +41,8 @@ extern bsp::UART* print_uart;
  */
 void print_use_uart(UART_HandleTypeDef* huart, bool dma = true, uint32_t baudrate = 912600);
 
+void print_use(bsp::UART* huart, bool dma);
+
 #ifndef NO_USB
 /**
  * @brief 使用USB虚拟串口进行调试打印

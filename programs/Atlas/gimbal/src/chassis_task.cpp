@@ -16,323 +16,194 @@
 // Public License along with this program.  If not, see
 // <https://www.gnu.org/licenses/>.
 
-//
-// Created by Administrator on 2026/3/3.
-//
-
 #include "chassis_task.h"
+#include "gimbal_task.h"            // yaw_motor, gimbal_param
+#include "imu_task.h"               // ahrs, INS_Angle
 
-// ----------------------------- Chassis Task code -----------------------------
-
+// ----------------------------- Task handle -----------------------------
 osThreadId_t ChassisTaskHandle;
-// --------------------------- Chassis CanBridge data code -------------------------
+const osThreadAttr_t ChassisTaskAttribute = {
+    .name = "chassisTask",
+    .attr_bits = osThreadDetached,
+    .cb_mem = nullptr,
+    .cb_size = 0,
+    .stack_mem = nullptr,
+    .stack_size = 512 * 4,
+    .priority = (osPriority_t)osPriorityAboveNormal,
+    .tz_module = 0,
+    .reserved = 0
+};
 
-ChassisRegConfig_t ChassisRegConfig = {.tx_id = 0x51,
-                                       .rx_id = 0x52,
-                                       .xy_reg_id = 0x69,
-                                       .turn_on_reg_id = 0x71,
-                                       .power_limit_reg_id = 0x72,
-                                       .current_power_reg_id = 0x73};
+// ----------------------------- CanBridge -----------------------------
 communication::CanBridge* can_bridge = nullptr;
 control::ChassisCanBridgeSender* chassis = nullptr;
 
-// --------------------------- Chassis data code -------------------------
+// ----------------------------- Motion Data -----------------------------
+float chassis_vx = 0;
+float chassis_vy = 0;
+float chassis_vt = 0;
 
-ChassisPID manual_theta_pid_init = {
-    .kp = 400,
-    .ki = 0.5,
-    .kd = 20,
-    .max_out = 500,
-    .max_iout = 100,
-};
-ChassisData_t ChassisData;
-control::ConstrainedPID* manual_mode_pid = nullptr;
-float chassis_max[CVRAMPNUM] = {chassis_vx_max, chassis_vy_max, chassis_vz_max};
-RampSource* v_ramp[CVRAMPNUM] = {nullptr};
-BoolEdgeDetector* keyboard_edge[CKEY_EDGE_NUM] = {nullptr};
-BoolEdgeDetector* ch_edge[CCH_EDGE_NUM] = {nullptr};
+// ----------------------------- Battery Voltage -----------------------------
 bsp::BatteryVol* battery_vol = nullptr;
-ChassisMotion_t ChassisMotion;
 
-// ----------------------------- Chassis Main code -----------------------------
+// ----------------------------- Speed Limits -----------------------------
+const float chassis_max_xy_speed = 2 * PI * 10;   // 线速度上限 10圈/s
+const float chassis_max_t_speed = 2 * PI * 5;     // 旋转速度上限 5圈/s
 
+// ----------------------------- Ease -----------------------------
+static Ease chassis_ease_vx(0, 0.9f);
+static Ease chassis_ease_vy(0, 0.9f);
+static Ease chassis_ease_vt(0, 0.9f);
+
+// ----------------------------- Helper: Get normalized RC value -----------------------------
+static inline float get_rc_channel(uint8_t channel) {
+    return rcData[channel] / VTM_ROCKER_MAX;
+}
+
+// ----------------------------- Init / Kill -----------------------------
 void InitChassis() {
-    for (int i = 0; i < CVRAMPNUM; i++) {
-        v_ramp[i] = new RampSource(0, -chassis_max[i], chassis_max[i], 0.01);
-    }
-
-    for (int i = 0; i < CKEY_EDGE_NUM; i++) {
-        keyboard_edge[i] = new BoolEdgeDetector(false);
-    }
-
-    for (int i = 0; i < CCH_EDGE_NUM; i++) {
-        ch_edge[i] = new BoolEdgeDetector(false);
-    }
-
-    manual_mode_pid = new control::ConstrainedPID(
-        manual_theta_pid_init.kp, manual_theta_pid_init.ki, manual_theta_pid_init.kd,
-        manual_theta_pid_init.max_iout, manual_theta_pid_init.max_out);
-
+    // 初始化电池电压测量（ADC3 通道8）
     battery_vol = new bsp::BatteryVol(&hadc3, ADC_CHANNEL_8, 1, ADC_SAMPLETIME_3CYCLES);
 
-    can_bridge = new communication::CanBridge(can1, ChassisRegConfig.tx_id);
-    chassis = new control::ChassisCanBridgeSender(can_bridge, ChassisRegConfig.rx_id);
-    chassis->SetChassisRegId(ChassisRegConfig.xy_reg_id, ChassisRegConfig.turn_on_reg_id,
-                             ChassisRegConfig.power_limit_reg_id,
-                             ChassisRegConfig.current_power_reg_id);
+    // 创建 CanBridge（发送ID 0x51）
+    can_bridge = new communication::CanBridge(can1, 0x51);
+    // 创建底盘控制器（接收ID 0x52）
+    chassis = new control::ChassisCanBridgeSender(can_bridge, 0x52);
+    // 设置寄存器ID
+    chassis->SetChassisRegId(0x70, 0x71, 0x72, 0x73);
     chassis->Disable();
 }
 
-void ChassisRCUpdate() {
-    if (RCIsOnline()) {
-        rc_offline_start_time = 0;
-
-        // 更新按键边沿检测
-        if (rcData[CFORWARD] || rcData[CLEFT] || rcData[CBACKWARD] || rcData[CRIGHT] ||
-            rcData[CROTATELEFT] || rcData[CROTATERIGHT] || rcData[CSPEEDUP] || rcData[CSPEEDDOWN]) {
-            keyboard_edge[CFORWARD_EDGE]->input(rcData[CFORWARD]);
-            keyboard_edge[CLEFT_EDGE]->input(rcData[CLEFT]);
-            keyboard_edge[CBACKWARD_EDGE]->input(rcData[CBACKWARD]);
-            keyboard_edge[CRIGHT_EDGE]->input(rcData[CRIGHT]);
-            keyboard_edge[CROTATE_LEFT_EDGE]->input(rcData[CROTATELEFT]);
-            keyboard_edge[CROTATE_RIGHT_EDGE]->input(rcData[CROTATERIGHT]);
-            keyboard_edge[CSPEED_UP_EDGE]->input(rcData[CSPEEDUP]);
-            keyboard_edge[CSPEED_DOWN_EDGE]->input(rcData[CSPEEDDOWN]);
-        } else {
-            // 摇杆模式（带反向）
-            if (CHASSIS_FB_REV) {
-                rcData[CHASSIS_FB_CH] = -rcData[CHASSIS_FB_CH];
-            }
-            if (CHASSIS_LR_REV) {
-                rcData[CHASSIS_LR_CH] = -rcData[CHASSIS_LR_CH];
-            }
-            if (CHASSIS_ROT_REV) {
-                rcData[CHASSIS_ROT_CH] = -rcData[CHASSIS_ROT_CH];
-            }
-
-            // 显式转换为布尔值
-            ch_edge[CFB_EDGE]->input(rcData[CHASSIS_FB_CH] != 0);
-            ch_edge[CLR_EDGE]->input(rcData[CHASSIS_LR_CH] != 0);
-            ch_edge[CROTATE_EDGE]->input(rcData[CHASSIS_ROT_CH] != 0);
-        }
-
-        // 云台和底盘的角度差
-        float relative_angle = yaw_motor->GetThetaDelta(gimbal_param->yaw_offset_);
-        // 底盘以底盘自己为基准的运动速度
-        ChassisMotion.sin_yaw = arm_sin_f32(relative_angle);
-        ChassisMotion.cos_yaw = arm_cos_f32(relative_angle);
-
-        // 前进速度控制（A/D 键）
-        if (ch_edge[CFB_EDGE]->get()) {
-            ChassisMotion.vx_set_org = rcData[CHASSIS_FB_CH];
-        } else if (ch_edge[CFB_EDGE]->negEdge() || keyboard_edge[CSPEED_DOWN_EDGE]->posEdge()) {
-            ChassisMotion.vx_set_org = 0;
-            v_ramp[CVRAMP_X]->SetCurrent(0);
-        } else if (keyboard_edge[CRIGHT_EDGE]->get()) {
-            ChassisMotion.vx_set_org = v_ramp[CVRAMP_X]->Calc(ChassisData.current_speed_offset);
-        } else if (keyboard_edge[CLEFT_EDGE]->get()) {
-            ChassisMotion.vx_set_org = v_ramp[CVRAMP_X]->Calc(-ChassisData.current_speed_offset);
-        } else {
-            if (ChassisMotion.vx_set_org > 0) {
-                ChassisMotion.vx_set_org =
-                    v_ramp[CVRAMP_X]->Calc(-ChassisData.current_speed_offset);
-            } else if (ChassisMotion.vx_set_org < 0) {
-                ChassisMotion.vx_set_org = v_ramp[CVRAMP_X]->Calc(ChassisData.current_speed_offset);
-            }
-        }
-
-        // 平移速度控制（W/S 键）
-        if (ch_edge[CLR_EDGE]->get()) {
-            ChassisMotion.vy_set_org = rcData[CHASSIS_LR_CH];
-        } else if (ch_edge[CLR_EDGE]->negEdge() || keyboard_edge[CSPEED_DOWN_EDGE]->posEdge()) {
-            ChassisMotion.vy_set_org = 0;
-            v_ramp[CVRAMP_Y]->SetCurrent(0);
-        } else if (keyboard_edge[CFORWARD_EDGE]->get()) {
-            ChassisMotion.vy_set_org = v_ramp[CVRAMP_Y]->Calc(ChassisData.current_speed_offset);
-        } else if (keyboard_edge[CBACKWARD_EDGE]->get()) {
-            ChassisMotion.vy_set_org = v_ramp[CVRAMP_Y]->Calc(-ChassisData.current_speed_offset);
-        } else {
-            if (ChassisMotion.vy_set_org > 0) {
-                ChassisMotion.vy_set_org =
-                    v_ramp[CVRAMP_Y]->Calc(-ChassisData.current_speed_offset);
-            } else if (ChassisMotion.vy_set_org < 0) {
-                ChassisMotion.vy_set_org = v_ramp[CVRAMP_Y]->Calc(ChassisData.current_speed_offset);
-            }
-        }
-
-        // 旋转速度控制（Q/E 键）
-        if (ch_edge[CROTATE_EDGE]->get()) {
-            ChassisMotion.offset_yaw = rcData[CHASSIS_ROT_CH];
-        } else if (ch_edge[CROTATE_EDGE]->negEdge() || keyboard_edge[CSPEED_DOWN_EDGE]->posEdge()) {
-            ChassisMotion.offset_yaw = 0;
-            v_ramp[CVRAMP_Z]->SetCurrent(0);
-        } else if (keyboard_edge[CROTATE_LEFT_EDGE]->get()) {
-            ChassisMotion.offset_yaw = v_ramp[CVRAMP_Z]->Calc(ChassisData.current_speed_offset);
-        } else if (keyboard_edge[CROTATE_RIGHT_EDGE]->get()) {
-            ChassisMotion.offset_yaw = v_ramp[CVRAMP_Z]->Calc(-ChassisData.current_speed_offset);
-        } else {
-            if (ChassisMotion.offset_yaw > 0) {
-                ChassisMotion.offset_yaw =
-                    v_ramp[CVRAMP_Z]->Calc(-ChassisData.current_speed_offset);
-            } else if (ChassisMotion.offset_yaw < 0) {
-                ChassisMotion.offset_yaw = v_ramp[CVRAMP_Z]->Calc(ChassisData.current_speed_offset);
-            }
-        }
-
-        // 死区处理
-        if (abs(ChassisMotion.vx_set_org) < 0.05f) {
-            ChassisMotion.vx_set_org = 0;
-        }
-        if (abs(ChassisMotion.vy_set_org) < 0.05f) {
-            ChassisMotion.vy_set_org = 0;
-        }
-        if (abs(ChassisMotion.offset_yaw) < 0.05f) {
-            ChassisMotion.offset_yaw = 0;
-        }
-
-    } else {
-        if (rc_offline_start_time == 0) {
-            rc_offline_start_time = bsp::GetHighresTickMilliSec();
-        }
-
-        // 双重确认：VTM(100ms) + 应用层 (200ms) = 总共 300ms 才触发急停
-        if (bsp::GetHighresTickMilliSec() - rc_offline_start_time > APP_OFFLINE_DEBOUNCE_MS) {
-            ChassisMode = CKILLMODE;
-        }
-    }
+void kill_chassis() {
+    chassis->Disable();
 }
 
-uint8_t ChassisOnline() {
-    return RobotStatus.ChassisOnline;
-}
-
-void Power_Ctrl() {
-#ifdef HAS_REFEREE
-    chassis->UpdatePower(true, Referee_data->game_robot_status.chassis_power_limit,
-                         Referee_data->power_heat_data.chassis_power,
-                         Referee_data->power_heat_data.chassis_power_buffer);
-#else
-    chassis->UpdatePower(true, 60, battery_vol->GetBatteryVol(), 60);
-#endif
-}
-
+// ----------------------------- Main Task -----------------------------
 void ChassisTask(void* arg) {
     UNUSED(arg);
 
-    bool InitFlag = false;
-    RobotStatus.ChassisOnline = 1;
+    // 初始禁用底盘，等待条件
+    kill_chassis();
+    osDelay(1000);
 
-    chassis->Disable();
+    // 等待遥控器退出急停模式（ChassisMode 由 SysTask 根据遥控器设定）
+    while (ChassisMode == CKILLMODE) {
+        kill_chassis();
+        osDelay(5);
+    }
+
+    // 等待 IMU 校准完成
+    while (!ahrs->IsCailbrated()) {
+        osDelay(1);
+    }
+
+    // 使能底盘
+    chassis->Enable();
 
     while (true) {
+        // ----------------- 急停检查（再次确保） -----------------
         if (ChassisMode == CKILLMODE) {
-            chassis->Disable();
-            InitFlag = false;
-            osDelay(10);
+            kill_chassis();
+            while (ChassisMode == CKILLMODE) {
+                osDelay(5);
+            }
+            chassis->Enable();
             continue;
         }
 
-        if (SysStartData.GimbalInitFlag && ChassisMode == CMANUALMODE && RobotMode != RKILLMODE) {
-            InitFlag = true;
-            osDelay(10);
+        // ----------------- 获取整车速度指令（范围 -1~1）-----------------
+        float car_vx = 0, car_vy = 0, car_vt = 0;
+
+        // 优先使用摇杆（有非零输入）
+        if (fabs(rcData[CHASSIS_FB_CH]) > 0.01f ||
+            fabs(rcData[CHASSIS_LR_CH]) > 0.01f ||
+            fabs(rcData[CHASSIS_ROT_CH]) > 0.01f) {
+            float fb = get_rc_channel(CHASSIS_FB_CH);
+            float lr = get_rc_channel(CHASSIS_LR_CH);
+            float rot = get_rc_channel(CHASSIS_ROT_CH);
+
+            // 反向标志（来自 sys.h）
+            if (CHASSIS_FB_REV) fb = -fb;
+            if (CHASSIS_LR_REV) lr = -lr;
+            if (CHASSIS_ROT_REV) rot = -rot;
+
+            car_vx = fb;
+            car_vy = lr;
+            car_vt = rot;
+        } else {
+            // 键盘模式
+            const float keyboard_speed = (rcData[CSPEEDUP] > 0.5f) ? 1.0f : 0.5f;
+            const float keyboard_spin_speed = 1.0f;
+            car_vx = (rcData[CRIGHT] - rcData[CLEFT]) * keyboard_speed;
+            car_vy = (rcData[CFORWARD] - rcData[CBACKWARD]) * keyboard_speed;
+            car_vt = (rcData[CROTATERIGHT] - rcData[CROTATELEFT]) * keyboard_spin_speed;
         }
 
-        if (InitFlag) {
-            if (ChassisMode == CKILLMODE) {
-                chassis->Disable();
-                SysStartData.ChassisInitFlag = 0;
-                InitFlag = false;
-                continue;
-            }
-            SysStartData.ChassisInitFlag = 1;
-            manual_mode_pid->Reset();
-            chassis->Enable();
-            break;
-        }
-        osDelay(100);
-    }
+        // ----------------- 坐标变换（云台相对底盘角度）-----------------
+        float chassis_target_diff = yaw_motor->GetTheta() - gimbal_param->yaw_offset_;
 
-    while (true) {
-        if (ChassisMode == CKILLMODE) {
-            while (true) {
-                if (ChassisMode != CKILLMODE) {
-                    chassis->Enable();
-                    // 清除所有 Ramp 状态
-                    for (int i = 0; i < CVRAMPNUM; i++) {
-                        v_ramp[i]->SetCurrent(0);
-                    }
-                    ChassisMotion.vx_set_org = 0;
-                    ChassisMotion.vy_set_org = 0;
-                    ChassisMotion.offset_yaw = 0;
-                    RobotStatus.ChassisOnline = 1;
-                    chassis->Enable();
-                    osDelay(10);
-                    break;
-                }
-                chassis->Disable();
-                RobotStatus.ChassisOnline = 0;
-                osDelay(10);
-            }
-        }
+        float sin_yaw = arm_sin_f32(chassis_target_diff);
+        float cos_yaw = arm_cos_f32(chassis_target_diff);
+        chassis_vx = cos_yaw * car_vx + sin_yaw * car_vy;
+        chassis_vy = -sin_yaw * car_vx + cos_yaw * car_vy;
+        chassis_vt = 0;
 
-        if (ChassisMode != CKILLMODE) {
-            chassis->Enable();
-        }
-
-        RobotStatus.ChassisOnline = 1;
-
-        ChassisRCUpdate();
-
-        ChassisMotion.chassis_vx = ChassisMotion.vx_set_org * ChassisData.ratio;
-        ChassisMotion.chassis_vy = ChassisMotion.vy_set_org * ChassisData.ratio;
-        ChassisMotion.chassis_vz = ChassisMotion.offset_yaw * ChassisData.ratio;
-        ChassisMotion.vx_set = ChassisMotion.cos_yaw * ChassisMotion.chassis_vx +
-                               ChassisMotion.sin_yaw * ChassisMotion.chassis_vy;
-        ChassisMotion.vy_set = -ChassisMotion.sin_yaw * ChassisMotion.chassis_vx +
-                               ChassisMotion.cos_yaw * ChassisMotion.chassis_vy;
-
+        // ----------------- 模式特殊处理 -----------------
         switch (ChassisMode) {
-            case CKILLMODE:
+            case CMANUALMODE:
+                // 手动模式：直接使用整车指令（以云台为基准）
+                chassis_vx = car_vx;
+                chassis_vy = car_vy;
+                chassis_vt = car_vt;
                 break;
-            case CMANUALMODE: {
-                ChassisMotion.vz_set = ChassisMotion.chassis_vz;
-                Power_Ctrl();
-                osDelay(5);
-                chassis->SetSpeed(ChassisMotion.chassis_vx, ChassisMotion.chassis_vy,
-                                  ChassisMotion.vz_set);
-            } break;
             case CFOLLOWMODE: {
-                ChassisData.yaw_pid_error = yaw_motor->GetThetaDelta(gimbal_param->yaw_offset_);
-                ChassisData.manual_mode_pid_output =
-                    manual_mode_pid->ComputeOutput(ChassisData.yaw_pid_error);
-                ChassisMotion.vz_set = ChassisData.manual_mode_pid_output * ChassisData.ratio;
-                Power_Ctrl();
-                osDelay(5);
-                chassis->SetSpeed(ChassisMotion.vx_set, ChassisMotion.vy_set, ChassisMotion.vz_set);
-
-            } break;
-            case CAUTOAIMODE: {
-                ChassisMotion.vz_set = ChassisMotion.chassis_vz;
-                Power_Ctrl();
-                osDelay(5);
-                chassis->SetSpeed(ChassisMotion.chassis_vx, ChassisMotion.chassis_vy,
-                                  ChassisMotion.vz_set);
-            } break;
+                // 跟随模式：底盘旋转跟随云台方向
+                static control::ConstrainedPID* chassis_vt_pid =
+                    new control::ConstrainedPID(2 / (2 * PI), 0, 0, 0.5f, 1.0f);
+                const float angle_threshold = 0.02f;
+                float error = chassis_target_diff;
+                if (fabs(error) < angle_threshold) error = 0;
+                chassis_vt = chassis_vt_pid->ComputeOutput(error);
+                break;
+            }
             case CSPINMODE: {
-                if (ChassisMotion.offset_yaw != 0) {
-                    ChassisData.spin_speed = ChassisData.spin_speed + ChassisData.offset_yaw;
-                    ChassisData.offset_yaw = 0;
-                    ChassisData.spin_speed = clip<float>(ChassisData.spin_speed, -660, 660);
-                }
-                ChassisMotion.vz_set = ChassisData.spin_speed * ChassisData.ratio;
-                Power_Ctrl();
-                osDelay(5);
-                chassis->SetSpeed(ChassisMotion.vx_set, ChassisMotion.vy_set, ChassisMotion.vz_set);
-            } break;
+                // 小陀螺模式：旋转速度累加
+                static float spin_speed = 0;
+                spin_speed += car_vt * 0.01f;
+                spin_speed = clip<float>(spin_speed, -1.0f, 1.0f);
+                chassis_vt = spin_speed;
+                break;
+            }
+            case CAUTOAIMODE:
             default:
+                // 其他模式（自瞄等）保持变换后的速度
                 break;
         }
 
+        // ----------------- 速度限幅 + 平滑 -----------------
+        chassis_vx = clip<float>(chassis_vx, -1.0f, 1.0f) * chassis_max_xy_speed;
+        chassis_vy = clip<float>(chassis_vy, -1.0f, 1.0f) * chassis_max_xy_speed;
+        chassis_vt = clip<float>(chassis_vt, -1.0f, 1.0f) * chassis_max_t_speed;
+
+        chassis_vx = chassis_ease_vx.Calc(chassis_vx);
+        chassis_vy = chassis_ease_vy.Calc(chassis_vy);
+        chassis_vt = chassis_ease_vt.Calc(chassis_vt);
+
+        // ----------------- 发送速度 -----------------
+        chassis->SetSpeed(chassis_vx, chassis_vy, chassis_vt);
+
+        // ----------------- 功率控制（使用板载电压） -----------------
+#ifdef HAS_REFEREE
+        uint8_t buffer_percent = Referee_data->power_heat_data.chassis_power_buffer * 100 / 60;
+        uint8_t max_watt = Referee_data->game_robot_status.chassis_power_limit;
+#else
+        uint8_t buffer_percent = 50;
+        uint8_t max_watt = 100;
+#endif
+        float voltage = battery_vol ? battery_vol->GetBatteryVol() : 0.0f;
+        chassis->UpdatePower(true, max_watt, voltage, buffer_percent);
+
+        // ----------------- 控制周期 -----------------
         osDelay(5);
     }
 }

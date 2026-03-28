@@ -36,9 +36,9 @@ INS_Theta_t INSTheta;
 
 void BMI088ReceiveDone() {
     ahrs->Update(bmi088->gyro_[0], bmi088->gyro_[1], bmi088->gyro_[2], bmi088->accel_[0],
-         bmi088->accel_[1], bmi088->accel_[2]);
+                 bmi088->accel_[1], bmi088->accel_[2]);
     heater->Update(bmi088->temperature_);
-    INSTheta.pitch = -ahrs->INS_angle[1];
+    INSTheta.pitch = ahrs->INS_angle[1];
     INSTheta.yaw = ahrs->INS_angle[0];
 }
 

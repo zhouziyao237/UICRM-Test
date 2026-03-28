@@ -117,7 +117,7 @@ void RM_RTOS_Default_Task(const void* arg) {
         print("ChassisMode %d Init %d\r\n", ChassisMode, SysStartData.ChassisInitFlag);
 
         print("Chassis Motion - vx: %.2f, vy: %.2f, vz: %.2f\r\n",
-              ChassisMotion.vx_set, ChassisMotion.vy_set, ChassisMotion.vz_set);
+              chassis_vx, chassis_vy, chassis_vt);
 
 #ifdef HAS_REFEREE
 
@@ -126,11 +126,18 @@ void RM_RTOS_Default_Task(const void* arg) {
         print("Remain HP:   %d / %d\r\n",
               Referee_data->game_robot_status.remain_HP,
               Referee_data->game_robot_status.max_HP);
+        print("Power Limit: %d W\r\n\n", Referee_data->game_robot_status.chassis_power_limit);
+
+
+        print("Voltage: %d mV\r\n", Referee_data->power_heat_data.chassis_volt);
+        print("Current: %d mA\r\n", Referee_data->power_heat_data.chassis_current);
+        print("Power:   %.2f W\r\n", Referee_data->power_heat_data.chassis_power);
+        print("Buffer:  %d J\r\n\n", Referee_data->power_heat_data.chassis_power_buffer);
 
 #endif
 
         // print("Vision Target: %.3f %.3f\r\n", minipc->target_angle.target_pitch,
-        //       minipc->target_angle.target_yaw);3
+        //       minipc->target_angle.target_yaw);
         print("IMU data:\r\n");
         print("gyro: x:%.2f, y:%.2f, z:%.2f\r\n", bmi088->gyro_[0], bmi088->gyro_[1], bmi088->gyro_[2]);
         print("accel: x:%.2f, y:%.2f, z:%.2f\r\n", bmi088->accel_[0], bmi088->accel_[1],
@@ -138,8 +145,12 @@ void RM_RTOS_Default_Task(const void* arg) {
         print("INS Angle: %.3f %.3f %.3f\r\n", ahrs->INS_angle[0], ahrs->INS_angle[1],
               ahrs->INS_angle[2]);
         print("Pitch Motor %s, getPitchByMotor %.4f\r\n", pitch_motor->IsOnline() ? "Online" : "Offline", gimbal->getPitchByMotor());
-        print("Yaw Motor %s, getYawByMotor %.4f, getYaw %.4f\r\n", yaw_motor->IsOnline() ? "Online" : "Offline", gimbal->getYawByMotor(), yaw_motor->GetOutputShaftTheta());
-
-        osDelay(50);
+        print("Yaw Motor %s, getYawByMotor %.4f\r\n "
+              "getYaw %.4f, yaw_offset_ %.4f\r\n",
+              yaw_motor->IsOnline() ? "Online" : "Offline",
+              gimbal->getYawByMotor(),
+              yaw_motor->GetOutputShaftTheta(),
+              gimbal_param->yaw_offset_);
+        osDelay(100);
     }
 }
