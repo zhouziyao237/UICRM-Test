@@ -55,18 +55,17 @@ void trigger_callback(uint8_t channel, rc_key_mode_t mode) {
                 break;
             case RC_KEY_CLICK: {
                 ShootMode = SINGLESHOT;
-            }break;
-            case RC_KEY_DOUBLE_CLICK:{
+            } break;
+            case RC_KEY_DOUBLE_CLICK: {
                 ShootMode = DOUBLETAP;
-            }break;
+            } break;
             case RC_KEY_LONG_PRESS: {
                 ShootMode = RAPIDFIRE;
-            }break;
+            } break;
 
             default:
                 break;
         };
-
     }
 }
 
@@ -140,7 +139,8 @@ void ShootHeatControl() {
     uint8_t game_progress_bit = game_progress_shifted & 0x01;
 
     if (game_progress_bit == 4) {
-        uint16_t bullet_remaining_num_17mm = Referee_data->bullet_remaining.bullet_remaining_num_17mm;
+        uint16_t bullet_remaining_num_17mm =
+            Referee_data->bullet_remaining.bullet_remaining_num_17mm;
         if (bullet_remaining_num_17mm == 0) {
             print("not have bullet!\r\n");
             ShootMode = SHOOTILDE;
@@ -155,15 +155,15 @@ void ShootHeatControl() {
 
     uint16_t heat_limit = Referee_data->game_robot_status.shooter_heat_limit;
     uint16_t current_heat = Referee_data->power_heat_data.shooter_id1_17mm_cooling_heat;
-    
+
     heat_controller.Update(current_heat, heat_limit);
-    
+
     if (current_heat > heat_controller.GetSafeLimit()) {
         ShootMode = SHOOTILDE;
         print("overheat! heat: %d, limit: %d\r\n", current_heat, heat_controller.GetSafeLimit());
         osDelay(5);
     }
-    
+
     UNUSED(bullet_speed);
 
 #else
@@ -176,38 +176,20 @@ uint8_t ShootIsOnline() {
 }
 
 void ShootRCUpdata() {
-    if (RCIsOnline()) {
-        rc_offline_start_time = 0;
-
-        shoot_edge[FEMODE_EDGE_CH]->input((bool)rcData[CH_FRIC_ONOFF]);
-        shoot_edge[FEMODE_EDGE_KEYBOARD]->input((bool)rcData[KEYBORAD_FRIC_ONOFF]);
-        if (shoot_edge[FEMODE_EDGE_CH]->posEdge() || shoot_edge[FEMODE_EDGE_KEYBOARD]->posEdge()) {
-            if (FWMode == FW_MODE_OFF) {
-                FWMode = FW_MODE_ON;
-            } else if (FWMode == FW_MODE_ON) {
-                FWMode = FW_MODE_OFF;
-            }
-        }
-
-        shoot_edge[CLEAR_FEEDER_CH]->input((bool)rcData[CH_UNLOAD]);
-        shoot_edge[CLEAR_FEEDER_KEYBOARD]->input((bool)rcData[KEYBORAD_UNLOAD]);
-        if (shoot_edge[CLEAR_FEEDER_CH]->posEdge() ||
-            shoot_edge[CLEAR_FEEDER_KEYBOARD]->posEdge()) {
-            ShootMode = SUNLOADMODE;
-        }
-
-    } else {
-        // 离线计时
-        if (rc_offline_start_time == 0) {
-            rc_offline_start_time = bsp::GetHighresTickMilliSec();
-        }
-
-        // 双重确认：VTM(100ms) + 应用层 (200ms) = 总共 300ms
-        if (bsp::GetHighresTickMilliSec() - rc_offline_start_time > APP_OFFLINE_DEBOUNCE_MS) {
-            ShootMode = SKILLMODE;
+    shoot_edge[FEMODE_EDGE_CH]->input((bool)rcData[CH_FRIC_ONOFF]);
+    shoot_edge[FEMODE_EDGE_KEYBOARD]->input((bool)rcData[KEYBORAD_FRIC_ONOFF]);
+    if (shoot_edge[FEMODE_EDGE_CH]->posEdge() || shoot_edge[FEMODE_EDGE_KEYBOARD]->posEdge()) {
+        if (FWMode == FW_MODE_OFF) {
+            FWMode = FW_MODE_ON;
+        } else if (FWMode == FW_MODE_ON) {
             FWMode = FW_MODE_OFF;
         }
-        // 否则保持当前模式
+    }
+
+    shoot_edge[CLEAR_FEEDER_CH]->input((bool)rcData[CH_UNLOAD]);
+    shoot_edge[CLEAR_FEEDER_KEYBOARD]->input((bool)rcData[KEYBORAD_UNLOAD]);
+    if (shoot_edge[CLEAR_FEEDER_CH]->posEdge() || shoot_edge[CLEAR_FEEDER_KEYBOARD]->posEdge()) {
+        ShootMode = SUNLOADMODE;
     }
 }
 
@@ -248,8 +230,7 @@ void ShootTask(void* arg) {
             continue;
         }
 
-        if (SysStartData.GimbalInitFlag && ShootMode == SHOOTILDE
-            && RobotMode != RKILLMODE) {
+        if (SysStartData.GimbalInitFlag && ShootMode == SHOOTILDE && RobotMode != RKILLMODE) {
             InitFlag = true;
             osDelay(10);
         }
@@ -277,46 +258,42 @@ void ShootTask(void* arg) {
 
     while (true) {
         if (ShootMode == SKILLMODE) {
-            while (true) {
-                if (ShootMode != SKILLMODE) {
-                    FWMode = FW_MODE_OFF;
-                    for (int i = 0; i < FW_NUM; i++) {
-                        FWMotor[i]->Enable();
-                    }
-                    FeedingMotror->Enable();
-                    osDelay(10);
-                    break;
-                }
-                for (int i = 0; i < FW_NUM; i++) {
-                    FWMotor[i]->Disable();
-                }
-                FeedingMotror->Disable();
-                osDelay(10);
-            }
-        }
-
-        for (int i = 0; i < FW_NUM; i++) {
-            if (!FWMotor[i]->IsOnline() || !FeedingMotror->IsOnline()) {
-                osDelay(10);
-                ShootMode = SKILLMODE;
-                FWMode = FW_MODE_OFF;
-                RobotStatus.ShootOnline = 0;
-            }
-        }
-        if (RobotStatus.ShootOnline == 0) {
-            ShootMode = SKILLMODE;
-            FWMode = FW_MODE_OFF;
             for (int i = 0; i < FW_NUM; i++) {
                 FWMotor[i]->Disable();
             }
             FeedingMotror->Disable();
-            continue;
+            FWMode = FW_MODE_OFF;
+            while (ShootMode == SKILLMODE) {
+                osDelay(10);
+            }
+
+
+            for (int i = 0; i < FW_NUM; i++) {
+                FWMotor[i]->Enable();
+            }
+            FeedingMotror->Enable();
         }
-        RobotStatus.ShootOnline = 1;
 
         ShootRCUpdata();
 
         ShootHeatControl();
+
+        for (int i = 0; i < FW_NUM; i++) {
+            if (!FWMotor[i]->IsOnline() || !FeedingMotror->IsOnline()) {
+                osDelay(10);
+                ShootMode = SHOOTILDE;
+                FWMode = FW_MODE_OFF;
+                FWMotor[i]->Disable();
+                FeedingMotror->Disable();
+                RobotStatus.ShootOnline = 0;
+                continue;
+            } else {
+                FWMotor[i]->Enable();
+                FeedingMotror->Enable();
+                RobotStatus.ShootOnline = 1;
+            }
+        }
+
 
         switch (FWMode) {
             case FW_MODE_OFF: {
@@ -375,7 +352,8 @@ void ShootTask(void* arg) {
             } break;
             case RAPIDFIRE: {
                 uint16_t max_shots = heat_controller.GetMaxShootCount();
-                if (max_shots > 7) max_shots = 7;
+                if (max_shots > 7)
+                    max_shots = 7;
                 for (uint16_t i = 0; i < max_shots; i++) {
                     FeedingMotror->SetTarget(FeedingMotror->GetTarget() + 7 * SINGLE_FEED_THETA);
                     heat_controller.RecordShot();

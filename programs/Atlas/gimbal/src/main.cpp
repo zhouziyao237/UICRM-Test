@@ -103,12 +103,12 @@ void RM_RTOS_Default_Task(const void* arg) {
     while (true) {
         set_cursor(0, 0);
         clear_screen();
-        for (int i = 0; i < MAX_SUPPORTED_RC_CHANNEL_COUNT; i++) {
-            print("CH%d: %.3f |", i, rcData[i]);
-            if (i % 4 == 3)
-                print("\r\n");
-        }
-        print("\r\n");
+        // for (int i = 0; i < MAX_SUPPORTED_RC_CHANNEL_COUNT; i++) {
+        //     print("CH%d: %.3f |", i, rcData[i]);
+        //     if (i % 4 == 3)
+        //         print("\r\n");
+        // }
+        // print("\r\n");
 
         print("RobotMode %d Init %d\r\n", RobotMode, SysStartData.SystemInitFlag);
 

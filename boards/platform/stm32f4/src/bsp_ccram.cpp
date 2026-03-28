@@ -63,7 +63,10 @@ bool CCRAM_Init(void) {
     ccram_simple_allocator.remaining = CCRAM_SIZE;
 
     // 清零CCRAM区域的前1KB
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
     memset(ccram_manager.base_addr, 0, 1024);
+#pragma GCC diagnostic pop
 
     return true;
 }

@@ -60,6 +60,7 @@ extern volatile  RobotStatus_t RobotStatus;
  * 定义云台系统的不同工作模式，用于控制系统行为
  */
 enum GimbalMode_e {
+    GNONEMODE = -1,
     GKILLMODE = 0,      /**< 急停模式 - 系统紧急停止 */
     GMANUALMODE = 1,    /**< 手动模式 - 人工控制云台 */
     GFOLLOWMODE = 2,    /**< 跟随模式 - 跟随底盘移动 */
@@ -319,7 +320,7 @@ void InitPWMGPIO();
 #define CSPEEDDOWN KEYBOARD_CTRL_CHANNEL
 
 #define mouse_ratio 0.8
-#define remote_ratio 0.005
+#define remote_ratio 0.06
 #define MOUSE_PitchInverted true
 #define MOUSE_YawInverted false
 
@@ -332,12 +333,12 @@ void InitPWMGPIO();
 #define GIMBAL_MOUSE_Y_CH MOUSE_X_AXIS
 
 
-#define CHASSIS_FB_CH      RC_CHANNEL_ROLL   // 前进后退通道
-#define CHASSIS_LR_CH      RC_CHANNEL_PITCH  // 左右平移通道
+#define CHASSIS_FB_CH      RC_CHANNEL_PITCH   // 前进后退通道
+#define CHASSIS_LR_CH      RC_CHANNEL_ROLL  // 左右平移通道
 #define CHASSIS_ROT_CH     RC_CHANNEL_AUX1   // 旋转通道
 
-#define CHASSIS_FB_REV     true
-#define CHASSIS_LR_REV     true
+#define CHASSIS_FB_REV     false
+#define CHASSIS_LR_REV     false
 #define CHASSIS_ROT_REV    true
 
 #define ROBOMODE_SWITCH_CH CUSTOM_RIGHT_CHANNEL
