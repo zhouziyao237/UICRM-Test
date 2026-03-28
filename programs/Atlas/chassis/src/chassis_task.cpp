@@ -93,7 +93,7 @@ void init_chassis() {
 
 
     chassis_data.motors = motors;
-    chassis_data.model = control::CHASSIS_OMNI_WHEEL2;
+    chassis_data.model = control::CHASSIS_OMNI_WHEEL;
     chassis_data.power_limit_on = true;
     chassis_data.use_lqr_power_limit = true;
     chassis_data.season = control::SeasonRuleManager::SEASON_2026;
@@ -105,7 +105,7 @@ void init_chassis() {
     chassis_data.omni_wheel_setup_.chassis_radius = 20;
     chassis = new control::Chassis(chassis_data);
 
-    // chassis->SetMaxMotorSpeed(2 * 7 * PI);
+    chassis->SetMaxMotorSpeed(2 * 7 * PI);
 
     chassis->CanBridgeSetTxId(0x51);
     can_bridge->RegisterRxCallback(0x70, chassis->CanBridgeUpdateEventXYWrapper, chassis);
