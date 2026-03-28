@@ -47,8 +47,8 @@ float chassis_vt = 0;
 bsp::BatteryVol* battery_vol = nullptr;
 
 // ----------------------------- Speed Limits -----------------------------
-const float chassis_max_xy_speed = 2 * PI * 10;   // 线速度上限 10圈/s
-const float chassis_max_t_speed = 2 * PI * 5;     // 旋转速度上限 5圈/s
+const float chassis_max_xy_speed = 2 * PI * 30;   // 线速度上限 10圈/s
+const float chassis_max_t_speed = 2 * PI * 20;     // 旋转速度上限 5圈/s
 
 // ----------------------------- Ease -----------------------------
 static Ease chassis_ease_vx(0, 0.9f);
@@ -167,10 +167,11 @@ void ChassisTask(void* arg) {
                 break;
             }
             case CSPINMODE: {
+                +
                 // 小陀螺模式：旋转速度累加
                 static float spin_speed = 0;
-                spin_speed += car_vt * 0.01f;
-                spin_speed = clip<float>(spin_speed, -1.0f, 1.0f);
+                spin_speed += car_vt * 0.1f;
+                spin_speed = clip<float>(spin_speed, -6.0f, 6.0f);
                 chassis_vt = spin_speed;
                 break;
             }
