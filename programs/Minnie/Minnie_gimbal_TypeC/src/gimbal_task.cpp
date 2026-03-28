@@ -229,7 +229,7 @@ void init_gimbal() {
     /**
      * pitch motor
      */
-    pitch_motor = new driver::Motor6020(can1, 0x205, 0x1FF);
+    pitch_motor = new driver::Motor6020(can2, 0x204);
     pitch_motor->SetTransmissionRatio(1);
     control::ConstrainedPID::PID_Init_t pitch_motor_theta_pid_init = {
         .kp = 60,
@@ -272,7 +272,7 @@ void init_gimbal() {
     /**
      * yaw motor
      */
-    yaw_motor = new driver::Motor6020(can1, 0x206, 0x1FF);
+    yaw_motor = new driver::Motor6020(can1, 0x205);
     yaw_motor->SetTransmissionRatio(1);
     control::ConstrainedPID::PID_Init_t yaw_motor_theta_pid_init = {
         .kp = 60,

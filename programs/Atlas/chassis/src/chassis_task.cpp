@@ -91,24 +91,24 @@ void init_chassis() {
     // 底盘初始化
     control::chassis_t chassis_data;
 
+
     chassis_data.motors = motors;
-    chassis_data.model = control::CHASSIS_OMNI_WHEEL;
+    chassis_data.model = control::CHASSIS_OMNI_WHEEL2;
     chassis_data.power_limit_on = true;
     chassis_data.use_lqr_power_limit = true;
     chassis_data.season = control::SeasonRuleManager::SEASON_2026;
     chassis_data.blood_priority = true;
 
-    chassis_data.model = control::CHASSIS_OMNI_WHEEL;
     chassis_data.omni_wheel_setup_.Center_point_angle = 45;
     chassis_data.omni_wheel_setup_.Wheel_angle_a = 45;
     chassis_data.omni_wheel_setup_.Wheel_angle_b = 45;
-    chassis_data.omni_wheel_setup_.chassis_radius = 0.2f;
+    chassis_data.omni_wheel_setup_.chassis_radius = 20;
     chassis = new control::Chassis(chassis_data);
 
     // chassis->SetMaxMotorSpeed(2 * 7 * PI);
 
     chassis->CanBridgeSetTxId(0x51);
-    can_bridge->RegisterRxCallback(0x69, chassis->CanBridgeUpdateEventXYWrapper, chassis);
+    can_bridge->RegisterRxCallback(0x70, chassis->CanBridgeUpdateEventXYWrapper, chassis);
     can_bridge->RegisterRxCallback(0x71, chassis->CanBridgeUpdateEventTurnWrapper, chassis);
     can_bridge->RegisterRxCallback(0x72, chassis->CanBridgeUpdateEventPowerLimitWrapper, chassis);
     can_bridge->RegisterRxCallback(0x73, chassis->CanBridgeUpdateEventCurrentPowerWrapper, chassis);

@@ -104,7 +104,7 @@ void InitMinipcUSB() {
 
 void InitLOGPort() {
 #ifdef LOGPort
-    print_use_uart(&LOGPort, true, 921600);
+    print_use(LOGPort, true);
 #endif
 }
 
@@ -169,9 +169,9 @@ void InitPWMGPIO() {
 // ---------------------------- sys Init Code ----------------------------
 
 void InitRMSys() {
+    InitRCUart();
     InitLOGPort();
     InitCAN();
-    InitRCUart();
     InitRefereeUart();
     InitMinipcUSB();
 
@@ -186,7 +186,7 @@ void InitRMSys() {
 
 osThreadId_t SysTaskHandle;
 
-volatile RobotMode_e RobotMode = RMANUALMODE;
+volatile RobotMode_e RobotMode = RKILLMODE;
 volatile RobotMode_e LastRobotMode = RMANUALMODE;
 
 BoolEdgeDetector* RoboModeSwitch_CH = nullptr;
@@ -197,7 +197,7 @@ bool is_killed = false;
 bool is_robot_dead = false;
 bool is_shoot_available = false;
 
-const int8_t remote_mode_max = 4;
+const int8_t remote_mode_max = 3;
 const int8_t remote_mode_min = 1;
 
 BoolEdgeDetector* game_start_edge = nullptr;
@@ -219,11 +219,6 @@ void SwitchRobotMode() {
             GimbalMode = GMANUALMODE;
             ShootMode = SHOOTILDE;
         } break;
-        case RAUTOMODE: {
-            ChassisMode = CMANUALMODE;
-            GimbalMode = GAUTOAIMODE;
-            ShootMode = SHOOTILDE;
-        } break;
         case RSPINMODE: {
             ChassisMode = CSPINMODE;
             GimbalMode = GSPINMODE;
@@ -234,8 +229,13 @@ void SwitchRobotMode() {
             GimbalMode = GFOLLOWMODE;
             ShootMode = SHOOTILDE;
         } break;
+        case RAUTOAIMODE: {
+            ChassisMode = CMANUALMODE;
+            GimbalMode = GAUTOAIMODE;
+            ShootMode = SHOOTILDE;
+        } break;
         default:
-            break;
+        break;
     }
 }
 
@@ -282,19 +282,21 @@ void SysTask(void* arg) {
 
     osDelay(500);
     Buzzer_Sing(DJI);
+    RobotMode = RMANUALMODE;
 
     while (true) {
         rc_offline = !RCIsOnline();
 
 #ifdef HAS_REFEREE
+        // 修复：正确使用边沿检测器
         game_start_edge->input(Referee_data->game_status.game_progress == 4);
-        if (game_start_edge && RefereeIsOnline()) {
-             is_robot_dead =
-            Referee_data->game_robot_status.remain_HP == 0 || rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
-        }else {
+        if (game_start_edge->get() && RefereeIsOnline()) {
+            is_robot_dead = Referee_data->game_robot_status.remain_HP == 0 ||
+                            rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
+        } else {
             is_robot_dead = rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
         }
-       #else
+#else
         is_robot_dead = rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
 #endif
 
@@ -350,7 +352,6 @@ void SysTask(void* arg) {
             SwitchRobotMode();
         }
 
-
-        osDelay(1);
+        osDelay(10);
     }
 }

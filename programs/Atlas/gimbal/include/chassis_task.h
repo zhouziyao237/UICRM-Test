@@ -85,12 +85,13 @@ extern ChassisPID manual_theta_pid_init;
 extern control::ConstrainedPID* manual_mode_pid;
 
 struct ChassisData_t {
-    float ratio = 1.0f / 660.0f * 10 * PI;
+    float chassis_max_xy_speed = 2 * PI * 10;
+    float chassis_max_t_speed = 2 * PI * 5;
     float offset_yaw = 0;
-    float spin_speed = 350;
+    float spin_speed = 0;
     float yaw_pid_error = 0;
-    float manual_mode_pid_output = 0;
-    float current_speed_offset = 330.0f;
+    float chassis_vt_pid = 0;
+    float current_speed_offset = 0.0f;
 };
 
 extern ChassisData_t ChassisData;
@@ -105,15 +106,12 @@ struct ChassisMotion_t {
     float vy_set_org = 0;  // Y 方向原始设定速度
     float offset_yaw = 0;
 
-    // 设定速度（经过处理）
-    float vx_set = 0;      // X 方向设定速度
-    float vy_set = 0;      // Y 方向设定速度
-    float vz_set = 0;      // 旋转方向设定速度
-
     // 实际反馈速度
     float chassis_vx = 0;  // X 方向实际速度
     float chassis_vy = 0;  // Y 方向实际速度
     float chassis_vz = 0;  // 旋转方向实际速度
+
+    float chassis_yaw_diff = 0;
 };
 
 extern ChassisMotion_t ChassisMotion;

@@ -29,7 +29,7 @@ osThreadId_t ChassisTaskHandle;
 
 ChassisRegConfig_t ChassisRegConfig = {.tx_id = 0x51,
                                        .rx_id = 0x52,
-                                       .xy_reg_id = 0x69,
+                                       .xy_reg_id = 0x70,
                                        .turn_on_reg_id = 0x71,
                                        .power_limit_reg_id = 0x72,
                                        .current_power_reg_id = 0x73};
@@ -39,9 +39,9 @@ control::ChassisCanBridgeSender* chassis = nullptr;
 // --------------------------- Chassis data code -------------------------
 
 ChassisPID manual_theta_pid_init = {
-    .kp = 400,
-    .ki = 0.5,
-    .kd = 20,
+    .kp = 200,
+    .ki = 0,
+    .kd = 1600,
     .max_out = 500,
     .max_iout = 100,
 };
@@ -50,7 +50,6 @@ control::ConstrainedPID* manual_mode_pid = nullptr;
 float chassis_max[CVRAMPNUM] = {chassis_vx_max, chassis_vy_max, chassis_vz_max};
 RampSource* v_ramp[CVRAMPNUM] = {nullptr};
 BoolEdgeDetector* keyboard_edge[CKEY_EDGE_NUM] = {nullptr};
-BoolEdgeDetector* ch_edge[CCH_EDGE_NUM] = {nullptr};
 bsp::BatteryVol* battery_vol = nullptr;
 ChassisMotion_t ChassisMotion;
 
@@ -63,10 +62,6 @@ void InitChassis() {
 
     for (int i = 0; i < CKEY_EDGE_NUM; i++) {
         keyboard_edge[i] = new BoolEdgeDetector(false);
-    }
-
-    for (int i = 0; i < CCH_EDGE_NUM; i++) {
-        ch_edge[i] = new BoolEdgeDetector(false);
     }
 
     manual_mode_pid = new control::ConstrainedPID(
@@ -88,17 +83,8 @@ void ChassisRCUpdate() {
         rc_offline_start_time = 0;
 
         // 更新按键边沿检测
-        if (rcData[CFORWARD] || rcData[CLEFT] || rcData[CBACKWARD] || rcData[CRIGHT] ||
-            rcData[CROTATELEFT] || rcData[CROTATERIGHT] || rcData[CSPEEDUP] || rcData[CSPEEDDOWN]) {
-            keyboard_edge[CFORWARD_EDGE]->input(rcData[CFORWARD]);
-            keyboard_edge[CLEFT_EDGE]->input(rcData[CLEFT]);
-            keyboard_edge[CBACKWARD_EDGE]->input(rcData[CBACKWARD]);
-            keyboard_edge[CRIGHT_EDGE]->input(rcData[CRIGHT]);
-            keyboard_edge[CROTATE_LEFT_EDGE]->input(rcData[CROTATELEFT]);
-            keyboard_edge[CROTATE_RIGHT_EDGE]->input(rcData[CROTATERIGHT]);
-            keyboard_edge[CSPEED_UP_EDGE]->input(rcData[CSPEEDUP]);
-            keyboard_edge[CSPEED_DOWN_EDGE]->input(rcData[CSPEEDDOWN]);
-        } else {
+        if (rcData[CHASSIS_FB_CH] || rcData[CHASSIS_LR_CH] || rcData[CHASSIS_ROT_CH]) {
+
             // 摇杆模式（带反向）
             if (CHASSIS_FB_REV) {
                 rcData[CHASSIS_FB_CH] = -rcData[CHASSIS_FB_CH];
@@ -110,85 +96,31 @@ void ChassisRCUpdate() {
                 rcData[CHASSIS_ROT_CH] = -rcData[CHASSIS_ROT_CH];
             }
 
-            // 显式转换为布尔值
-            ch_edge[CFB_EDGE]->input(rcData[CHASSIS_FB_CH] != 0);
-            ch_edge[CLR_EDGE]->input(rcData[CHASSIS_LR_CH] != 0);
-            ch_edge[CROTATE_EDGE]->input(rcData[CHASSIS_ROT_CH] != 0);
+                ChassisMotion.vx_set_org = (float)rcData[CHASSIS_FB_CH] / 660;
+                ChassisMotion.vy_set_org = (float)rcData[CHASSIS_LR_CH] / 660;
+                // ChassisMotion.offset_yaw = (float)rcData[CHASSIS_ROT_CH] / 660;
+
+
+        } else if (rcData[CFORWARD] || rcData[CLEFT] || rcData[CBACKWARD] || rcData[CRIGHT] ||
+            rcData[CROTATELEFT] || rcData[CROTATERIGHT] || rcData[CSPEEDUP] || rcData[CSPEEDDOWN]){
+
+            // keyboard_edge[CFORWARD_EDGE]->input(rcData[CFORWARD]);
+            // keyboard_edge[CLEFT_EDGE]->input(rcData[CLEFT]);
+            // keyboard_edge[CBACKWARD_EDGE]->input(rcData[CBACKWARD]);
+            // keyboard_edge[CRIGHT_EDGE]->input(rcData[CRIGHT]);
+            // keyboard_edge[CROTATE_LEFT_EDGE]->input(rcData[CROTATELEFT]);
+            // keyboard_edge[CROTATE_RIGHT_EDGE]->input(rcData[CROTATERIGHT]);
+            // keyboard_edge[CSPEED_UP_EDGE]->input(rcData[CSPEEDUP]);
+            // keyboard_edge[CSPEED_DOWN_EDGE]->input(rcData[CSPEEDDOWN]);
+            //
+            // const float keyboard_speed = keyboard_edge[CSPEED_UP_EDGE] ? 1 : 0.5;
+            // const float keyboard_spin_speed = 1;
+            // ChassisMotion.vx_set_org = (keyboard_edge[CRIGHT_EDGE] - keyboard_edge[CLEFT_EDGE]) * keyboard_speed;
+            // ChassisMotion.vy_set_org = (keyboard_edge[CFORWARD_EDGE] - keyboard_edge[CBACKWARD_EDGE]) * keyboard_speed;
+            // ChassisMotion.offset_yaw = (keyboard_edge[CROTATE_RIGHT_EDGE] - keyboard_edge[CROTATE_LEFT_EDGE]) * keyboard_spin_speed;
+
         }
 
-        // 云台和底盘的角度差
-        float relative_angle = yaw_motor->GetThetaDelta(gimbal_param->yaw_offset_);
-        // 底盘以底盘自己为基准的运动速度
-        ChassisMotion.sin_yaw = arm_sin_f32(relative_angle);
-        ChassisMotion.cos_yaw = arm_cos_f32(relative_angle);
-
-        // 前进速度控制（A/D 键）
-        if (ch_edge[CFB_EDGE]->get()) {
-            ChassisMotion.vx_set_org = rcData[CHASSIS_FB_CH];
-        } else if (ch_edge[CFB_EDGE]->negEdge() || keyboard_edge[CSPEED_DOWN_EDGE]->posEdge()) {
-            ChassisMotion.vx_set_org = 0;
-            v_ramp[CVRAMP_X]->SetCurrent(0);
-        } else if (keyboard_edge[CRIGHT_EDGE]->get()) {
-            ChassisMotion.vx_set_org = v_ramp[CVRAMP_X]->Calc(ChassisData.current_speed_offset);
-        } else if (keyboard_edge[CLEFT_EDGE]->get()) {
-            ChassisMotion.vx_set_org = v_ramp[CVRAMP_X]->Calc(-ChassisData.current_speed_offset);
-        } else {
-            if (ChassisMotion.vx_set_org > 0) {
-                ChassisMotion.vx_set_org =
-                    v_ramp[CVRAMP_X]->Calc(-ChassisData.current_speed_offset);
-            } else if (ChassisMotion.vx_set_org < 0) {
-                ChassisMotion.vx_set_org = v_ramp[CVRAMP_X]->Calc(ChassisData.current_speed_offset);
-            }
-        }
-
-        // 平移速度控制（W/S 键）
-        if (ch_edge[CLR_EDGE]->get()) {
-            ChassisMotion.vy_set_org = rcData[CHASSIS_LR_CH];
-        } else if (ch_edge[CLR_EDGE]->negEdge() || keyboard_edge[CSPEED_DOWN_EDGE]->posEdge()) {
-            ChassisMotion.vy_set_org = 0;
-            v_ramp[CVRAMP_Y]->SetCurrent(0);
-        } else if (keyboard_edge[CFORWARD_EDGE]->get()) {
-            ChassisMotion.vy_set_org = v_ramp[CVRAMP_Y]->Calc(ChassisData.current_speed_offset);
-        } else if (keyboard_edge[CBACKWARD_EDGE]->get()) {
-            ChassisMotion.vy_set_org = v_ramp[CVRAMP_Y]->Calc(-ChassisData.current_speed_offset);
-        } else {
-            if (ChassisMotion.vy_set_org > 0) {
-                ChassisMotion.vy_set_org =
-                    v_ramp[CVRAMP_Y]->Calc(-ChassisData.current_speed_offset);
-            } else if (ChassisMotion.vy_set_org < 0) {
-                ChassisMotion.vy_set_org = v_ramp[CVRAMP_Y]->Calc(ChassisData.current_speed_offset);
-            }
-        }
-
-        // 旋转速度控制（Q/E 键）
-        if (ch_edge[CROTATE_EDGE]->get()) {
-            ChassisMotion.offset_yaw = rcData[CHASSIS_ROT_CH];
-        } else if (ch_edge[CROTATE_EDGE]->negEdge() || keyboard_edge[CSPEED_DOWN_EDGE]->posEdge()) {
-            ChassisMotion.offset_yaw = 0;
-            v_ramp[CVRAMP_Z]->SetCurrent(0);
-        } else if (keyboard_edge[CROTATE_LEFT_EDGE]->get()) {
-            ChassisMotion.offset_yaw = v_ramp[CVRAMP_Z]->Calc(ChassisData.current_speed_offset);
-        } else if (keyboard_edge[CROTATE_RIGHT_EDGE]->get()) {
-            ChassisMotion.offset_yaw = v_ramp[CVRAMP_Z]->Calc(-ChassisData.current_speed_offset);
-        } else {
-            if (ChassisMotion.offset_yaw > 0) {
-                ChassisMotion.offset_yaw =
-                    v_ramp[CVRAMP_Z]->Calc(-ChassisData.current_speed_offset);
-            } else if (ChassisMotion.offset_yaw < 0) {
-                ChassisMotion.offset_yaw = v_ramp[CVRAMP_Z]->Calc(ChassisData.current_speed_offset);
-            }
-        }
-
-        // 死区处理
-        if (abs(ChassisMotion.vx_set_org) < 0.05f) {
-            ChassisMotion.vx_set_org = 0;
-        }
-        if (abs(ChassisMotion.vy_set_org) < 0.05f) {
-            ChassisMotion.vy_set_org = 0;
-        }
-        if (abs(ChassisMotion.offset_yaw) < 0.05f) {
-            ChassisMotion.offset_yaw = 0;
-        }
 
     } else {
         if (rc_offline_start_time == 0) {
@@ -208,9 +140,11 @@ uint8_t ChassisOnline() {
 
 void Power_Ctrl() {
 #ifdef HAS_REFEREE
-    chassis->UpdatePower(true, Referee_data->game_robot_status.chassis_power_limit,
-                         Referee_data->power_heat_data.chassis_power,
-                         Referee_data->power_heat_data.chassis_power_buffer);
+    chassis->UpdatePower(true,
+        Referee_data->game_robot_status.chassis_power_limit - 5,
+        battery_vol->GetBatteryVol(),
+        Referee_data->power_heat_data.chassis_power_buffer);
+
 #else
     chassis->UpdatePower(true, 60, battery_vol->GetBatteryVol(), 60);
 #endif
@@ -283,56 +217,74 @@ void ChassisTask(void* arg) {
 
         ChassisRCUpdate();
 
-        ChassisMotion.chassis_vx = ChassisMotion.vx_set_org * ChassisData.ratio;
-        ChassisMotion.chassis_vy = ChassisMotion.vy_set_org * ChassisData.ratio;
-        ChassisMotion.chassis_vz = ChassisMotion.offset_yaw * ChassisData.ratio;
-        ChassisMotion.vx_set = ChassisMotion.cos_yaw * ChassisMotion.chassis_vx +
-                               ChassisMotion.sin_yaw * ChassisMotion.chassis_vy;
-        ChassisMotion.vy_set = -ChassisMotion.sin_yaw * ChassisMotion.chassis_vx +
-                               ChassisMotion.cos_yaw * ChassisMotion.chassis_vy;
+        // 云台和底盘的角度差
+        ChassisMotion.chassis_yaw_diff = yaw_motor->GetThetaDelta(gimbal_param->yaw_offset_);
+
+        // 底盘以底盘自己为基准的运动速度
+        ChassisMotion.sin_yaw = arm_sin_f32(ChassisMotion.chassis_yaw_diff);
+        ChassisMotion.cos_yaw = arm_cos_f32(ChassisMotion.chassis_yaw_diff);
+        ChassisMotion.chassis_vx = ChassisMotion.cos_yaw * ChassisMotion.vx_set_org + ChassisMotion.sin_yaw * ChassisMotion.vy_set_org;
+        ChassisMotion.chassis_vy = -ChassisMotion.sin_yaw * ChassisMotion.vx_set_org + ChassisMotion.cos_yaw * ChassisMotion.vy_set_org;
+        ChassisMotion.chassis_vz = 0;
+
 
         switch (ChassisMode) {
             case CKILLMODE:
                 break;
             case CMANUALMODE: {
-                ChassisMotion.vz_set = ChassisMotion.chassis_vz;
-                Power_Ctrl();
-                osDelay(5);
-                chassis->SetSpeed(ChassisMotion.chassis_vx, ChassisMotion.chassis_vy,
-                                  ChassisMotion.vz_set);
+                ChassisMotion.chassis_vx = ChassisMotion.vx_set_org;
+                ChassisMotion.chassis_vy = ChassisMotion.vy_set_org;
+                ChassisMotion.chassis_vz = ChassisMotion.offset_yaw;
             } break;
             case CFOLLOWMODE: {
-                ChassisData.yaw_pid_error = yaw_motor->GetThetaDelta(gimbal_param->yaw_offset_);
-                ChassisData.manual_mode_pid_output =
-                    manual_mode_pid->ComputeOutput(ChassisData.yaw_pid_error);
-                ChassisMotion.vz_set = ChassisData.manual_mode_pid_output * ChassisData.ratio;
-                Power_Ctrl();
-                osDelay(5);
-                chassis->SetSpeed(ChassisMotion.vx_set, ChassisMotion.vy_set, ChassisMotion.vz_set);
+                // 读取底盘和云台yaw轴角度差，控制底盘转向云台的方向
+                const float angle_threshold = 0.02f;
+                ChassisData.yaw_pid_error = ChassisMotion.chassis_yaw_diff;
+                if (fabs(ChassisData.yaw_pid_error) < angle_threshold) {
+                    ChassisData.yaw_pid_error = 0;
+                }
+
+                ChassisData.chassis_vt_pid = manual_mode_pid->ComputeOutput(ChassisData.yaw_pid_error);
+                if (ChassisData.yaw_pid_error != 0)
+                    ChassisMotion.chassis_vz = ChassisData.chassis_vt_pid;
 
             } break;
             case CAUTOAIMODE: {
-                ChassisMotion.vz_set = ChassisMotion.chassis_vz;
-                Power_Ctrl();
-                osDelay(5);
-                chassis->SetSpeed(ChassisMotion.chassis_vx, ChassisMotion.chassis_vy,
-                                  ChassisMotion.vz_set);
+                ChassisMotion.chassis_vx = ChassisMotion.vx_set_org;
+                ChassisMotion.chassis_vy = ChassisMotion.vy_set_org;
+                ChassisMotion.chassis_vz = ChassisMotion.offset_yaw;
             } break;
             case CSPINMODE: {
-                if (ChassisMotion.offset_yaw != 0) {
-                    ChassisData.spin_speed = ChassisData.spin_speed + ChassisData.offset_yaw;
-                    ChassisData.offset_yaw = 0;
-                    ChassisData.spin_speed = clip<float>(ChassisData.spin_speed, -660, 660);
-                }
-                ChassisMotion.vz_set = ChassisData.spin_speed * ChassisData.ratio;
-                Power_Ctrl();
-                osDelay(5);
-                chassis->SetSpeed(ChassisMotion.vx_set, ChassisMotion.vy_set, ChassisMotion.vz_set);
+
+                // 小陀螺模式，拨盘用来控制底盘加速度
+                static float spin_speed = 0.5;
+                spin_speed = spin_speed + ChassisMotion.offset_yaw * 0.01;
+                spin_speed = clip<float>(spin_speed, -1, 1);
+                ChassisMotion.chassis_vz = spin_speed;
+
             } break;
             default:
                 break;
         }
 
+        // 进行缩放
+        ChassisMotion.chassis_vx *= ChassisData.chassis_max_xy_speed;
+        ChassisMotion.chassis_vy *= ChassisData.chassis_max_xy_speed;
+        ChassisMotion.offset_yaw *= ChassisData.chassis_max_t_speed;
+
+        static const float move_ease_ratio = 1.8;
+        static const float turn_ease_ratio = 0.9;
+        static Ease chassis_ease_vx(0, move_ease_ratio);
+        static Ease chassis_ease_vy(0, move_ease_ratio);
+        static Ease chassis_ease_vt(0, turn_ease_ratio);
+        ChassisMotion.chassis_vx = chassis_ease_vx.Calc(ChassisMotion.chassis_vx);
+        ChassisMotion.chassis_vy = chassis_ease_vy.Calc(ChassisMotion.chassis_vy);
+        ChassisMotion.offset_yaw = chassis_ease_vt.Calc(ChassisMotion.offset_yaw);
+
+        Power_Ctrl();
+        osDelay(5);
+        chassis->SetSpeed(ChassisMotion.chassis_vx, ChassisMotion.chassis_vy,
+                          ChassisMotion.chassis_vz);
         osDelay(5);
     }
 }

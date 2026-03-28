@@ -58,7 +58,7 @@ void RestartRC(int stage) {
             break;
 
         case 1:  // 子功能：只复位摇杆
-            for (int i = 0; i < 6; i++) rcData[i] = 1500.0f;
+            for (int i = 0; i < 6; i++) rcData[i] = 0.0f;
             break;
 
         case 2:  // 子功能：只复位开关按键

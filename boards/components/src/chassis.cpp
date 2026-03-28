@@ -158,9 +158,8 @@ namespace control {
                 break;
             }
             case CHASSIS_OMNI_WHEEL2: {
-                float scale = 1;
                 float move_sum = fabs(x_speed) + fabs(y_speed) + fabs(turn_speed);
-                scale = move_sum > max_motor_speed_ ? max_motor_speed_ / move_sum : 1.0f;
+                float scale = move_sum > max_motor_speed_ ? max_motor_speed_ / move_sum : 1.0f;
 
                 speeds_[FourWheel::front_left] =
                     scale * (-x_speed * cos(omni_wheel_setup_.Wheel_angle_a) + y_speed * sin(omni_wheel_setup_.Wheel_angle_b) + omni_wheel_setup_.chassis_radius *turn_speed);  // 1
@@ -239,6 +238,13 @@ namespace control {
         switch (model_) {
             case CHASSIS_MECANUM_WHEEL:
             case CHASSIS_OMNI_WHEEL: {
+                motors_[FourWheel::front_left]->SetTarget(speeds_[FourWheel::front_left]);
+                motors_[FourWheel::front_right]->SetTarget(speeds_[FourWheel::front_right]);
+                motors_[FourWheel::back_left]->SetTarget(speeds_[FourWheel::back_left]);
+                motors_[FourWheel::back_right]->SetTarget(speeds_[FourWheel::back_right]);
+                break;
+            }
+            case CHASSIS_OMNI_WHEEL2: {
                 motors_[FourWheel::front_left]->SetTarget(speeds_[FourWheel::front_left]);
                 motors_[FourWheel::front_right]->SetTarget(speeds_[FourWheel::front_right]);
                 motors_[FourWheel::back_left]->SetTarget(speeds_[FourWheel::back_left]);

@@ -57,15 +57,15 @@ const osThreadAttr_t GimbalTaskAttribute = {
 inline control::ConstrainedPID::PID_Init_t pitch_theta_pid_init = {
     .kp = 120,
     .ki = 0,
-    .kd = 58,
+    .kd = 580,
     .max_out = 15 * PI,
     .max_iout = 0,
-    .deadband = 0,                                 // 死区
-    .A = 0,                                        // 变速积分所能达到的最大值为A+B
-    .B = 0,                                        // 启动变速积分的死区
-    .output_filtering_coefficient = 0.1,           // 输出滤波系数
-    .derivative_filtering_coefficient = 0,         // 微分滤波系数
-    .mode = control::ConstrainedPID::OutputFilter  // 输出滤波
+    .deadband = 0,
+    .A = 0,
+    .B = 0,
+    .output_filtering_coefficient = 0.1,
+    .derivative_filtering_coefficient = 0,
+    .mode = control::ConstrainedPID::OutputFilter
 };
 
 inline control::ConstrainedPID::PID_Init_t pitch_omega_pid_init = {
@@ -74,47 +74,47 @@ inline control::ConstrainedPID::PID_Init_t pitch_omega_pid_init = {
     .kd = 2500,
     .max_out = 30000,
     .max_iout = 10000,
-    .deadband = 0,                          // 死区
-    .A = 1.5 * PI,                            // 变速积分所能达到的最大值为A+B
-    .B = 1 * PI,                            // 启动变速积分的死区
-    .output_filtering_coefficient = 0.1,    // 输出滤波系数
-    .derivative_filtering_coefficient = 0,  // 微分滤波系数
-    .mode = control::ConstrainedPID::Integral_Limit |       // 积分限幅
-            control::ConstrainedPID::OutputFilter |         // 输出滤波
-            control::ConstrainedPID::Trapezoid_Intergral |  // 梯形积分
-            control::ConstrainedPID::ChangingIntegralRate,  // 变速积分
+    .deadband = 0,
+    .A = 1.5 * PI,
+    .B = 1 * PI,
+    .output_filtering_coefficient = 0.1,
+    .derivative_filtering_coefficient = 0,
+    .mode = control::ConstrainedPID::Integral_Limit |
+            control::ConstrainedPID::OutputFilter |
+            control::ConstrainedPID::Trapezoid_Intergral |
+            control::ConstrainedPID::ChangingIntegralRate,
 };
 
 // ---------------------------- Yaw Motor data code --------------------------
 inline control::ConstrainedPID::PID_Init_t yaw_theta_pid_init = {
-    .kp = 20,
+    .kp = 60,
     .ki = 0,
-    .kd = 0,
+    .kd = 4000,
     .max_out = 6 * PI,
     .max_iout = 0,
-    .deadband = 0,                                 // 死区
-    .A = 0,                                        // 变速积分所能达到的最大值为A+B
-    .B = 0,                                        // 启动变速积分的死区
-    .output_filtering_coefficient = 0.1,           // 输出滤波系数
-    .derivative_filtering_coefficient = 0,         // 微分滤波系数
-    .mode = control::ConstrainedPID::OutputFilter  // 输出滤波
+    .deadband = 0,
+    .A = 0,
+    .B = 0,
+    .output_filtering_coefficient = 0.1,
+    .derivative_filtering_coefficient = 0,
+    .mode = control::ConstrainedPID::OutputFilter
 };
 
 inline control::ConstrainedPID::PID_Init_t yaw_omega_pid_init = {
-    .kp = 2500,
-    .ki = 3,
+    .kp = 1500,
+    .ki = 0,
     .kd = 0,
-    .max_out = 30000,
-    .max_iout = 10000,
-    .deadband = 0,                                          // 死区
-    .A = 1.5 * PI,                                          // 变速积分所能达到的最大值为A+B
-    .B = 1 * PI,                                            // 启动变速积分的死区
-    .output_filtering_coefficient = 0.1,                    // 输出滤波系数
-    .derivative_filtering_coefficient = 0,                  // 微分滤波系数
-    .mode = control::ConstrainedPID::Integral_Limit |       // 积分限幅
-            control::ConstrainedPID::OutputFilter |         // 输出滤波
-            control::ConstrainedPID::Trapezoid_Intergral |  // 梯形积分
-            control::ConstrainedPID::ChangingIntegralRate,  // 变速积分
+    .max_out = 16384,
+    .max_iout = 2000,
+    .deadband = 0,
+    .A = 0.5 * PI,
+    .B = 0.5 * PI,
+    .output_filtering_coefficient = 0.1,
+    .derivative_filtering_coefficient = 0,
+    .mode = control::ConstrainedPID::Integral_Limit |
+            control::ConstrainedPID::OutputFilter |
+            control::ConstrainedPID::Trapezoid_Intergral |
+            control::ConstrainedPID::ChangingIntegralRate,
 };
 
 // ----------------------------- Gimbal data code -----------------------------
@@ -127,7 +127,7 @@ extern control::gimbal_data_t* gimbal_param;
 typedef struct{
     float pitch_ratio;
     float yaw_ratio;
-}GimbalRatio_t;
+} GimbalRatio_t;
 extern GimbalRatio_t GimbalRatio;
 
 // ----------------------------- Gimbal Main code -----------------------------

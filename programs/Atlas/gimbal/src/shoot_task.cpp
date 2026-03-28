@@ -40,7 +40,8 @@ BoolEdgeDetector* shoot_edge[SEDGENUM] = {nullptr};
 
 StallDetection stall_detector;
 
-control::HeatController heat_controller(HEAT_SHOOTER_TYPE);
+// control::HeatController heat_controller(HEAT_SHOOTER_TYPE);
+control::HeatController heat_controller(SHOOTER_TYPE_COOL);
 
 // --------------------------- Shoot Callback code ---------------------------
 
@@ -128,11 +129,11 @@ void unloadAmmo() {
 
 void ShootHeatControl() {
 #ifdef HAS_REFEREE
-    bool is_shoot_available = Referee_data->game_robot_status.mains_power_shooter_output != 0;
-    if (!is_shoot_available) {
-        ShootMode = SHOOTILDE;
-        return;
-    }
+    // bool is_shoot_available = Referee_data->game_robot_status.mains_power_shooter_output != 0;
+    // if (!is_shoot_available) {
+    //     ShootMode = SHOOTILDE;
+    //     return;
+    // }
 
     uint8_t game_progress = Referee_data->game_status.game_progress;
     uint16_t game_progress_shifted = game_progress >> 3;
@@ -159,7 +160,7 @@ void ShootHeatControl() {
     
     if (current_heat > heat_controller.GetSafeLimit()) {
         ShootMode = SHOOTILDE;
-        print("overheat! heat: %d, limit: %d\n", current_heat, heat_controller.GetSafeLimit());
+        print("overheat! heat: %d, limit: %d\r\n", current_heat, heat_controller.GetSafeLimit());
         osDelay(5);
     }
     

@@ -183,8 +183,8 @@ namespace remote {
          */
         vtm_keyboard_t keyboard;
 
-        static const int16_t ROCKER_MIN = -660;
-        static const int16_t ROCKER_MAX = 660;
+        static const int16_t ROCKER_MIN = VTM_ROCKER_MIN;
+        static const int16_t ROCKER_MAX = VTM_ROCKER_MAX;
 
         uint32_t timestamp;
 

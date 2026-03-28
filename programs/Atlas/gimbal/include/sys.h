@@ -123,9 +123,9 @@ extern volatile ShootMode_e ShootMode;
 enum RobotMode_e {
     RKILLMODE = 0,      /**< 急停模式 - 整机紧急停止 */
     RMANUALMODE = 1,    /**< 手动模式 - 全手动控制 */
-    RAUTOAIMODE = 2,     /**< 自瞄模式 - 自动瞄准攻击 */
-    RSPINMODE = 3,      /**< 旋转模式 - 小陀螺模式 */
-    RFOLLOWMODE = 4,    /**< 跟随模式 - 跟随操作 */
+    RSPINMODE = 2,      /**< 旋转模式 - 小陀螺模式 */
+    RFOLLOWMODE = 3,    /**< 跟随模式 - 跟随操作 */
+    RAUTOAIMODE = 4,     /**< 自瞄模式 - 自动瞄准攻击 */
     RAUTOMODE = 5,      /**< 自动模式 - 全自动运行 */
 };
 
@@ -176,7 +176,7 @@ void InitMinipcUSB();
 // ----------------------------- LOG Code -----------------------------
 #include "bsp_print.h"
 
-// #define LOGPort huart1
+#define LOGPort rc_uart
 
 void InitLOGPort();
 
@@ -336,9 +336,9 @@ void InitPWMGPIO();
 #define CHASSIS_LR_CH      RC_CHANNEL_PITCH  // 左右平移通道
 #define CHASSIS_ROT_CH     RC_CHANNEL_AUX1   // 旋转通道
 
-#define CHASSIS_FB_REV     false
-#define CHASSIS_LR_REV     false
-#define CHASSIS_ROT_REV    false
+#define CHASSIS_FB_REV     true
+#define CHASSIS_LR_REV     true
+#define CHASSIS_ROT_REV    true
 
 #define ROBOMODE_SWITCH_CH CUSTOM_RIGHT_CHANNEL
 #define ROBOMODE_SWITCH_KEY KEYBOARD_G_CHANNEL
@@ -396,8 +396,8 @@ const osThreadAttr_t SysTaskAttribute = {
     .cb_mem = nullptr,
     .cb_size = 0,
     .stack_mem = nullptr,
-    .stack_size = 512 * 2,
-    .priority = (osPriority_t)osPriorityHigh,
+    .stack_size = 512 * 4,
+    .priority = (osPriority_t)osPriorityHigh5,
     .tz_module = 0,
     .reserved = 0};
 

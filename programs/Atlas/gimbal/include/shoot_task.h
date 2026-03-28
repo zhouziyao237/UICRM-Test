@@ -198,6 +198,7 @@ extern StallDetection stall_detector;
 // ----------------------------- Heat Control code -----------------------------
 
 #define HEAT_SHOOTER_TYPE control::SHOOTER_TYPE_BURST
+#define SHOOTER_TYPE_COOL control::SHOOTER_TYPE_COOL
 
 extern control::HeatController heat_controller;
 

@@ -328,9 +328,9 @@ namespace driver {
             if (mode_ & (ABSOLUTE | SINGLETURN)) {
                 // 绝对位置电机不需要初始化align_angle_
                 align_angle_ = 0;
-                return;
+            }else {
+                align_angle_ = theta_;
             }
-            align_angle_ = theta_;
         }
 
         // 如果电机角度从接近 2PI 跳到接近
