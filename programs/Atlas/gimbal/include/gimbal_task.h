@@ -124,11 +124,18 @@ extern driver::MotorCANBase* yaw_motor;
 extern control::Gimbal* gimbal;
 extern control::gimbal_data_t* gimbal_param;
 
-typedef struct{
+typedef struct {
     float pitch_ratio;
     float yaw_ratio;
 } GimbalRatio_t;
 extern GimbalRatio_t GimbalRatio;
+
+// 统一世界坐标目标。所有模式都操作这一个目标，避免 manual/follow/spin 切换时参考系跳变。
+typedef struct {
+    float pitch;
+    float yaw;
+} GimbalWorldTarget_t;
+extern GimbalWorldTarget_t GimbalWorldTarget;
 
 // ----------------------------- Gimbal Main code -----------------------------
 

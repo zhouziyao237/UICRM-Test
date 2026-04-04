@@ -243,9 +243,10 @@ namespace control {
         if (!enabled_) {
             return;
         }
-        
+
         float max_current = max_watt_ / voltage_;
-        
+
+        // 计算 buffer 缩放因子（保持不变）
         float buffer_scale = 1.0f;
         if (buffer_percent_ <= 20) {
             buffer_scale = 0.8f;
@@ -257,35 +258,25 @@ namespace control {
             buffer_scale = 1.5f;
         }
         max_current *= buffer_scale;
-        
-        int16_t motor_input_current[4] = {0};
-        int16_t forward_current = 0;
-        int16_t reverse_current = 0;
-        
+
+        // 计算每个电机的等效电流（用于功率模型）和总绝对值
+        float motor_equiv_current[4] = {0};
+        float total_abs_equiv = 0;
         for (uint8_t i = 0; i < motor_num && i < 4; i++) {
-            motor_input_current[i] = static_cast<int16_t>(PowerModel(angular_velocity[i], turn_current[i]));
-            if (motor_input_current[i] > 0) {
-                forward_current += motor_input_current[i];
-            } else {
-                reverse_current += motor_input_current[i];
-            }
+            motor_equiv_current[i] = PowerModel(angular_velocity[i], turn_current[i]);
+            total_abs_equiv += std::abs(motor_equiv_current[i]);
         }
-        
+
         int16_t max_current_ma = static_cast<int16_t>(max_current * 1000);
-        if (forward_current + reverse_current < max_current_ma) {
-            return;
+        if (total_abs_equiv <= max_current_ma) {
+            return;  // 未超限，无需限制
         }
-        
-        float forward_ratio = 1.0f;
-        if (forward_current > 0) {
-            forward_ratio = static_cast<float>(max_current_ma - reverse_current) / forward_current;
-        }
-        
+
+        // 按绝对值比例缩放所有电机
+        float ratio = max_current_ma / total_abs_equiv;
         for (uint8_t i = 0; i < motor_num && i < 4; i++) {
-            if (motor_input_current[i] > 0) {
-                int16_t target_current = static_cast<int16_t>(forward_ratio * motor_input_current[i]);
-                turn_current[i] = ReversePowerModel(angular_velocity[i], turn_current[i], target_current);
-            }
+            float target_equiv = ratio * motor_equiv_current[i];
+            turn_current[i] = ReversePowerModel(angular_velocity[i], turn_current[i], target_equiv);
         }
     }
     

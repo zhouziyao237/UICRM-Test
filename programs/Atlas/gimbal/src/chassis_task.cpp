@@ -43,12 +43,15 @@ float chassis_vx = 0;
 float chassis_vy = 0;
 float chassis_vt = 0;
 
+// 底盘相对于云台的局部偏角（[-PI, PI]），follow 模式用它让 chassis 跟上 gimbal
+float chassis_rel_yaw = 0.0f;
+
 // ----------------------------- Battery Voltage -----------------------------
 bsp::BatteryVol* battery_vol = nullptr;
 
 // ----------------------------- Speed Limits -----------------------------
-const float chassis_max_xy_speed = 2 * PI * 30;   // 线速度上限 10圈/s
-const float chassis_max_t_speed = 2 * PI * 20;     // 旋转速度上限 5圈/s
+const float chassis_max_xy_speed = 2 * PI * 30;
+const float chassis_max_t_speed = 2 * PI * 20;
 
 // ----------------------------- Ease -----------------------------
 static Ease chassis_ease_vx(0, 0.9f);
@@ -60,16 +63,18 @@ static inline float get_rc_channel(uint8_t channel) {
     return rcData[channel] / VTM_ROCKER_MAX;
 }
 
+static inline float wrap_pi(float angle) {
+    while (angle > PI) angle -= 2.0f * PI;
+    while (angle < -PI) angle += 2.0f * PI;
+    return angle;
+}
+
 // ----------------------------- Init / Kill -----------------------------
 void InitChassis() {
-    // 初始化电池电压测量（ADC3 通道8）
     battery_vol = new bsp::BatteryVol(&hadc3, ADC_CHANNEL_8, 1, ADC_SAMPLETIME_3CYCLES);
 
-    // 创建 CanBridge（发送ID 0x51）
     can_bridge = new communication::CanBridge(can1, 0x51);
-    // 创建底盘控制器（接收ID 0x52）
     chassis = new control::ChassisCanBridgeSender(can_bridge, 0x52);
-    // 设置寄存器ID
     chassis->SetChassisRegId(0x70, 0x71, 0x72, 0x73);
     chassis->Disable();
 }
@@ -82,26 +87,21 @@ void kill_chassis() {
 void ChassisTask(void* arg) {
     UNUSED(arg);
 
-    // 初始禁用底盘，等待条件
     kill_chassis();
     osDelay(1000);
 
-    // 等待遥控器退出急停模式（ChassisMode 由 SysTask 根据遥控器设定）
     while (ChassisMode == CKILLMODE) {
         kill_chassis();
         osDelay(5);
     }
 
-    // 等待 IMU 校准完成
     while (!ahrs->IsCailbrated()) {
         osDelay(1);
     }
 
-    // 使能底盘
     chassis->Enable();
 
     while (true) {
-        // ----------------- 急停检查（再次确保） -----------------
         if (ChassisMode == CKILLMODE) {
             kill_chassis();
             while (ChassisMode == CKILLMODE) {
@@ -112,9 +112,8 @@ void ChassisTask(void* arg) {
         }
 
         // ----------------- 获取整车速度指令（范围 -1~1）-----------------
-        float car_vx = 0, car_vy = 0, car_vt = 0;
+        float car_vx = 0.0f, car_vy = 0.0f, car_vt = 0.0f;
 
-        // 优先使用摇杆（有非零输入）
         if (fabs(rcData[CHASSIS_FB_CH]) > 0.01f ||
             fabs(rcData[CHASSIS_LR_CH]) > 0.01f ||
             fabs(rcData[CHASSIS_ROT_CH]) > 0.01f) {
@@ -122,7 +121,6 @@ void ChassisTask(void* arg) {
             float lr = get_rc_channel(CHASSIS_LR_CH);
             float rot = get_rc_channel(CHASSIS_ROT_CH);
 
-            // 反向标志（来自 sys.h）
             if (CHASSIS_FB_REV) fb = -fb;
             if (CHASSIS_LR_REV) lr = -lr;
             if (CHASSIS_ROT_REV) rot = -rot;
@@ -131,7 +129,6 @@ void ChassisTask(void* arg) {
             car_vy = lr;
             car_vt = rot;
         } else {
-            // 键盘模式
             const float keyboard_speed = (rcData[CSPEEDUP] > 0.5f) ? 1.0f : 0.5f;
             const float keyboard_spin_speed = 1.0f;
             car_vx = (rcData[CRIGHT] - rcData[CLEFT]) * keyboard_speed;
@@ -139,45 +136,60 @@ void ChassisTask(void* arg) {
             car_vt = (rcData[CROTATERIGHT] - rcData[CROTATELEFT]) * keyboard_spin_speed;
         }
 
-        // ----------------- 坐标变换（云台相对底盘角度）-----------------
-        float chassis_target_diff = yaw_motor->GetTheta() - gimbal_param->yaw_offset_;
+        // ----------------- 云台相对底盘的局部 yaw -----------------
+        float gimbal_local_yaw = gimbal->getYawByMotor();
+        chassis_rel_yaw = wrap_pi(gimbal_local_yaw);
 
-        float sin_yaw = arm_sin_f32(chassis_target_diff);
-        float cos_yaw = arm_cos_f32(chassis_target_diff);
-        chassis_vx = cos_yaw * car_vx + sin_yaw * car_vy;
-        chassis_vy = -sin_yaw * car_vx + cos_yaw * car_vy;
-        chassis_vt = 0;
+        // ----------------- 以“云台朝向/用户视角”为基准的平移映射 -----------------
+        // 在 follow / spin 下使用这组速度，可以保证用户推杆手感一致。
+        float sin_yaw = arm_sin_f32(gimbal_local_yaw);
+        float cos_yaw = arm_cos_f32(gimbal_local_yaw);
+        float follow_vx = cos_yaw * car_vx + sin_yaw * car_vy;
+        float follow_vy = -sin_yaw * car_vx + cos_yaw * car_vy;
 
-        // ----------------- 模式特殊处理 -----------------
+        // 默认给 0，后面按模式覆盖
+        chassis_vx = 0.0f;
+        chassis_vy = 0.0f;
+        chassis_vt = 0.0f;
+
+        // ----------------- 模式处理 -----------------
         switch (ChassisMode) {
             case CMANUALMODE:
-                // 手动模式：直接使用整车指令（以云台为基准）
+                // 手动：完全按底盘本体坐标控制
                 chassis_vx = car_vx;
                 chassis_vy = car_vy;
                 chassis_vt = car_vt;
                 break;
+
             case CFOLLOWMODE: {
-                // 跟随模式：底盘旋转跟随云台方向
+                // follow：用户还是在控云台；底盘去追云台局部角，让 chassis 跟 gimbal 转
+                chassis_vx = follow_vx;
+                chassis_vy = follow_vy;
+
                 static control::ConstrainedPID* chassis_vt_pid =
-                    new control::ConstrainedPID(2 / (2 * PI), 0, 0, 0.5f, 1.0f);
+                    new control::ConstrainedPID(1.0f / PI, 0.0f, 0.0f, 0.5f, 1.0f);
                 const float angle_threshold = 0.02f;
-                float error = chassis_target_diff;
-                if (fabs(error) < angle_threshold) error = 0;
+
+                float error = -chassis_rel_yaw;  // 目标是让相对角回到 0
+                if (fabs(error) < angle_threshold) error = 0.0f;
                 chassis_vt = chassis_vt_pid->ComputeOutput(error);
                 break;
             }
-            case CSPINMODE: {
-                +
-                // 小陀螺模式：旋转速度累加
-                static float spin_speed = 0;
-                spin_speed += car_vt * 0.1f;
-                spin_speed = clip<float>(spin_speed, -6.0f, 6.0f);
-                chassis_vt = spin_speed;
+
+            case CSPINMODE:
+                // spin：底盘旋转，但云台维持用户操控手感不变。
+                // 平移仍按云台/用户视角映射；旋转沿用用户给的转速。
+                // 若你想“进入 spin 模式自动恒定自转”，把 car_vt 改成固定常量即可。
+                chassis_vx = follow_vx;
+                chassis_vy = follow_vy;
+                chassis_vt = car_vt;
                 break;
-            }
+
             case CAUTOAIMODE:
             default:
-                // 其他模式（自瞄等）保持变换后的速度
+                chassis_vx = follow_vx;
+                chassis_vy = follow_vy;
+                chassis_vt = 0.0f;
                 break;
         }
 
@@ -204,7 +216,6 @@ void ChassisTask(void* arg) {
         float voltage = battery_vol ? battery_vol->GetBatteryVol() : 0.0f;
         chassis->UpdatePower(true, max_watt, voltage, buffer_percent);
 
-        // ----------------- 控制周期 -----------------
         osDelay(5);
     }
 }

@@ -20,6 +20,8 @@
 
 #include "chassis.h"
 
+#include <cmath>
+
 #include "bsp_error_handler.h"
 #include "bsp_os.h"
 
@@ -84,7 +86,7 @@ namespace control {
         power_limit_.enabled = chassis.power_limit_on;
         power_limit_.limiter = new NewPowerLimit(power_model);
         driver::MotorCANBase::RegisterPreOutputCallback(ApplyPowerLimitWrapper, this);
-        
+
         // LQR功率限制系统
         use_lqr_power_limit_ = chassis.use_lqr_power_limit;
         if (use_lqr_power_limit_) {
@@ -158,17 +160,25 @@ namespace control {
                 break;
             }
             case CHASSIS_OMNI_WHEEL2: {
-                float move_sum = fabs(x_speed) + fabs(y_speed) + fabs(turn_speed);
-                float scale = move_sum > max_motor_speed_ ? max_motor_speed_ / move_sum : 1.0f;
+                const float angle_a_rad = omni_wheel_setup_.Wheel_angle_a * PI / 180.0f;
+                const float angle_b_rad = omni_wheel_setup_.Wheel_angle_b * PI / 180.0f;
+
+                float scale = 1.0f;
+                float move_sum = fabsf(x_speed) + fabsf(y_speed) + fabsf(turn_speed);
+                scale = move_sum > max_motor_speed_ ? max_motor_speed_ / move_sum : 1.0f;
 
                 speeds_[FourWheel::front_left] =
-                    scale * (-x_speed * cos(omni_wheel_setup_.Wheel_angle_a) + y_speed * sin(omni_wheel_setup_.Wheel_angle_b) + omni_wheel_setup_.chassis_radius *turn_speed);  // 1
+                    scale * (-x_speed * cosf(angle_a_rad) + y_speed * sinf(angle_b_rad) +
+                             turn_speed);  // 1
                 speeds_[FourWheel::front_right] =
-                    scale * (x_speed * cos(omni_wheel_setup_.Wheel_angle_a) + y_speed * sin(omni_wheel_setup_.Wheel_angle_b) + omni_wheel_setup_.chassis_radius *turn_speed);  // 2
+                    scale * (x_speed * cosf(angle_a_rad) + y_speed * sinf(angle_b_rad) +
+                             turn_speed);  // 2
                 speeds_[FourWheel::back_left] =
-                    scale * (-x_speed * cos(omni_wheel_setup_.Wheel_angle_a) - y_speed * sin(omni_wheel_setup_.Wheel_angle_b) + omni_wheel_setup_.chassis_radius *turn_speed);  // 3
+                    scale * (-x_speed * cosf(angle_a_rad) - y_speed * sinf(angle_b_rad) +
+                             turn_speed);  // 3
                 speeds_[FourWheel::back_right] =
-                    scale * (x_speed * cos(omni_wheel_setup_.Wheel_angle_a) - y_speed * sin(omni_wheel_setup_.Wheel_angle_b) + omni_wheel_setup_.chassis_radius *turn_speed);  // 4
+                    scale * (x_speed * cosf(angle_a_rad) - y_speed * sinf(angle_b_rad) +
+                             turn_speed);  // 4
                 break;
             }
 
@@ -237,13 +247,7 @@ namespace control {
         // 将解算得到的数据（每个电机的转速）传递给电机类，由电机类进行PID控制、CAN输出等
         switch (model_) {
             case CHASSIS_MECANUM_WHEEL:
-            case CHASSIS_OMNI_WHEEL: {
-                motors_[FourWheel::front_left]->SetTarget(speeds_[FourWheel::front_left]);
-                motors_[FourWheel::front_right]->SetTarget(speeds_[FourWheel::front_right]);
-                motors_[FourWheel::back_left]->SetTarget(speeds_[FourWheel::back_left]);
-                motors_[FourWheel::back_right]->SetTarget(speeds_[FourWheel::back_right]);
-                break;
-            }
+            case CHASSIS_OMNI_WHEEL:
             case CHASSIS_OMNI_WHEEL2: {
                 motors_[FourWheel::front_left]->SetTarget(speeds_[FourWheel::front_left]);
                 motors_[FourWheel::front_right]->SetTarget(speeds_[FourWheel::front_right]);
