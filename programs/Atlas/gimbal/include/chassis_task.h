@@ -1,56 +1,65 @@
-// Copyright (c) 2026. BNU-HKBU UIC RoboMaster
-//
-// This program is free software: you can redistribute it
-// and/or modify it under the terms of the GNU General
-// Public License as published by the Free Software
-// Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE.  See the GNU General
-// Public License for more details.
-//
-// You should have received a copy of the GNU General
-// Public License along with this program.  If not, see
-// <https://www.gnu.org/licenses/>.
-
 #pragma once
 
-#include "main.h"
-#include "cmsis_os2.h"
-#include "MotorCanBase.h"
-#include "bsp_can.h"
-#include "can_bridge.h"
-#include "chassis.h"
-#include "referee_task.h"
-#include "rc.h"                     // 遥控器通道
-#include "sys.h"                    // 系统模式
-#include "utils.h"
-#include "bsp_batteryvol.h"         // 电池电压测量
+#include "bsp_thread.h"
 
-// ----------------------------- Chassis Task handle -----------------------------
-extern osThreadId_t ChassisTaskHandle;
-extern const osThreadAttr_t ChassisTaskAttribute;
+/** Read-only chassis state for UI, MiniPC, gimbal feed-forward and diagnostics. */
+struct ChassisTelemetry_t {
+    bool initialized = false;
+    bool online = false;
+    bool output_enabled = false;
+    float vx = 0.0f;
+    float vy = 0.0f;
+    float vt = 0.0f;
+    float operator_x = 0.0f;
+    float operator_y = 0.0f;
+    float operator_turn = 0.0f;
+    float transformed_x = 0.0f;
+    float transformed_y = 0.0f;
+    // Final values sent to control::ChassisCanBridgeSender::SetSpeed().
+    // The chassis library defines x as right and y as forward.
+    float library_x_speed = 0.0f;
+    float library_y_speed = 0.0f;
+    float frame_offset_deg = 0.0f;
+    float relative_yaw = 0.0f;
+    float relative_yaw_continuous = 0.0f;
+    float chassis_heading = 0.0f;
+    float heading_target = 0.0f;
+    float heading_error = 0.0f;
+    float follow_error = 0.0f;
+    bool heading_hold_active = false;
+    float battery_voltage = 0.0f;
+    float battery_percent = 0.0f;
+    bool power_from_referee = false;
+    bool power_local_test = false;
+    bool power_failsafe = false;
+    float power_limit_w = 0.0f;
+    float power_buffer_joule = 0.0f;
+    float measured_power_w = -1.0f;
+    float max_xy_speed = 0.0f;
+    float max_turn_speed = 0.0f;
+};
 
-// ----------------------------- CanBridge -----------------------------
-extern communication::CanBridge* can_bridge;
-extern control::ChassisCanBridgeSender* chassis;
-
-// ----------------------------- Motion Data -----------------------------
-extern float chassis_vx;   // X方向速度 (rad/s)
-extern float chassis_vy;   // Y方向速度 (rad/s)
-extern float chassis_vt;   // 旋转速度 (rad/s)
-
-// ----------------------------- Battery Voltage -----------------------------
-extern bsp::BatteryVol* battery_vol;
-
-// ----------------------------- Chassis Parameters -----------------------------
-extern const float chassis_max_xy_speed;
-extern const float chassis_max_t_speed;
-
-// ----------------------------- Functions -----------------------------
-void InitChassis(void);          // 外部调用一次，初始化硬件和通信
-void kill_chassis(void);
+void InitChassis();
 void ChassisTask(void* arg);
+ChassisTelemetry_t ChassisGetTelemetry();
+float ChassisGetTurnSpeed();
+
+/**
+ * Change the physical chassis-frame calibration while chassis output is off.
+ * Returns false when the value is invalid or the chassis is currently enabled.
+ */
+bool ChassisSetFrameOffsetDeg(float offset_deg);
+float ChassisGetFrameOffsetDeg();
+
+extern osThreadId_t ChassisTaskHandle;
+inline const osThreadAttr_t ChassisTaskAttribute = {
+    .name = "ChassisTask",
+    .attr_bits = osThreadDetached,
+    .cb_mem = nullptr,
+    .cb_size = 0,
+    .stack_mem = nullptr,
+    .stack_size = 512 * 4,
+    .priority = (osPriority_t)osPriorityAboveNormal,
+    .tz_module = 0,
+    .reserved = 0,
+};

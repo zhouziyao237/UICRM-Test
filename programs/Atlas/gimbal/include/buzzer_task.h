@@ -25,10 +25,8 @@
 
 #define BUZZER_SIGNAL (1 << 0)
 
-extern driver::Buzzer* buzzer;
-
-extern osThreadId_t buzzerTaskHandle;
-const osThreadAttr_t buzzerTaskAttribute = {.name = "buzzerTask",
+extern osThreadId_t BuzzerTaskHandle;
+inline const osThreadAttr_t BuzzerTaskAttribute = {.name = "BuzzerTask",
                                             .attr_bits = osThreadDetached,
                                             .cb_mem = nullptr,
                                             .cb_size = 0,
@@ -37,6 +35,6 @@ const osThreadAttr_t buzzerTaskAttribute = {.name = "buzzerTask",
                                             .priority = (osPriority_t)osPriorityBelowNormal,
                                             .tz_module = 0,
                                             .reserved = 0};
-bool Buzzer_Sing(const driver::BuzzerNoteDelayed* song);
-void buzzerTask(void* arg);
-void init_buzzer();
+bool BuzzerPlay(const driver::BuzzerNoteDelayed* song);
+void BuzzerTask(void* arg);
+void InitBuzzer();

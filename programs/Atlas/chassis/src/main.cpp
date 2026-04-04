@@ -55,12 +55,26 @@ void RM_RTOS_Default_Task(const void* args) {
         static uint32_t print_tick = 0;
         if (HAL_GetTick() - print_tick > 100) {
             print_tick = HAL_GetTick();
-            print("P_est: %.2fW, P_pred: %.2fW, Buffer: %.1fJ, Warn: %d, Scale: %.2f\r\n",
+            print("Power src=%s limit=%.1fW request=%.2fW pred=%.2fW after=%.2fW measured=%.2fW buffer=%.1fJ corr=%.3f scale=%.3f warn=%d trip=%d\r\n",
+                  chassis->IsRefereePowerSource() ? "REFEREE" : "LOCAL",
+                  chassis->GetPowerLimit(),
                   chassis->GetPowerEstimate(),
                   chassis->GetPowerPrediction(),
+                  chassis->GetLimitedPowerEstimate(),
+                  chassis->GetMeasuredPower(),
                   chassis->GetBuffer(),
+                  chassis->GetModelCorrection(),
+                  chassis->GetCurrentScale(),
                   chassis->GetWarnType(),
-                  chassis->GetSpeedScale());
+                  chassis->IsLocalPowerTripActive() ? 1 : 0);
+            print("Mixer model=OMNI_LEGACY kinematic_scale=%.3f\r\n",
+                  chassis->GetKinematicScale());
+            print("Wheel target FL=%.2f FR=%.2f BL=%.2f BR=%.2f\r\n",
+                  fl_motor->GetTarget(), fr_motor->GetTarget(),
+                  bl_motor->GetTarget(), br_motor->GetTarget());
+            print("Wheel omega  FL=%.2f FR=%.2f BL=%.2f BR=%.2f\r\n",
+                  fl_motor->GetOmega(), fr_motor->GetOmega(),
+                  bl_motor->GetOmega(), br_motor->GetOmega());
         }
         chassisMain();
         osDelay(10);

@@ -178,8 +178,8 @@ void uiTask(void* arg) {
     while (true) {
         // Update chassis_main GUI
         // 通过两个云台电机的角度
-        relative_angle = yaw_motor->GetThetaDelta(gimbal_param->yaw_offset_);
-        pitch_angle = pitch_motor->GetThetaDelta(gimbal_param->pitch_offset_);
+        relative_angle = gimbal->getYawByMotor();
+        pitch_angle = gimbal->getPitchByMotor();
         // 更新底盘转速码表
         chassisGUI->Update(chassis_vx / chassis_vx_max, chassis_vy / chassis_vy_max,
                            relative_angle);

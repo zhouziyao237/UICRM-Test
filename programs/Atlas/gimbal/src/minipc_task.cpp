@@ -23,7 +23,11 @@
 #include "bsp_thread.h"
 #include "bsp_uart.h"
 
+#include "chassis_task.h"
 #include "gimbal_task.h"
+#include "imu_task.h"
+#include "referee_task.h"
+#include "robot_state.h"
 #include "shoot_task.h"
 #include "protocol.h"
 #include "sys.h"
@@ -52,10 +56,10 @@ const bsp::thread_init_t thread_init = {
     .attr = minipc_thread_attr_,
 };
 
-void init_minipc() {
+void InitMiniPC() {
     communication::Protocol_t protocol_t = {
         .uart = nullptr,
-        .usb = minipc_usb,
+        .usb = atlas_minipc_usb,
     };
     minipc = new communication::Host(protocol_t);
     minipc_thread = new bsp::Thread(thread_init);
@@ -69,56 +73,55 @@ void minipc_task(void* args) {
         i++;
         // microsecond
         if (i % 2 == 0) {
-            minipc->gimbal_current_status.current_imu_pitch = INSTheta.pitch;
-            minipc->gimbal_current_status.current_imu_yaw = INSTheta.yaw;
-            minipc->gimbal_current_status.current_imu_roll = INSTheta.roll;
-            minipc->gimbal_current_status.robot_id = Referee_data->game_robot_status.robot_id;
+            const ImuData_t imu = ImuGetData();
+            minipc->gimbal_current_status.current_imu_pitch = imu.pitch;
+            minipc->gimbal_current_status.current_imu_yaw = imu.yaw;
+            minipc->gimbal_current_status.current_imu_roll = imu.roll;
+            const RefereeSnapshot_t referee = RefereeGetSnapshot();
+            minipc->gimbal_current_status.robot_id = referee.robot_id;
             minipc->gimbal_current_status.shooter_id = 0;
             minipc->Transmit(communication::GIMBAL_CURRENT_STATUS);
         }
         if (i % 10 == 0) {
-            minipc->chassis_current_status.chassis_enabled = 1;  // 暂时底盘默认为打开
-            minipc->chassis_current_status.speed_x = chassis_vx;
-            minipc->chassis_current_status.speed_y = chassis_vy;
-            minipc->chassis_current_status.speed_turn = chassis_vt;
+            const ChassisTelemetry_t chassis = ChassisGetTelemetry();
+            minipc->chassis_current_status.chassis_enabled =
+                chassis.output_enabled ? 1 : 0;
+            minipc->chassis_current_status.speed_x = chassis.vx;
+            minipc->chassis_current_status.speed_y = chassis.vy;
+            minipc->chassis_current_status.speed_turn = chassis.vt;
             minipc->Transmit(communication::CHASSIS_CURRENT_STATUS);
         }
 
         if (i == 1000) {
             // Secend event
-            minipc->robot_status_upload.robot_id = Referee_data->game_robot_status.robot_id;
+            const RefereeSnapshot_t referee = RefereeGetSnapshot();
+            minipc->robot_status_upload.robot_id = referee.robot_id;
             minipc->robot_status_upload.vision_reset = 0;
             minipc->robot_status_upload.location_data[0] = 0;
             minipc->robot_status_upload.location_data[1] = 0;
-            minipc->robot_status_upload.is_killed = (Referee_data->game_robot_status.remain_HP == 0);
-            minipc->robot_status_upload.is_killed |= (RobotMode == RKILLMODE);
-            switch (RobotMode) {
-                case RFOLLOWMODE:
+            minipc->robot_status_upload.is_killed = RobotIsKilled() || robot_hp_dead;
+            switch (remote_mode) {
+                case REMOTE_MODE_FOLLOW:
                     minipc->robot_status_upload.robot_mode = 1;
                     break;
-                case RSPINMODE:
+                case REMOTE_MODE_SPIN:
                     minipc->robot_status_upload.robot_mode = 2;
                     break;
-                case RMANUALMODE:
+                case REMOTE_MODE_MANUAL:
                     minipc->robot_status_upload.robot_mode = 3;
                     break;
                 default:
                     minipc->robot_status_upload.robot_mode = 0;
                     break;
             }
-            switch (FWMode) {
-                case FW_MODE_ON:
-                    minipc->robot_status_upload.robot_fric_mode = 1;
-                    break;
-                default:
-                    minipc->robot_status_upload.robot_fric_mode = 0;
-                    break;
-            }
-            switch (ShootMode) {
-                case SINGLESHOT:
+            const ShooterTelemetry_t shooter = ShooterGetTelemetry();
+            minipc->robot_status_upload.robot_fric_mode =
+                shooter.friction_enabled ? 1 : 0;
+            switch (shooter.mode) {
+                case SHOOT_MODE_SINGLE:
                     minipc->robot_status_upload.robot_shoot_mode = 1;
                     break;
-                case DOUBLETAP:
+                case SHOOT_MODE_DOUBLE:
                     minipc->robot_status_upload.robot_shoot_mode = 2;
                     break;
                 default:

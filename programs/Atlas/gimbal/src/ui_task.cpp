@@ -20,14 +20,25 @@
 
 #include "ui_task.h"
 
-#include "gimbal_task.h"
-#include "referee_task.h"
-#include "shoot_task.h"
+#include <cstring>
+
+#include "protocol.h"
+#include "rc.h"
+#include "sys.h"
+#include "user_interface.h"
+#include "utils.h"
 #include "chassis_task.h"
 #include "gimbal_task.h"
 #include "imu_task.h"
+#include "referee_task.h"
+#include "robot_state.h"
+#include "shoot_task.h"
 
-osThreadId_t uiTaskHandle;
+osThreadId_t UITaskHandle;
+
+namespace {
+void ClearUiGraphics();
+}
 communication::UserInterface* UI = nullptr;
 communication::ChassisGUI* chassisGUI = nullptr;
 communication::CrossairGUI* crossairGui = nullptr;
@@ -39,22 +50,22 @@ communication::StringGUI* shootFrequencyGUI = nullptr;
 communication::StringGUI* boostGUI = nullptr;
 communication::StringGUI* autoAimGUI = nullptr;
 communication::DiagGUI* diagGUI = nullptr;
-communication::StringGUI* BombchamberGUI = nullptr;
 communication::StringGUI* initGUI = nullptr;
 
 void UI_Delay(uint32_t delay) {
     osDelay(delay);
 }
 
-void uiTask(void* arg) {
+void UITask(void* arg) {
     UNUSED(arg);
     osDelay(300);
 
-    while (!SysStartData.SystemInitFlag) {
-        osDelay(10);
-    }
-
-    UI->SetID(Referee_data->game_robot_status.robot_id);
+    RefereeSnapshot_t referee;
+    do {
+        referee = RefereeGetSnapshot();
+        if (!referee.online || referee.robot_id == 0) osDelay(100);
+    } while (!referee.online || referee.robot_id == 0);
+    UI->SetID(referee.robot_id);
     osDelay(UI_OS_DELAY);
 
     communication::graphic_data_t graphEmpty1;
@@ -112,9 +123,6 @@ void uiTask(void* arg) {
     int8_t ShootFrequencyColor = UI_Color_Green;
     shootFrequencyGUI = new communication::StringGUI(UI, ShootFrequencyStr, 1500, 460, ShootFrequencyColor);
 
-    char BombchamberOnStr[15] = "MagazineON ";
-    BombchamberGUI = new communication::StringGUI(UI, BombchamberOnStr, 1500, 490, UI_Color_Orange);
-
     modeGUI->Init();
     osDelay(110);
     wheelGUI->Init();
@@ -124,8 +132,6 @@ void uiTask(void* arg) {
     autoAimGUI->Init();
     osDelay(110);
     shootFrequencyGUI->Init();
-    osDelay(110);
-    BombchamberGUI->Init();
     osDelay(110);
     initGUI->Init();
 
@@ -140,8 +146,6 @@ void uiTask(void* arg) {
     osDelay(110);
     shootFrequencyGUI->InitString();
     osDelay(110);
-    BombchamberGUI->InitString();
-    osDelay(110);
     initGUI->InitString();
     osDelay(110);
 
@@ -149,9 +153,9 @@ void uiTask(void* arg) {
     float pitch_angle = 0;
 
     float power_percent = 1;
-    int8_t last_mode = RKILLMODE;
-    uint8_t last_fric_mode = FW_MODE_OFF;
-    uint8_t last_shoot_frequency = SKILLMODE;
+    RemoteMode_e last_mode = REMOTE_MODE_KILL;
+    bool last_fric_mode = false;
+    ShootMode_e last_shoot_frequency = SHOOT_MODE_IDLE;
     BoolEdgeDetector* autoAimEdgeDetector = new BoolEdgeDetector(false);
 
     BoolEdgeDetector* fl_motor_check_edge = new BoolEdgeDetector(false);
@@ -165,27 +169,47 @@ void uiTask(void* arg) {
     BoolEdgeDetector* imu_cali_edge = new BoolEdgeDetector(false);
     BoolEdgeDetector* imu_temp_edge = new BoolEdgeDetector(false);
     BoolEdgeDetector* shoot_jam_edge = new BoolEdgeDetector(false);
+    uint32_t last_ui_sequence = RCGetSnapshot().ui_sequence;
     while (true) {
-        // Update chassis_main GUI
-        // 通过两个云台电机的角度
-        relative_angle = yaw_motor->GetThetaDelta(gimbal_param->yaw_offset_);
-        pitch_angle = pitch_motor->GetThetaDelta(gimbal_param->pitch_offset_);
-        // 更新底盘转速码表
-        chassisGUI->Update(chassis_vx / chassis_max_xy_speed, chassis_vy / chassis_max_xy_speed,
-                           relative_angle);
+        const RemoteControl_t remote_input = RCGetSnapshot();
+        if (remote_input.ui_sequence != last_ui_sequence) {
+            last_ui_sequence = remote_input.ui_sequence;
+            if (remote_input.ui_command == REMOTE_UI_CLEAR_GRAPHICS) {
+                ClearUiGraphics();
+            } else if (remote_input.ui_command == REMOTE_UI_CLEAR_DIAGNOSTICS &&
+                       diagGUI != nullptr) {
+                diagGUI->Clear(UI_Delay);
+            }
+        }
+
+        const GimbalTelemetry_t gimbal = GimbalGetTelemetry();
+        const ChassisTelemetry_t chassis = ChassisGetTelemetry();
+        const ShooterTelemetry_t shooter = ShooterGetTelemetry();
+        const ImuData_t imu = ImuGetData();
+        const RemoteMode_e mode = remote_mode;
+
+        relative_angle = gimbal.yaw_relative;
+        pitch_angle = gimbal.pitch_relative;
+        const float normalized_vx = chassis.max_xy_speed > 0.0f
+                                        ? chassis.vx / chassis.max_xy_speed
+                                        : 0.0f;
+        const float normalized_vy = chassis.max_xy_speed > 0.0f
+                                        ? chassis.vy / chassis.max_xy_speed
+                                        : 0.0f;
+        chassisGUI->Update(normalized_vx, normalized_vy, relative_angle);
         osDelay(UI_OS_DELAY);
 
         // 更新电源百分比
-        power_percent = battery_vol->GetBatteryPercentage();
+        power_percent = chassis.battery_percent;
         batteryGUI->Update(power_percent);
         osDelay(UI_OS_DELAY);
 
         // 更新云台小坦克
-        gimbalGUI->Update(gimbal->getPitchTarget() * 200, -gimbal->getYawTarget() * 200, pitch_angle, relative_angle, true);
+        gimbalGUI->Update(gimbal.pitch_target * 200, -gimbal.yaw_target * 200, pitch_angle, relative_angle, true);
         osDelay(UI_OS_DELAY);
 
         char initstr[15];
-        if (!SysStartData.GimbalInitFlag) {
+        if (!gimbal.initialized) {
             strcpy(initstr, "INIT False");
             modeColor = UI_Color_Purplish_red;
             initGUI->Update(initstr, modeColor);
@@ -197,22 +221,22 @@ void uiTask(void* arg) {
         osDelay(UI_OS_DELAY);
 
         // 更新运行模式
-        if (RobotMode != last_mode) {
+        if (mode != last_mode) {
             char modeStr[30];
-            switch (RobotMode) {
-                case RKILLMODE:
+            switch (mode) {
+                case REMOTE_MODE_KILL:
                     strcpy(modeStr, "STOP MODE     ");
                     modeColor = UI_Color_Purplish_red;
                     break;
-                case RFOLLOWMODE:
+                case REMOTE_MODE_FOLLOW:
                     strcpy(modeStr, "FOLLOW MODE   ");
                     modeColor = UI_Color_Green;
                     break;
-                case RSPINMODE:
+                case REMOTE_MODE_SPIN:
                     strcpy(modeStr, "SPIN MODE     ");
                     modeColor = UI_Color_Orange;
                     break;
-                case RMANUALMODE:
+                case REMOTE_MODE_MANUAL:
                     strcpy(modeStr, "ADVANCED MODE ");
                     modeColor = UI_Color_Green;
                     break;
@@ -227,41 +251,37 @@ void uiTask(void* arg) {
         }
 
         // Update wheel status GUI
-        if (last_fric_mode != FWMode) {
-            char* wheelStr = FWMode == FW_MODE_ON ? wheelOnStr : wheelOffStr;
-            uint32_t wheelColor = FWMode == FW_MODE_ON ? UI_Color_Pink : UI_Color_Green;
+        if (last_fric_mode != shooter.friction_enabled) {
+            char* wheelStr = shooter.friction_enabled ? wheelOnStr : wheelOffStr;
+            uint32_t wheelColor = shooter.friction_enabled ? UI_Color_Pink : UI_Color_Green;
             wheelGUI->Update(wheelStr, wheelColor);
             osDelay(UI_OS_DELAY);
-            last_fric_mode = FWMode;  // 补充滚轮模式同步，避免重复更新
+            last_fric_mode = shooter.friction_enabled;
         }
 
         // Update shoot frequency status GUI
-        if (ShootMode != last_shoot_frequency) {
+        if (shooter.mode != last_shoot_frequency) {
             // 统一字符串长度为12字符（与滚轮字符串对齐），保证UI显示整齐
             char shoot_frequency_str[30] = {0};
 
-            switch (ShootMode) {
-                case SUNLOADMODE:
+            switch (shooter.mode) {
+                case SHOOT_MODE_UNLOAD:
                     strcpy(shoot_frequency_str, "SUNLOAD    ");  // 退弹模式（12字符）
                     ShootFrequencyColor = UI_Color_Yellow;      // 黄色标识退弹状态
                     break;
-                case SKILLMODE:
-                    strcpy(shoot_frequency_str, "SKILL      ");  // 急停模式（12字符）
-                    ShootFrequencyColor = UI_Color_Purplish_red;// 紫红色标识停止状态
-                    break;
-                case SHOOTILDE:
+                case SHOOT_MODE_IDLE:
                     strcpy(shoot_frequency_str, "STANDBY    ");  // 待机模式（12字符）
                     ShootFrequencyColor = UI_Color_Green;       // 绿色标识正常待机
                     break;
-                case SINGLESHOT:
+                case SHOOT_MODE_SINGLE:
                     strcpy(shoot_frequency_str, "SINGLESHOT ");  // 单发模式（12字符）
                     ShootFrequencyColor = UI_Color_Green;       // 绿色标识常规模式
                     break;
-                case DOUBLETAP:
+                case SHOOT_MODE_DOUBLE:
                     strcpy(shoot_frequency_str, "DOUBLETAP  ");  // 连发模式（12字符）
                     ShootFrequencyColor = UI_Color_Orange;      // 橙色标识中速模式
                     break;
-                case RAPIDFIRE:
+                case SHOOT_MODE_RAPID:
                     strcpy(shoot_frequency_str, "RAPIDFIRE  ");  // 速射模式（12字符）
                     ShootFrequencyColor = UI_Color_Purplish_red;// 紫红色标识高速模式
                     break;
@@ -270,21 +290,21 @@ void uiTask(void* arg) {
                     ShootFrequencyColor = UI_Color_Purplish_red;
                     break;
             }
-            last_shoot_frequency = ShootMode;
+            last_shoot_frequency = shooter.mode;
             shootFrequencyGUI->Update(shoot_frequency_str, ShootFrequencyColor);
             osDelay(UI_OS_DELAY);
         }
 
-        bool is_autoaim = GimbalMode == GAUTOAIMODE;
+        bool is_autoaim = mode == REMOTE_MODE_AUTOAIM;
         autoAimEdgeDetector->input(is_autoaim);
         if (autoAimEdgeDetector->edge()) {
             char* autoaimStr = is_autoaim ? autoAimStr : autoAimOffStr;
             autoAimGUI->Update(autoaimStr, UI_Color_Pink);
             osDelay(UI_OS_DELAY);
         }
-        last_mode = RobotMode;
-        last_fric_mode = FWMode;
-        last_shoot_frequency = ShootMode;
+        last_mode = mode;
+        last_fric_mode = shooter.friction_enabled;
+        last_shoot_frequency = shooter.mode;
 
         // 离线信息
         {
@@ -292,15 +312,16 @@ void uiTask(void* arg) {
             fr_motor_check_edge->input(true);
             bl_motor_check_edge->input(true);
             br_motor_check_edge->input(true);
-            yaw_motor_check_edge->input(yaw_motor->IsOnline());
-            pitch_motor_check_edge->input(pitch_motor->IsOnline());
-            steer_motor_check_edge->input(FeedingMotror->IsOnline());
-            dbus_edge->input(RCIsOnline());
-            imu_cali_edge->input(ahrs->IsCailbrated());
-            imu_temp_edge->input(true);
+            yaw_motor_check_edge->input(gimbal.yaw_online);
+            pitch_motor_check_edge->input(gimbal.pitch_online);
+            steer_motor_check_edge->input(shooter.feeder_online);
+            dbus_edge->input(RCGetSnapshot().online);
+            imu_cali_edge->input(ImuCalibrationDone());
+            imu_temp_edge->input(imu.online &&
+                                  (imu.temperature < 35.0f || imu.temperature > 60.0f));
 
             // todo:应该是在UI中显示M2006的数据
-            shoot_jam_edge->input(ShootMode == SUNLOADMODE);
+            shoot_jam_edge->input(shooter.jammed);
 
             if (fl_motor_check_edge->negEdge()) {
                 strcpy(diagStr, "FL MOTOR OFFLINE     ");
@@ -353,29 +374,13 @@ void uiTask(void* arg) {
     }
 }
 
-void UI_callback(uint8_t channel, rc_key_mode_t mode) {
-    if (channel == CLEARGUIMSGKEY) {
-        switch (mode) {
-            case RC_KEY_NONE:
-                break;
-            case RC_KEY_CLICK: {
-                clean_GUIMSG();
-            }break;
-            case RC_KEY_LONG_PRESS: {
-                diagGUI->Clear(UI_Delay);
-            }break;
-            default:
-                break;
-        }
-    }
-}
-
 void InitUI() {
-    UI = new communication::UserInterface(referee_uart, Referee_data);
-    rc_key_add_callback(UI_callback);
+    UI = RefereeCreateUserInterface();
+    RM_ASSERT_TRUE(UI != nullptr, "UI init failed");
 }
 
-void clean_GUIMSG() {
+namespace {
+void ClearUiGraphics() {
     osDelay(110);
     chassisGUI->Delete2();
     osDelay(110);
@@ -437,4 +442,5 @@ void clean_GUIMSG() {
     osDelay(110);
     autoAimGUI->InitString();
     osDelay(110);
+}
 }

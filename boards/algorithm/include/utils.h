@@ -19,6 +19,10 @@
  ###########################################################*/
 
 #pragma once
+
+#include <cmath>
+#include <type_traits>
+
 #include "main.h"
 
 /**
@@ -69,34 +73,97 @@ T clip(T value, T min, T max) {
 }
 
 /**
- * @brief 环绕一个值使其落入给定范围
+ * @brief Apply a symmetric zero deadband around the origin.
  *
- * @tparam T    值的类型
- * @param value 要环绕的值
- * @param min   范围最小值
- * @param max   范围最大值
+ * Values whose magnitude is less than or equal to threshold become zero.
+ * Values outside the deadband are returned unchanged.
  *
- * @return 落入范围[min, max]的环绕值
- *
- * @note 如果value距离min或max超过一个周期，行为未定义
+ * @note T must be a signed numeric type.
  */
+template <typename T>
+T apply_deadband(T value, T threshold) {
+    if (threshold < static_cast<T>(0)) threshold = -threshold;
+    return (value >= -threshold && value <= threshold)
+               ? static_cast<T>(0)
+               : value;
+}
+
 /**
- * @brief wrap around a value to fall into a given range
+ * @brief Normalize a signed symmetric input to [-1, 1] and apply deadband.
  *
- * @tparam T    type of the value
- * @param value value to be wrapped around
- * @param min   range min
- * @param max   range max
+ * This is intended for joystick, dial, mouse-axis and similar inputs.
+ */
+template <typename T>
+float normalize_symmetric(T value, T full_scale, float deadband = 0.0f) {
+    if (full_scale <= static_cast<T>(0)) return 0.0f;
+    const float normalized =
+        clip(static_cast<float>(value) / static_cast<float>(full_scale),
+             -1.0f, 1.0f);
+    return apply_deadband(normalized, deadband);
+}
+
+/**
+ * @brief Slew a two-dimensional vector toward a target without independently
+ *        clipping the X/Y components and distorting the vector direction.
  *
- * @return wrapped around value that falls in the range [min, max]
+ * @param target_x target X component
+ * @param target_y target Y component
+ * @param max_step maximum vector delta per call
+ * @param current_x current/output X component, updated in place
+ * @param current_y current/output Y component, updated in place
+ */
+inline void slew_vector_2d(float target_x, float target_y, float max_step,
+                           float& current_x, float& current_y) {
+    if (!(max_step > 0.0f)) {
+        current_x = target_x;
+        current_y = target_y;
+        return;
+    }
+
+    const float delta_x = target_x - current_x;
+    const float delta_y = target_y - current_y;
+    const float delta_norm = std::sqrt(delta_x * delta_x + delta_y * delta_y);
+    if (!(delta_norm > max_step)) {
+        current_x = target_x;
+        current_y = target_y;
+        return;
+    }
+
+    const float scale = max_step / delta_norm;
+    current_x += delta_x * scale;
+    current_y += delta_y * scale;
+}
+
+/**
+ * @brief Wrap a value into one period of [min, max].
  *
- * @note undefined behavior if value is more than one cycle away from min or
- * max
+ * Unlike the old one-step implementation, this function accepts values an
+ * arbitrary number of periods away from the requested interval.  This is
+ * required by ABSOLUTE motor axes whose internal encoder accumulator may keep
+ * increasing for hundreds of turns.
+ *
+ * Values already inside [min, max] are preserved, including an exact max
+ * endpoint.  Values outside the interval are returned in [min, max).
  */
 template <typename T>
 T wrap(T value, T min, T max) {
+    static_assert(std::is_arithmetic<T>::value,
+                  "wrap requires an arithmetic type");
+
     const T range = max - min;
-    return value < min ? value + range : (value > max ? value - range : value);
+    if (!(range > static_cast<T>(0))) return min;
+    if (value >= min && value <= max) return value;
+
+    if constexpr (std::is_floating_point<T>::value) {
+        if (!std::isfinite(value)) return min;
+        T wrapped = std::fmod(value - min, range);
+        if (wrapped < static_cast<T>(0)) wrapped += range;
+        return min + wrapped;
+    } else {
+        T wrapped = (value - min) % range;
+        if (wrapped < static_cast<T>(0)) wrapped += range;
+        return min + wrapped;
+    }
 }
 
 /**
@@ -109,32 +176,20 @@ T wrap(T value, T min, T max) {
  *
  * @return 落入范围[min, max]的环绕值
  *
- * @note 如果value距离min或max超过一个周期，行为未定义
  */
 /**
- * @brief wrap around a value to fall into a given range, this function will
- * wrap around until it falls into the range
+ * @brief Compatibility alias for the robust multi-period wrap helper.
  *
  * @tparam T    type of the value
  * @param value value to be wrapped around
  * @param min   range min
  * @param max   range max
  *
- * @return wrapped around value that falls in the range [min, max]
- *
- * @note undefined behavior if value is more than one cycle away from min or
- * max
+ * @return wrapped value in one period of [min, max]
  */
 template <typename T>
 T wrapc(T value, T min, T max) {
-    const T range = max - min;
-    while (value < min) {
-        value += range;
-    }
-    while (value > max) {
-        value -= range;
-    }
-    return value;
+    return wrap<T>(value, min, max);
 }
 
 /**
@@ -269,7 +324,7 @@ class EdgeDetector {
      * @brief constructor
      * @param initial initial value
      */
-    EdgeDetector<T>(T initial);
+    explicit EdgeDetector(T initial);
     /**
      * @brief 输入信号
      * @param signal 信号
@@ -333,6 +388,8 @@ class BoolEdgeDetector {
      */
     BoolEdgeDetector(bool initial);
     BoolEdgeDetector();
+    /** Reset the stored state without producing an edge. */
+    void reset(bool initial = false);
     /**
      * @brief 输入信号
      * @param signal 信号
@@ -408,6 +465,12 @@ class FloatEdgeDetector {
      * @param threshold threshold
      */
     FloatEdgeDetector(float initial, float threshold = 0);
+    /**
+     * @brief reset the detector state without producing a synthetic edge
+     *
+     * @param initial new previous value
+     */
+    void reset(float initial);
     /**
      * @brief 输入数据
      * @param signal 输入的数据
@@ -557,6 +620,7 @@ class Ease {
   public:
     Ease(float initial, float step);
     void SetTarget(float target);
+    void Reset(float value);
     float Calc(float target);
     float Calc();
     float GetOutput();

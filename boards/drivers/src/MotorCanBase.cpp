@@ -169,6 +169,11 @@ namespace driver {
         return wrap<float>(target - theta_, -PI, PI);
     }
 
+    float MotorCANBase::GetOutputShaftThetaDelta(float target, bool circular) const {
+        const float error = target - output_shaft_theta_;
+        return circular ? wrap<float>(error, -PI, PI) : error;
+    }
+
     float MotorCANBase::GetOmega() const {
         return omega_;
     }
@@ -317,63 +322,101 @@ namespace driver {
     }
 
     void MotorCANBase::SetMode(uint8_t mode) {
+        const uint8_t previous_mode = mode_;
+        const bool coordinate_semantics_changed =
+            ((mode_ ^ mode) & (ABSOLUTE | SINGLETURN)) != 0;
+        const float current_output = output_shaft_theta_;
         mode_ = mode;
+
+        // Changing between circular, raw-single-turn and startup-relative
+        // coordinates after feedback has started must not create an angle
+        // step. Rebase all tracker state on the next coherent CAN sample.
+        if (coordinate_semantics_changed && angle_feedback_initialized_) {
+            if (previous_mode == NONE && (mode & (ABSOLUTE | SINGLETURN))) {
+                // Configuration may race the first motor feedback frame. A
+                // newly configured raw/circular axis must still start from
+                // the hardware encoder phase rather than the temporary zero
+                // used while mode was NONE.
+                ResetOutputShaftTheta(theta_ / transmission_ratio_);
+            } else {
+                ResetOutputShaftTheta(current_output);
+            }
+        }
     }
     void MotorCANBase::UpdateData(const uint8_t* data) {
         UNUSED(data);
 
-        // 角度速度环控制且非绝对控制模式时，需要使用统计总角度值
-        // 获取初始化时的角度值
-        if (align_angle_ < 0) {
-            if (mode_ & (ABSOLUTE | SINGLETURN)) {
-                // 绝对位置电机不需要初始化align_angle_
-                align_angle_ = 0;
-            }else {
-                align_angle_ = theta_;
+        const bool first_feedback = !angle_feedback_initialized_;
+        if (first_feedback) {
+            angle_feedback_initialized_ = true;
+            last_feedback_theta_ = theta_;
+
+            // ABSOLUTE preserves the raw encoder phase for direct-drive
+            // circular axes. SINGLETURN also starts from the hardware encoder
+            // phase, but subsequent control remains linear/non-circular.
+            accumulated_motor_theta_ =
+                (mode_ & (ABSOLUTE | SINGLETURN)) ? theta_ : 0.0f;
+            output_coordinate_offset_ = 0.0f;
+            align_angle_ = (mode_ & (ABSOLUTE | SINGLETURN)) ? 0.0f : theta_;
+        }
+
+        const bool applying_reset = output_shaft_reset_pending_;
+        if (applying_reset) {
+            // Rebuild every coordinate field from the same encoder sample.
+            // This is safe for a single-turn encoder because all future motion
+            // is reconstructed from adjacent-frame deltas.
+            last_feedback_theta_ = theta_;
+            accumulated_motor_theta_ = 0.0f;
+            output_coordinate_offset_ = output_shaft_reset_target_;
+            align_angle_ = theta_;
+
+            target_ = (mode_ & ABSOLUTE)
+                          ? wrap<float>(output_shaft_reset_target_, -PI, PI)
+                          : output_shaft_reset_target_;
+            speed_offset_ = 0.0f;
+            holding_ = true;
+            theta_pid_.Reset();
+            omega_pid_.Reset();
+            output_shaft_reset_pending_ = false;
+        } else if (!first_feedback) {
+            float delta = theta_ - last_feedback_theta_;
+
+            // The shortest-path operation belongs only here: between adjacent
+            // feedback frames. It must never be used between the current
+            // encoder sample and a distant startup zero when the motor-side
+            // travel can exceed 180 degrees.
+            if (delta > PI) {
+                delta -= 2.0f * PI;
+            } else if (delta < -PI) {
+                delta += 2.0f * PI;
             }
+
+            accumulated_motor_theta_ += delta;
+            last_feedback_theta_ = theta_;
         }
 
-        // 如果电机角度从接近 2PI 跳到接近
-        // 0，则回绕检测器将检测到下降沿，这意味着电机在穿过编码器边界时正向正方向转动。
-        // 反之亦然，电机角度从接近 0 跃升至接近 2PI
+        const float continuous_output =
+            output_coordinate_offset_ + accumulated_motor_theta_ / transmission_ratio_;
 
-        motor_angle_ = theta_ - align_angle_;
-        if (transmission_ratio_ != 1) {
-            // 获得实际的电机屁股角度
-            inner_wrap_detector_->input(motor_angle_);
-            // 输入电机屁股的角度到边界检测器
-            if (inner_wrap_detector_->negEdge())
-                // 检测到下降沿，代表电机正向转动了一整圈
-                offset_angle_ =
-                    wrap<float>(offset_angle_ + 2 * PI / transmission_ratio_, 0, 2 * PI);
-            // 更新实际的输出轴角度偏差
-            else if (inner_wrap_detector_->posEdge())
-                // 检测到上升沿，代表电机反向转动了一整圈
-                offset_angle_ =
-                    wrap<float>(offset_angle_ - 2 * PI / transmission_ratio_, 0, 2 * PI);
-            // 更新实际的输出轴角度偏差
-
-            servo_angle_ =
-                wrap<float>(offset_angle_ + motor_angle_ / transmission_ratio_, 0, 2 * PI);
-        } else {
-            servo_angle_ = wrap<float>(motor_angle_, 0, 2 * PI);
-        }
-        // 更新实际输出轴角度
-        outer_wrap_detector_->input(servo_angle_);
-        // 输入实际输出轴角度到边界检测器
-
-        // 绝对模式下不需要累积角度
-        if (!(mode_ & ABSOLUTE)) {
-            if (outer_wrap_detector_->negEdge())
-                cumulated_angle_ += 2 * PI;
-            // 检测到下降沿，代表电机输出轴正向转动了一整圈
-            else if (outer_wrap_detector_->posEdge())
-                cumulated_angle_ -= 2 * PI;
-            // 检测到上升沿，代表电机输出轴反向转动了一整圈
-        }
-
-        output_shaft_theta_ = servo_angle_ + cumulated_angle_;
+        output_shaft_theta_ = (mode_ & ABSOLUTE)
+                                  ? wrap<float>(continuous_output, 0.0f, 2.0f * PI)
+                                  : continuous_output;
         output_shaft_omega_ = omega_ / transmission_ratio_;
+
+        if (first_feedback && !applying_reset && (mode_ & ANGLE_LOOP_CONTROL)) {
+            // Do not let an angle-controlled motor jump toward the constructor
+            // default target before its owner has issued the first command.
+            target_ = output_shaft_theta_;
+        }
+
+        // Keep legacy diagnostic fields coherent for code that prints them or
+        // accesses them through ServoMotor friendship.
+        motor_angle_ = accumulated_motor_theta_;
+        offset_angle_ = output_coordinate_offset_;
+        servo_angle_ = wrap<float>(continuous_output, 0.0f, 2.0f * PI);
+        cumulated_angle_ = continuous_output - servo_angle_;
+        inner_wrap_detector_->reset(wrap<float>(motor_angle_, -PI, PI));
+        outer_wrap_detector_->reset(servo_angle_);
 
         if (mode_ & ANGLE_LOOP_CONTROL) {
             if (!(mode_ & ABSOLUTE)) {
@@ -401,8 +444,36 @@ namespace driver {
     void MotorCANBase::SetTransmissionRatio(float ratio) {
         // 设置电机的传动比
         // 这里的传动比不是电机的实际传动比，而是电机与编码器的传动比
+        RM_ASSERT_GT(ratio, 0.0f, "Transmission ratio must be positive");
+        if (fabsf(ratio - transmission_ratio_) <= 1.0e-6f) {
+            return;
+        }
+
+        const float current_output = output_shaft_theta_;
         transmission_ratio_ = ratio;
+
+        // SetTransmissionRatio is normally called before the first feedback
+        // frame. If it is changed later, preserve the current output-shaft
+        // coordinate and rebase on the next coherent sample instead of
+        // allowing an immediate angle jump.
+        if (angle_feedback_initialized_) {
+            ResetOutputShaftTheta(current_output);
+        }
     }
+
+    void MotorCANBase::ResetOutputShaftTheta(float output_theta) {
+        // Apply the reset inside UpdateData(), using the next coherent encoder
+        // sample. Changing only align_angle_ from a task can race the CAN
+        // callback and leaves the rest of the tracker in the old coordinate
+        // system.
+        output_shaft_reset_target_ = output_theta;
+        output_shaft_reset_pending_ = true;
+    }
+
+    bool MotorCANBase::IsOutputShaftThetaResetPending() const {
+        return output_shaft_reset_pending_;
+    }
+
     float MotorCANBase::GetOutputShaftTheta() const {
         return output_shaft_theta_;
     }
@@ -451,8 +522,9 @@ namespace driver {
     void MotorCANBase::Stop(){
         if (mode_ & SPEED_LOOP_CONTROL) {
             omega_pid_.Reset();
-        } else if (mode_ & ANGLE_LOOP_CONTROL) {
-            omega_pid_.Reset();
+        }
+        if (mode_ & ANGLE_LOOP_CONTROL) {
+            theta_pid_.Reset();
         }
     }
 

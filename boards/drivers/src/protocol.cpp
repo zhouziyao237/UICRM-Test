@@ -34,34 +34,70 @@ static const int BYTE = 8;
 
 namespace communication {
 
-    bool Protocol::Receive(package_t package) {
-        Heartbeat();
-        memcpy(bufferRx, package.data, package.length);
-        int start_idx;
-        int end_idx = 0;
-        while (end_idx < package.length) {
-            start_idx = end_idx;
-            while (++end_idx < package.length && bufferRx[end_idx] != SOF)
-                ;
-            if (end_idx - start_idx > FRAME_HEADER_LEN + CMD_ID_LEN + FRAME_TAIL_LEN) {
-                int DATA_LENGTH = bufferRx[start_idx + 2] << BYTE | bufferRx[start_idx + 1];
-                if (VerifyHeader(bufferRx + start_idx, FRAME_HEADER_LEN) &&
-                    VerifyFrame(bufferRx + start_idx,
-                                FRAME_HEADER_LEN + CMD_ID_LEN + DATA_LENGTH + FRAME_TAIL_LEN)) {
-                    int cmd_id = bufferRx[start_idx + FRAME_HEADER_LEN + 1] << BYTE |
-                                 bufferRx[start_idx + FRAME_HEADER_LEN];
-                    ProcessDataRx(cmd_id, bufferRx + start_idx + FRAME_HEADER_LEN + CMD_ID_LEN,
-                                  DATA_LENGTH);
-                }
-            }
-        }
+    template <typename T>
+    static bool CopyExact(T& destination, const uint8_t* data, int length) {
+        if (data == nullptr || length != static_cast<int>(sizeof(T)))
+            return false;
+        memcpy(&destination, data, sizeof(T));
         return true;
+    }
+
+    bool Protocol::Receive(package_t package) {
+        constexpr int MIN_FRAME_LEN = FRAME_HEADER_LEN + CMD_ID_LEN + FRAME_TAIL_LEN;
+        if (package.data == nullptr || package.length < MIN_FRAME_LEN ||
+            package.length > MAX_FRAME_LEN) {
+            return false;
+        }
+
+        memcpy(bufferRx, package.data, static_cast<size_t>(package.length));
+        bool processed = false;
+        int offset = 0;
+
+        while (offset + MIN_FRAME_LEN <= package.length) {
+            while (offset < package.length && bufferRx[offset] != SOF) {
+                ++offset;
+            }
+            if (offset + MIN_FRAME_LEN > package.length) {
+                break;
+            }
+
+            if (!VerifyHeader(bufferRx + offset, FRAME_HEADER_LEN)) {
+                ++offset;
+                continue;
+            }
+
+            const int data_length =
+                (static_cast<int>(bufferRx[offset + 2]) << BYTE) | bufferRx[offset + 1];
+            const int frame_length = FRAME_HEADER_LEN + CMD_ID_LEN + data_length + FRAME_TAIL_LEN;
+            if (frame_length < MIN_FRAME_LEN || frame_length > MAX_FRAME_LEN) {
+                ++offset;
+                continue;
+            }
+            if (offset + frame_length > package.length) {
+                break;
+            }
+
+            if (VerifyFrame(bufferRx + offset, frame_length)) {
+                const int cmd_id =
+                    (static_cast<int>(bufferRx[offset + FRAME_HEADER_LEN + 1]) << BYTE) |
+                    bufferRx[offset + FRAME_HEADER_LEN];
+                processed |= ProcessDataRx(
+                    cmd_id, bufferRx + offset + FRAME_HEADER_LEN + CMD_ID_LEN, data_length);
+            }
+            offset += frame_length;
+        }
+
+        if (processed) {
+            Heartbeat();
+        }
+        return processed;
     }
 
     package_t Protocol::Transmit(int cmd_id) {
         bufferTx[0] = SOF;
         int DATA_LENGTH = ProcessDataTx(cmd_id, bufferTx + FRAME_HEADER_LEN + CMD_ID_LEN);
-        if (DATA_LENGTH < 0)
+        const int max_data_length = MAX_FRAME_LEN - FRAME_HEADER_LEN - CMD_ID_LEN - FRAME_TAIL_LEN;
+        if (DATA_LENGTH < 0 || DATA_LENGTH > max_data_length)
             return package_t{nullptr, 0};
         bufferTx[1] = (uint8_t)((uint32_t)DATA_LENGTH & 0xFF);
         bufferTx[2] = (uint8_t)((uint32_t)DATA_LENGTH >> BYTE);
@@ -107,7 +143,8 @@ namespace communication {
     }
     void UARTProtocol::CallbackWrapper(void* args) {
         UARTProtocol* uart_protocol_ = reinterpret_cast<UARTProtocol*>(args);
-        uart_protocol_->callback_thread_->Set();
+        if (uart_protocol_ != nullptr && uart_protocol_->callback_thread_ != nullptr)
+            uart_protocol_->callback_thread_->Set();
     }
     void UARTProtocol::callback_thread_func_(void* args) {
         UARTProtocol* uart_protocol_ = reinterpret_cast<UARTProtocol*>(args);
@@ -115,11 +152,16 @@ namespace communication {
             communication::package_t{uart_protocol_->read_ptr_, (int)uart_protocol_->read_len_});
     }
     UARTProtocol::~UARTProtocol() {
+        if (uart_ != nullptr) {
+            uart_->RegisterCallback(nullptr, nullptr);
+            uart_->SetupRxData(nullptr, nullptr);
+        }
         delete callback_thread_;
     }
     package_t UARTProtocol::Transmit(int cmd_id) {
         package_t package = Protocol::Transmit(cmd_id);
-        uart_->Write(package.data, package.length);
+        if (uart_ != nullptr && package.data != nullptr && package.length > 0)
+            uart_->Write(package.data, package.length);
         return package;
     }
 
@@ -138,7 +180,7 @@ namespace communication {
     }
 
     // ---------------------------------- USBProtocol Code ---------------------------------
-
+#ifndef NO_USB
     USBProtocol::USBProtocol(bsp::VirtualUSB* USB) : Protocol() {
         if (USB == nullptr)
             return;
@@ -154,7 +196,8 @@ namespace communication {
     }
     void USBProtocol::CallbackWrapper(void* args) {
         USBProtocol* USB_protocol_ = reinterpret_cast<USBProtocol*>(args);
-        USB_protocol_->callback_thread_->Set();
+        if (USB_protocol_ != nullptr && USB_protocol_->callback_thread_ != nullptr)
+            USB_protocol_->callback_thread_->Set();
     }
     void USBProtocol::callback_thread_func_(void* args) {
         USBProtocol* USB_protocol_ = reinterpret_cast<USBProtocol*>(args);
@@ -162,11 +205,16 @@ namespace communication {
             communication::package_t{USB_protocol_->read_ptr_, (int)USB_protocol_->read_len_});
     }
     USBProtocol::~USBProtocol() {
+        if (usb_ != nullptr) {
+            usb_->RegisterCallback(nullptr, nullptr);
+            usb_->SetupRxData(nullptr, nullptr);
+        }
         delete callback_thread_;
     }
     package_t USBProtocol::Transmit(int cmd_id) {
         package_t package = Protocol::Transmit(cmd_id);
-        usb_->Write(package.data, package.length);
+        if (usb_ != nullptr && package.data != nullptr && package.length > 0)
+            usb_->Write(package.data, package.length);
         return package;
     }
 
@@ -183,6 +231,7 @@ namespace communication {
         UNUSED(data);
         return -1;
     }
+#endif
 
     // ----------------------------- ProtocolAdapterManager Code ---------------------------
 
@@ -202,6 +251,7 @@ namespace communication {
             uart_callback_thread_ = new bsp::EventThread(thread_init);
         }
 
+#ifndef NO_USB
         if (protocol_t.usb) {
             usb_protocol_ = std::make_unique<USBProtocol>(protocol_t.usb);
             // 注册USB回调
@@ -215,11 +265,14 @@ namespace communication {
             };
             usb_callback_thread_ = new bsp::EventThread(thread_init);
         }
+#endif
 
         if (protocol_t.uart) {
             protocoltype = UART_ONLY;
+#ifndef NO_USB
         } else if (protocol_t.usb) {
             protocoltype = USB_ONLY;
+#endif
         } else {
             protocoltype = NONE;
         }
@@ -230,28 +283,46 @@ namespace communication {
         if (uart_callback_thread_) {
             delete uart_callback_thread_;
         }
+#ifndef NO_USB
         if (usb_callback_thread_) {
             delete usb_callback_thread_;
         }
+#endif
     }
 
     // 统一传输接口
-    package_t ProtocolAdapterManager::Transmit(int cmd_id) {
+    package_t ProtocolAdapterManager::Transmit(Protocol* protocol, int cmd_id) {
+        if (protocol == nullptr) {
+            return package_t{nullptr, 0};
+        }
+
+        package_t package = protocol->Protocol::Transmit(cmd_id);
+        if (package.data == nullptr || package.length <= 0) {
+            return package;
+        }
+
         switch (protocoltype) {
             case UART_ONLY:
-                if (uart_protocol_) {
-                    return uart_protocol_->Transmit(cmd_id);
+                if (uart_protocol_ && uart_protocol_->uart_ != nullptr) {
+                    uart_protocol_->uart_->Write(package.data, package.length);
                 }
                 break;
+#ifndef NO_USB
             case USB_ONLY:
-                if (usb_protocol_) {
-                    return usb_protocol_->Transmit(cmd_id);
+                if (usb_protocol_ && usb_protocol_->usb_ != nullptr) {
+                    usb_protocol_->usb_->Write(package.data, package.length);
                 }
                 break;
+#endif
             default:
                 break;
         }
-        return package_t{nullptr, 0};
+
+        return package;
+    }
+
+    void ProtocolAdapterManager::SetReceiver(Protocol* protocol) {
+        receiver_ = protocol;
     }
 
     // 回调包装器实现
@@ -262,12 +333,14 @@ namespace communication {
         }
     }
 
+#ifndef NO_USB
     void ProtocolAdapterManager::USBCallbackWrapper(void* args) {
         ProtocolAdapterManager* adapter = reinterpret_cast<ProtocolAdapterManager*>(args);
         if (adapter->usb_callback_thread_) {
             adapter->usb_callback_thread_->Set();
         }
     }
+#endif
 
     // 回调线程函数实现
     void ProtocolAdapterManager::uart_callback_thread_func_(void* args) {
@@ -279,6 +352,7 @@ namespace communication {
         }
     }
 
+#ifndef NO_USB
     // 修改 usb_callback_thread_func_ 函数
     void ProtocolAdapterManager::usb_callback_thread_func_(void* args) {
         ProtocolAdapterManager* adapter = reinterpret_cast<ProtocolAdapterManager*>(args);
@@ -288,21 +362,29 @@ namespace communication {
             adapter->HandleReceivedData(package, USB_ONLY);
         }
     }
-
+#endif
 
     // 统一数据处理入口
     void ProtocolAdapterManager::HandleReceivedData(package_t package, ProtocolType source) {
+        UNUSED(source);
+        if (receiver_ != nullptr) {
+            receiver_->Receive(package);
+            return;
+        }
+
         switch (source) {
             case UART_ONLY:
                 if (uart_protocol_) {
                     uart_protocol_->Receive(package);
                 }
                 break;
+#ifndef NO_USB
             case USB_ONLY:
                 if (usb_protocol_) {
                     usb_protocol_->Receive(package);
                 }
                 break;
+#endif
             default:
                 break;
         }
@@ -318,58 +400,76 @@ namespace communication {
     bool Referee::ProcessDataRx(int cmd_id, const uint8_t* data, int length) {
         switch (cmd_id) {
             case GAME_STATUS:
-                memcpy(&game_status, data, length);
+                if (!CopyExact(game_status, data, length))
+                    return false;
                 break;
             case GAME_RESULT:
-                memcpy(&game_result, data, length);
+                if (!CopyExact(game_result, data, length))
+                    return false;
                 break;
             case GAME_ROBOT_HP:
-                memcpy(&game_robot_HP, data, length);
+                if (!CopyExact(game_robot_HP, data, length))
+                    return false;
                 break;
             case EVENT_DATA:
-                memcpy(&event_data, data, length);
+                if (!CopyExact(event_data, data, length))
+                    return false;
                 break;
             case SUPPLY_PROJECTILE_ACTION:
-                memcpy(&supply_projectile_action, data, length);
+                if (!CopyExact(supply_projectile_action, data, length))
+                    return false;
                 break;
             case REFEREE_WARNING:
-                memcpy(&referee_warning, data, length);
+                if (!CopyExact(referee_warning, data, length))
+                    return false;
                 break;
             case DART_REMAINING_TIME:
-                memcpy(&dart_remaining_time, data, length);
+                if (!CopyExact(dart_remaining_time, data, length))
+                    return false;
                 break;
             case GAME_ROBOT_STATUS:
-                memcpy(&game_robot_status, data, length);
+                if (!CopyExact(game_robot_status, data, length))
+                    return false;
                 break;
             case POWER_HEAT_DATA:
-                memcpy(&power_heat_data, data, length);
+                if (!CopyExact(power_heat_data, data, length))
+                    return false;
                 break;
             case GAME_ROBOT_POS:
-                memcpy(&game_robot_pos, data, length);
+                if (!CopyExact(game_robot_pos, data, length))
+                    return false;
                 break;
             case BUFF:
-                memcpy(&buff, data, length);
+                if (!CopyExact(buff, data, length))
+                    return false;
                 break;
             case AERIAL_ROBOT_ENERGY:
-                memcpy(&aerial_robot_energy, data, length);
+                if (!CopyExact(aerial_robot_energy, data, length))
+                    return false;
                 break;
             case ROBOT_HURT:
-                memcpy(&robot_hurt, data, length);
+                if (!CopyExact(robot_hurt, data, length))
+                    return false;
                 break;
             case SHOOT_DATA:
-                memcpy(&shoot_data, data, length);
+                if (!CopyExact(shoot_data, data, length))
+                    return false;
                 break;
             case BULLET_REMAINING:
-                memcpy(&bullet_remaining, data, length);
+                if (!CopyExact(bullet_remaining, data, length))
+                    return false;
                 break;
             case RFID_STATUS:
-                memcpy(&rfid_status, data, length);
+                if (!CopyExact(rfid_status, data, length))
+                    return false;
                 break;
             case DART_CLIENT_CMD:
-                memcpy(&dart_client_cmd, data, length);
+                if (!CopyExact(dart_client_cmd, data, length))
+                    return false;
                 break;
             case REMOTE_CONTROL_DATA:
-                memcpy(&remote_control, data, length);
+                if (!CopyExact(remote_control, data, length))
+                    return false;
                 break;
             default:
                 return false;
@@ -418,8 +518,6 @@ namespace communication {
             default:
                 data_len = -1;
         }
-        if (data_len > 0)
-            uart_->Write(data, data_len);
         return data_len;
     }
 
@@ -429,41 +527,72 @@ namespace communication {
 
     // ------------------------------------ MiniPC Code -----------------------------------
 
+    Host::Host() : Host(Protocol_t{}) {
+    }
+
+    Host::Host(bsp::UART* uart)
+#ifndef NO_USB
+        : Host(Protocol_t{uart, nullptr}) {
+#else
+        : Host(Protocol_t{uart}) {
+#endif
+    }
+
+#ifndef NO_USB
+    Host::Host(bsp::VirtualUSB* usb) : Host(Protocol_t{nullptr, usb}) {
+    }
+#endif
+
     Host::Host(Protocol_t protocol_t) : Protocol(), adapter_(protocol_t) {
+        adapter_.SetReceiver(this);
+    }
+
+    package_t Host::Transmit(int cmd_id) {
+        return adapter_.Transmit(this, cmd_id);
     }
 
     bool Host::ProcessDataRx(int cmd_id, const uint8_t* data, int length) {
         switch (cmd_id) {
             case PACK:
-                memcpy(&pack, data, length);
+                if (!CopyExact(pack, data, length))
+                    return false;
                 break;
             case TARGET_ANGLE:
                 // memset(&target_angle, 0, sizeof(target_angle));
-                memcpy(&target_angle, data, length);
+                if (!CopyExact(target_angle, data, length))
+                    return false;
                 break;
             case NO_TARGET_FLAG:
-                memcpy(&no_target_flag, data, length);
+                if (!CopyExact(no_target_flag, data, length))
+                    return false;
                 break;
             case SHOOT_CMD:
-                memcpy(&shoot_cmd, data, length);
+                if (!CopyExact(shoot_cmd, data, length))
+                    return false;
                 break;
             case ROBOT_MOVE_SPEED:
-                memcpy(&robot_move, data, length);
+                if (!CopyExact(robot_move, data, length))
+                    return false;
                 break;
             case ROBOT_POWER_HEAT_HP_UPLOAD:
-                memcpy(&robot_power_heat_hp_upload, data, length);
+                if (!CopyExact(robot_power_heat_hp_upload, data, length))
+                    return false;
                 break;
             case GIMBAL_CURRENT_STATUS:
-                memcpy(&gimbal_current_status, data, length);
+                if (!CopyExact(gimbal_current_status, data, length))
+                    return false;
                 break;
             case CHASSIS_CURRENT_STATUS:
-                memcpy(&chassis_current_status, data, length);
+                if (!CopyExact(chassis_current_status, data, length))
+                    return false;
                 break;
             case AUTOAIM_ENABLE:
-                memcpy(&autoaim_enable, data, length);
+                if (!CopyExact(autoaim_enable, data, length))
+                    return false;
                 break;
             case ROBOT_STATUS_UPLOAD:
-                memcpy(&robot_status_upload, data, length);
+                if (!CopyExact(robot_status_upload, data, length))
+                    return false;
                 break;
             default:
                 return false;

@@ -72,10 +72,17 @@ namespace driver {
             STALL_MOTOR_CONTROL = 0x20,
             // 反转电机方向
             REVERSE_MOTOR_OPERATE = 0x40,
-            // ABSOLUTE模式下，认为输出轴只有一圈。电机输出轴角度不会累计，被限制在[0,
-            // 2PI]之间，如果目标在相反的半圈，则从另一侧绕过去
+            // Circular output-axis control mode. This is a software control
+            // semantic, not a claim that the motor has a hardware multi-turn
+            // absolute encoder. The exposed output angle is kept in one
+            // revolution and the angle loop chooses the shortest wrapped path.
+            // Do not use this for a mechanically limited pitch axis.
             ABSOLUTE = 0x80,
-            // 单圈限制，不自动最短路径
+            // Start from the hardware single-turn encoder coordinate, but use
+            // a linear (non-circular) angle error. Feedback crossings are
+            // unwrapped from adjacent CAN frames, so a mechanically limited
+            // axis can safely cross encoder 0 without choosing a shortest
+            // path through its mechanical stop.
             SINGLETURN = 0x10,
         };
 
@@ -160,6 +167,13 @@ namespace driver {
          * @return angle difference, range between [-PI, PI]
          */
         virtual float GetThetaDelta(const float target) const;
+
+        /**
+         * @brief Difference between an output-shaft target and measurement.
+         * @param target target in output-shaft radians
+         * @param circular true only for an axis that can rotate continuously
+         */
+        float GetOutputShaftThetaDelta(float target, bool circular = false) const;
 
         /**
          * @brief 获得电机的角速度（编码器角速度），格式为[rad / s]
@@ -265,6 +279,26 @@ namespace driver {
          * @param ratio 电机的减速箱比例
          */
         void SetTransmissionRatio(float ratio);
+
+        /**
+         * @brief Request a complete output-shaft angle tracker re-zero at a
+         *        known mechanical position.
+         *
+         * This resets align_angle_, wrap-detector history, accumulated turns,
+         * the exposed output angle and both PID histories together. Directly
+         * writing align_angle_ alone is unsafe because the remaining tracker
+         * state then describes a different coordinate system.
+         *
+         * The request is applied in the next motor CAN feedback callback, so
+         * every tracker field is rebuilt from the same encoder sample. Call
+         * only while the motor output is disabled and the shaft is still.
+         *
+         * @param output_theta desired output-shaft coordinate in radians
+         */
+        void ResetOutputShaftTheta(float output_theta);
+
+        /** @return true until the next CAN feedback frame applies the reset. */
+        bool IsOutputShaftThetaResetPending() const;
 
         /**
          * @brief 设置ServoMotor为MotorCANBase的友元，因为它们需要使用MotorCANBase的许多私有参数。
@@ -393,6 +427,18 @@ namespace driver {
         float proximity_out_ = 0.15; /* 电机退出保持状态的临界角度差 */
 
         bool holding_ = true; /* 电机是否进入保持状态 */
+
+        volatile bool output_shaft_reset_pending_ = false;
+        volatile float output_shaft_reset_target_ = 0.0f;
+
+        // DJI motors report a 0..2PI single-turn encoder. For finite axes and
+        // geared outputs we reconstruct a continuous motor-side coordinate by
+        // accumulating only the wrapped delta between adjacent feedback
+        // frames. This remains correct for any positive transmission ratio.
+        volatile bool angle_feedback_initialized_ = false;
+        volatile float last_feedback_theta_ = 0.0f;
+        volatile float accumulated_motor_theta_ = 0.0f;
+        volatile float output_coordinate_offset_ = 0.0f;
 
         DataUpdateCallback_t data_update_callback_ = [](void* instance) { UNUSED(instance); };
         void* data_update_instance_ = nullptr;

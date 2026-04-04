@@ -4,6 +4,17 @@
 
 Embedded system development @ BNU-HKBU UIC RoboMaster
 
+## Atlas control baseline
+
+The current Atlas application uses one procedural run-mode path: `remote_mode`
+is updated by `UpdateRobotMode()` and consumed by direct `switch` statements in
+the chassis and gimbal tasks. See:
+
+- `programs/Atlas/gimbal/ARCHITECTURE.md`
+- `programs/Atlas/gimbal/ADDING_A_MODE.md`
+- `UICRM_IMU_SIMPLE_MODE_REPORT.md`
+
+
 ## User Guide
 
 You can follow the instructions below to set up the necessary environments for
@@ -162,3 +173,13 @@ Thought directly using `openocd` is possible, but it is only recommended for adv
 
 The main branch is protected. You need to create a new branch and make a pull request to merge your changes. You need to
 <u>pass the CI check (formatting check and build check)</u> before merging.
+## Atlas input utility reuse
+
+Atlas DBUS input now consumes one `remote::RemoteInput` snapshot for analog
+channels, switches, keyboard, mouse X/Y/Z and mouse buttons. See
+`ATLAS_DBUS_INPUT_API_FIX_REPORT.md` and
+`programs/Atlas/gimbal/ATLAS_CONTROL_CUSTOMIZATION.md`.
+
+## Atlas SPIN frame correction
+
+The latest Atlas package fixes the SPIN translation transform for the project's `forward/right` axis convention. See `ATLAS_SPIN_FRAME_FIX_REPORT.md`.

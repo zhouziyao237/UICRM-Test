@@ -52,7 +52,13 @@ bool EdgeDetector<T>::negEdge() {
 }
 
 BoolEdgeDetector::BoolEdgeDetector(bool initial) {
+    reset(initial);
+}
+
+void BoolEdgeDetector::reset(bool initial) {
     prev_ = initial;
+    posEdge_ = false;
+    negEdge_ = false;
 }
 
 void BoolEdgeDetector::input(bool signal) {
@@ -77,12 +83,20 @@ bool BoolEdgeDetector::get() {
     return prev_;
 }
 BoolEdgeDetector::BoolEdgeDetector() {
-    prev_ = false;
+    reset(false);
 }
 
 FloatEdgeDetector::FloatEdgeDetector(float initial, float threshold) {
     prev_ = initial;
     threshold_ = threshold;
+    posEdge_ = false;
+    negEdge_ = false;
+}
+
+void FloatEdgeDetector::reset(float initial) {
+    prev_ = initial;
+    posEdge_ = false;
+    negEdge_ = false;
 }
 
 void FloatEdgeDetector::input(float signal) {
@@ -160,11 +174,17 @@ void EndianSwap(void* data, size_t size) {
 }
 Ease::Ease(float initial, float step) {
     current_ = initial;
+    target_ = initial;
     step_ = step;
 }
 
 void Ease::SetTarget(float target) {
     target_ = target;
+}
+
+void Ease::Reset(float value) {
+    current_ = value;
+    target_ = value;
 }
 
 float Ease::Calc() {

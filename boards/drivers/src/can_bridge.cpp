@@ -30,9 +30,12 @@ namespace communication {
     CanBridge::CanBridge(bsp::CAN* can, uint8_t id) {
         can_ = can;
         id_ = id;
-        can_->RegisterRxExtendCallback(id_, can_bridge_callback, this);
+        if (can_ != nullptr)
+            can_->RegisterRxExtendCallback(id_, can_bridge_callback, this);
     }
     void CanBridge::Send(can_bridge_ext_id_t ext_id, can_bridge_data_t data) {
+        if (can_ == nullptr)
+            return;
         ext_id.data.tx_id = id_;
         can_->TransmitExtend(ext_id.id, data.data, 8);
     }
@@ -43,12 +46,26 @@ namespace communication {
         can_bridge_data_t data_struct;
         memcpy(data_struct.data, data, 8);
         const auto it = reg_to_index_.find(ext_id_struct.data.reg);
-        if (it != reg_to_index_.end()) {
+        if (it != reg_to_index_.end() && it->second < reg_callback_count_ &&
+            reg_callbacks_[it->second] != nullptr) {
             reg_callbacks_[it->second](ext_id_struct, data_struct, reg_args_[it->second]);
         }
     }
 
     void CanBridge::RegisterRxCallback(uint8_t reg, can_bridge_rx_callback_t callback, void* args) {
+        if (callback == nullptr)
+            return;
+
+        const auto existing = reg_to_index_.find(reg);
+        if (existing != reg_to_index_.end()) {
+            reg_callbacks_[existing->second] = callback;
+            reg_args_[existing->second] = args;
+            return;
+        }
+
+        if (reg_callback_count_ >= MAX_CAN_BRIDGE_REG)
+            return;
+
         reg_callbacks_[reg_callback_count_] = callback;
         reg_args_[reg_callback_count_] = args;
         reg_to_index_[reg] = reg_callback_count_;

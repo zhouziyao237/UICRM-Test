@@ -1,37 +1,34 @@
-/*###########################################################
- # Copyright (c) 2023-2024. BNU-HKBU UIC RoboMaster         #
- #                                                          #
- # This program is free software: you can redistribute it   #
- # and/or modify it under the terms of the GNU General      #
- # Public License as published by the Free Software         #
- # Foundation, either version 3 of the License, or (at      #
- # your option) any later version.                          #
- #                                                          #
- # This program is distributed in the hope that it will be  #
- # useful, but WITHOUT ANY WARRANTY; without even           #
- # the implied warranty of MERCHANTABILITY or FITNESS       #
- # FOR A PARTICULAR PURPOSE.  See the GNU General           #
- # Public License for more details.                         #
- #                                                          #
- # You should have received a copy of the GNU General       #
- # Public License along with this program.  If not, see     #
- # <https://www.gnu.org/licenses/>.                         #
- ###########################################################*/
-
 #pragma once
 
-#include "main.h"
-#include "sys.h"
-#include "protocol.h"
+#include <cstdint>
 
-// ---------------------------- Referre Data Code ----------------------------
+namespace communication {
+class Referee;
+class UserInterface;
+}
 
-#define RX_SIGNAL (1 << 0)
+/** Read-only subset of referee data used by Atlas control modules. */
+struct RefereeSnapshot_t {
+    bool online = false;
+    bool match_running = false;
+    bool chassis_power_enabled = true;
+    bool gimbal_power_enabled = true;
+    bool shooter_power_enabled = true;
+    uint8_t robot_id = 0;
+    uint16_t hp = 1;
+    uint16_t max_hp = 0;
+    uint16_t chassis_power_limit = 100;
+    uint16_t chassis_power_buffer = 30;
+    float chassis_power = 0.0f;
+    uint16_t shooter_heat_limit = 200;
+    uint16_t shooter_heat = 0;
+    uint16_t bullets_17mm = 0;
+    float bullet_speed = 0.0f;
+};
 
-extern communication::Referee* Referee_data;
-
-// ---------------------------- Referre Main Code ----------------------------
-
-void InitRefPort();
-
+void InitReferee();
 uint8_t RefereeIsOnline();
+RefereeSnapshot_t RefereeGetSnapshot();
+
+/** Build the referee-backed UI transport without exposing the protocol object. */
+communication::UserInterface* RefereeCreateUserInterface();

@@ -111,6 +111,10 @@ extern "C" {
     // 处理待触发事件
     void rc_key_process_events(void);
 
+    // Reset key timing/state while preserving registered keys and callbacks.
+    // Used when the active remote source changes or the remote goes offline.
+    void rc_key_reset_states(void);
+
     // 主要处理函数
     void rc_key_process(uint8_t channel, uint16_t value);
 

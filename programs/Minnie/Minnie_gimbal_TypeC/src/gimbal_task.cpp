@@ -265,9 +265,12 @@ void init_gimbal() {
                 control::ConstrainedPID::DerivativeFilter             // 微分在测量值上
     };
     pitch_motor->ReInitPID(pitch_motor_omega_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
-    // 给电机启动角度环和速度环，并且这是一个绝对角度电机，需要启动绝对角度模式
+    // Pitch has mechanical stops. Start from the 6020 single-turn encoder
+    // coordinate, unwrap adjacent feedback frames, and use a linear angle
+    // error. ABSOLUTE shortest-path control is reserved for circular axes.
     pitch_motor->SetMode(driver::MotorCANBase::ANGLE_LOOP_CONTROL |
-                         driver::MotorCANBase::SPEED_LOOP_CONTROL | driver::MotorCANBase::ABSOLUTE);
+                         driver::MotorCANBase::SPEED_LOOP_CONTROL |
+                         driver::MotorCANBase::SINGLETURN);
 
     /**
      * yaw motor

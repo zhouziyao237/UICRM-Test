@@ -1,357 +1,93 @@
-// Copyright (c) 2026. BNU-HKBU UIC RoboMaster
-//
-// This program is free software: you can redistribute it
-// and/or modify it under the terms of the GNU General
-// Public License as published by the Free Software
-// Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE.  See the GNU General
-// Public License for more details.
-//
-// You should have received a copy of the GNU General
-// Public License along with this program.  If not, see
-// <https://www.gnu.org/licenses/>.
-
-//
-// Created by Administrator on 2026/2/27.
-//
-
 #include "sys.h"
 
+#include "bsp_os.h"
+#include "bsp_print.h"
+#include "buzzer_notes.h"
+#include "buzzer_task.h"
 #include "main.h"
 #include "rc.h"
+#include "referee_task.h"
 
-// ----------------------------- sys start data -----------------------------
+bsp::CAN* atlas_can1 = nullptr;
+bsp::CAN* atlas_can2 = nullptr;
+bsp::UART* atlas_referee_uart = nullptr;
+bsp::UART* atlas_log_uart = nullptr;
+bsp::VirtualUSB* atlas_minipc_usb = nullptr;
 
-volatile SysStartData_t SysStartData = {
-    .SystemInitFlag = 0,
-    .RefereeInitFlag = 0,
-    .ImuInitFlag = 0,
-    .GimbalInitFlag = 0,
-    .ChassisInitFlag = 0,
-    .VisionInitFlag = 0,
-    .ShootInitFlag = 0,
-    .AHRSInitFlag = 0,
-};
+bsp::SPI* atlas_imu_spi = nullptr;
+bsp::I2C* atlas_magnetometer_i2c = nullptr;
+bsp::GPIO* atlas_imu_accel_cs = nullptr;
+bsp::GPIO* atlas_imu_gyro_cs = nullptr;
+bsp::GPIO* atlas_magnetometer_reset = nullptr;
+bsp::GPIT* atlas_imu_accel_interrupt = nullptr;
+bsp::GPIT* atlas_imu_gyro_interrupt = nullptr;
+bsp::GPIT* atlas_magnetometer_interrupt = nullptr;
+bsp::PWM* atlas_imu_heater_pwm = nullptr;
 
-volatile RobotStatus_t RobotStatus = {
-    .RemoteOnline = 0,
-    .GimbalOnline = 0,
-    .ChassisOnline = 0,
-    .VisionOnline = 0,
-    .RefereeOnline = 0,
-    .ShootOnline = 0,
-    .RCOnline = 0,
-};
+namespace {
+void InitCommunicationHardware() {
+    atlas_can1 = new bsp::CAN(&hcan1, true);
+    atlas_can2 = new bsp::CAN(&hcan2, false);
 
-volatile GimbalMode_e GimbalMode = GKILLMODE;
-volatile ChassisMode_e ChassisMode = CKILLMODE;
-volatile ShootMode_e ShootMode = SKILLMODE;
+    atlas_log_uart = new bsp::UART(&huart6);
+    atlas_log_uart->SetupRx(300);
+    atlas_log_uart->SetBaudrate(921600);
+    print_use(atlas_log_uart, true);
 
-// ----------------------------- sys Hardware Code -----------------------------
-
-// ----------------------------- CAN Code -----------------------------
-bsp::CAN* can1 = nullptr;
-bsp::CAN* can2 = nullptr;
-
-void InitCAN() {
-    can1 = new bsp::CAN(&hcan1, true);
-    can2 = new bsp::CAN(&hcan2, false);
-}
-
-// ----------------------------- UART Code -----------------------------
-bsp::UART* referee_uart = nullptr;
-
-void InitRefereeUart() {
-#ifdef RefereePort
-    referee_uart = new bsp::UART(&RefereePort);
-    referee_uart->SetupRx(300, true);
-    referee_uart->SetupTx(300, true);
+#ifdef HAS_REFEREE
+    atlas_referee_uart = new bsp::UART(&huart1);
+    atlas_referee_uart->SetupRx(300, true);
+    atlas_referee_uart->SetupTx(300, true);
 #endif
+
+    atlas_minipc_usb = new bsp::VirtualUSB();
+    atlas_minipc_usb->SetupRx(300);
+    atlas_minipc_usb->SetupTx(300);
 }
 
-bsp::UART* rc_uart = nullptr;
+void InitImuHardware() {
+    bsp::spi_init_t spi_config = {&hspi1, bsp::SPI_MODE_DMA};
+    atlas_imu_spi = new bsp::SPI(spi_config);
 
-void InitRCUart() {
-#ifdef RCPort
-    rc_uart = new bsp::UART(&RCPort);
-#endif
-#ifdef RCPortRXBUFFERSIZE
-    rc_uart->SetupRx(RCPortRXBUFFERSIZE);
-#endif
-#ifdef RCPortTXBUFFERSIZE
-    rc_uart->SetupTx(RCPortTXBUFFERSIZE);
-#endif
-#ifdef RCPortBaudrate
-    rc_uart->SetBaudrate(RCPortBaudrate);
-#endif
+    bsp::i2c_init_t i2c_config = {&hi2c3, bsp::I2C_MODE_IT};
+    atlas_magnetometer_i2c = new bsp::I2C(i2c_config);
+
+    atlas_imu_accel_cs = new bsp::GPIO(CS1_ACCEL_GPIO_Port, CS1_ACCEL_Pin);
+    atlas_imu_gyro_cs = new bsp::GPIO(CS1_GYRO_GPIO_Port, CS1_GYRO_Pin);
+    atlas_magnetometer_reset = new bsp::GPIO(GPIOG, GPIO_PIN_6);
+
+    atlas_imu_accel_interrupt = new bsp::GPIT(INT1_ACCEL_Pin);
+    atlas_imu_gyro_interrupt = new bsp::GPIT(INT1_GYRO_Pin);
+    atlas_magnetometer_interrupt = new bsp::GPIT(DRDY_IST8310_Pin);
+
+    atlas_imu_heater_pwm = new bsp::PWM(&htim10, 1, 1000000, 2000, 0);
 }
+}  // namespace
 
-// ----------------------------- USB Code -----------------------------
-bsp::VirtualUSB* minipc_usb = nullptr;
-
-void InitMinipcUSB() {
-    minipc_usb = new bsp::VirtualUSB();
-    minipc_usb->SetupRx(300);
-    minipc_usb->SetupTx(300);
+void InitAtlasHardware() {
+    InitRobotMode();
+    InitCommunicationHardware();
+    InitImuHardware();
 }
-
-// ----------------------------- LOG Code -----------------------------
-
-void InitLOGPort() {
-#ifdef LOGPort
-    print_use(LOGPort, true);
-#endif
-}
-
-// ----------------------------- SPI Code -----------------------------
-
-bsp::spi_init_t SPICFGS[HSPI_NUM] = {HSPI1CFG};
-bsp::SPI* SPIS[HSPI_NUM] = {};
-
-void InitSPIPort() {
-    for (int i = 0; i < HSPI_NUM; i++) {
-        SPIS[i] = new bsp::SPI(SPICFGS[i]);
-    }
-}
-
-// ----------------------------- I2C Code -----------------------------
-#include "bsp_i2c.h"
-
-bsp::i2c_init_t I2CCFGS[I2C_NUM] = {I2C3CFG};
-bsp::I2C* I2CS[I2C_NUM] = {};
-
-void InitI2CPort() {
-    for (int i = 0; i < I2C_NUM; i++) {
-        I2CS[i] = new bsp::I2C(I2CCFGS[i]);
-    }
-}
-
-// ----------------------------- GPIO Code -----------------------------
-
-GPIO_TypeDef* group[GPIO_NUM] = {CS1_ACCEL_GPIO_Port, CS1_GYRO_GPIO_Port, GPIOG};
-uint16_t pin[GPIO_NUM] = {CS1_ACCEL_Pin, CS1_GYRO_Pin, GPIO_PIN_6};
-bsp::GPIO* GPIOS[GPIO_NUM] = {};
-
-void InitGPIO() {
-    for (int i = 0; i < GPIO_NUM; i++) {
-        GPIOS[i] = new bsp::GPIO(group[i], pin[i]);
-    }
-}
-
-// ----------------------------- INT GPIO Code -----------------------------
-
-uint16_t intpin[INT_GPIO_NUM] = {INT1_ACCEL_Pin, INT1_GYRO_Pin, DRDY_IST8310_Pin};
-bsp::GPIT* INTGPIOS[GPIO_NUM] = {};
-
-void InitINTGPIO() {
-    for (int i = 0; i < INT_GPIO_NUM; i++) {
-        INTGPIOS[i] = new bsp::GPIT(intpin[i]);
-    }
-}
-
-// ----------------------------- PWM GPIO Code -----------------------------
-
-PWMCFG_t PWMCFG[PWM_GPIO_NUM] = {heater_pwm_cfg};
-bsp::PWM* PWMS[PWM_GPIO_NUM] = {};
-
-void InitPWMGPIO() {
-    for (int i = 0; i < PWM_GPIO_NUM; i++) {
-        PWMS[i] = new bsp::PWM(PWMCFG[i].htim, PWMCFG[i].channel, PWMCFG[i].clock_freq,
-                               PWMCFG[i].output_freq, PWMCFG[i].pulse_width);
-    }
-}
-
-// ---------------------------- sys Init Code ----------------------------
-
-void InitRMSys() {
-    InitRCUart();
-    InitLOGPort();
-    InitCAN();
-    InitRefereeUart();
-    InitMinipcUSB();
-
-    InitGPIO();
-    InitINTGPIO();
-    InitPWMGPIO();
-    InitSPIPort();
-    InitI2CPort();
-}
-
-// ---------------------------- sys Task Code ----------------------------
 
 osThreadId_t SysTaskHandle;
 
-volatile RobotMode_e RobotMode = RKILLMODE;
-volatile RobotMode_e LastRobotMode = RMANUALMODE;
-
-BoolEdgeDetector* RoboModeSwitch_CH = nullptr;
-BoolEdgeDetector* RoboModeSwitch_KEY[SwitchKEYNUM] = {nullptr};
-
-bool rc_offline = false;
-bool is_killed = false;
-bool is_robot_dead = false;
-bool is_shoot_available = false;
-
-const int8_t remote_mode_max = 3;
-const int8_t remote_mode_min = 1;
-
-BoolEdgeDetector* game_start_edge = nullptr;
-
-// ---------------------------- Sys Main Code ----------------------------
-
-void RoboSysInit() {
-    RoboModeSwitch_CH = new BoolEdgeDetector(false);
-    for (int i = 0; i < SwitchKEYNUM; i++) {
-        RoboModeSwitch_KEY[i] = new BoolEdgeDetector(false);
-    }
-    game_start_edge = new BoolEdgeDetector(false);
-}
-
-void SwitchRobotMode() {
-    switch (RobotMode) {
-        case RMANUALMODE: {
-            ChassisMode = CMANUALMODE;
-            GimbalMode = GMANUALMODE;
-            ShootMode = SHOOTILDE;
-        } break;
-        case RSPINMODE: {
-            ChassisMode = CSPINMODE;
-            GimbalMode = GSPINMODE;
-            ShootMode = SHOOTILDE;
-        } break;
-        case RFOLLOWMODE: {
-            ChassisMode = CFOLLOWMODE;
-            GimbalMode = GFOLLOWMODE;
-            ShootMode = SHOOTILDE;
-        } break;
-        case RAUTOAIMODE: {
-            ChassisMode = CMANUALMODE;
-            GimbalMode = GAUTOAIMODE;
-            ShootMode = SHOOTILDE;
-        } break;
-        default:
-        break;
-    }
-}
-
 void SysTask(void* arg) {
     UNUSED(arg);
-
-    while (!SysStartData.SystemInitFlag) {
-        osDelay(10);
-    }
-
-    while (!RCIsOnline()) {
-        RobotMode = RKILLMODE;
-        ChassisMode = CKILLMODE;
-        GimbalMode = GKILLMODE;
-        ShootMode = SKILLMODE;
-        osDelay(10);
-    }
-
-    osDelay(500);
-
-#ifdef HAS_REFEREE
-    if (RefereeIsOnline()) {
-        while (!Referee_data->game_robot_status.mains_power_gimbal_output) {
-            RobotMode = RKILLMODE;
-            ChassisMode = CKILLMODE;
-            GimbalMode = GKILLMODE;
-            ShootMode = SKILLMODE;
-            osDelay(10);
-        }
-    }
-#endif
-
-    if (rcData[MODE_SWITCH_CHANNEL] != MODE_KILL) {
-        while (true) {
-            if (rcData[MODE_SWITCH_CHANNEL] == MODE_KILL) {
-                osDelay(100);
-                break;
-            }
-
-            Buzzer_Sing(ProtectWarning);
-            osDelay(100);
-        }
-    }
-
-    osDelay(500);
-    Buzzer_Sing(DJI);
-    RobotMode = RMANUALMODE;
+    bool was_killed = true;
+    BuzzerPlay(DJI);
 
     while (true) {
-        rc_offline = !RCIsOnline();
-
+        const RemoteControl_t remote = RCGetSnapshot();
+        RefereeSnapshot_t referee{};
 #ifdef HAS_REFEREE
-        // 修复：正确使用边沿检测器
-        game_start_edge->input(Referee_data->game_status.game_progress == 4);
-        if (game_start_edge->get() && RefereeIsOnline()) {
-            is_robot_dead = Referee_data->game_robot_status.remain_HP == 0 ||
-                            rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
-        } else {
-            is_robot_dead = rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
-        }
-#else
-        is_robot_dead = rcData[MODE_SWITCH_CHANNEL] == MODE_KILL;
+        referee = RefereeGetSnapshot();
 #endif
+        UpdateRobotMode(remote, referee, bsp::GetHighresTickMilliSec());
 
-        if (rc_offline || is_robot_dead) {
-            if (!is_killed) {
-                LastRobotMode = RobotMode;
-                RobotMode = RKILLMODE;
-                ChassisMode = CKILLMODE;
-                GimbalMode = GKILLMODE;
-                ShootMode = SKILLMODE;
-                is_killed = true;
-            }
-        } else {
-            if (is_killed) {
-                RobotMode = LastRobotMode;
-                SwitchRobotMode();
-
-                is_killed = false;
-            }
-        }
-
-        if (RobotMode == RKILLMODE || is_killed) {
-            osDelay(10);
-            continue;
-        }
-
-        RoboModeSwitch_KEY[SwitchKEY]->input(rcData[ROBOMODE_SWITCH_CH]);
-        RoboModeSwitch_CH->input(rcData[ROBOMODE_SWITCH_KEY]);
-
-        if (RoboModeSwitch_KEY[SwitchKEY]->posEdge() || RoboModeSwitch_CH->posEdge()) {
-            RobotMode_e next_mode = (RobotMode_e)(RobotMode + 1);
-            if ((int8_t)next_mode > (int8_t)remote_mode_max) {
-                next_mode = (RobotMode_e)remote_mode_min;
-            }
-            RobotMode = next_mode;
-            SwitchRobotMode();
-        }
-
-        RoboModeSwitch_KEY[FOLLOWMODEKEY]->input(rcData[KEYBOARD_C_CHANNEL]);
-        RoboModeSwitch_KEY[RSPINMODEKEY]->input(rcData[KEYBOARD_V_CHANNEL]);
-        RoboModeSwitch_KEY[MANUALMODEKEY]->input(rcData[KEYBOARD_B_CHANNEL]);
-
-        if (RoboModeSwitch_KEY[FOLLOWMODEKEY]->posEdge()) {
-            RobotMode = RFOLLOWMODE;
-            SwitchRobotMode();
-        }
-        if (RoboModeSwitch_KEY[RSPINMODEKEY]->posEdge()) {
-            RobotMode = RMANUALMODE;
-            SwitchRobotMode();
-        }
-        if (RoboModeSwitch_KEY[MANUALMODEKEY]->posEdge()) {
-            RobotMode = RSPINMODE;
-            SwitchRobotMode();
-        }
-
+        const bool killed = RobotIsKilled();
+        if (!was_killed && killed) BuzzerPlay(ProtectWarning);
+        was_killed = killed;
         osDelay(10);
     }
 }

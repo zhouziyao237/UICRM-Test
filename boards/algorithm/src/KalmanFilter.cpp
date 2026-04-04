@@ -21,7 +21,6 @@
 //
 
 #include "KalmanFilter.h"
-#include "utils.h"
 
 namespace control {
 

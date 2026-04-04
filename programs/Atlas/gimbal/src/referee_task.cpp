@@ -1,41 +1,60 @@
-/*###########################################################
- # Copyright (c) 2023-2024. BNU-HKBU UIC RoboMaster         #
- #                                                          #
- # This program is free software: you can redistribute it   #
- # and/or modify it under the terms of the GNU General      #
- # Public License as published by the Free Software         #
- # Foundation, either version 3 of the License, or (at      #
- # your option) any later version.                          #
- #                                                          #
- # This program is distributed in the hope that it will be  #
- # useful, but WITHOUT ANY WARRANTY; without even           #
- # the implied warranty of MERCHANTABILITY or FITNESS       #
- # FOR A PARTICULAR PURPOSE.  See the GNU General           #
- # Public License for more details.                         #
- #                                                          #
- # You should have received a copy of the GNU General       #
- # Public License along with this program.  If not, see     #
- # <https://www.gnu.org/licenses/>.                         #
- ###########################################################*/
-
 #include "referee_task.h"
 
-// ---------------------------- Referre Data Code ----------------------------
+#include "bsp_os.h"
+#include "protocol.h"
+#include "user_interface.h"
+#include "sys.h"
 
-communication::Referee* Referee_data = nullptr;
+namespace {
+communication::Referee* g_referee = nullptr;
+}
 
-// ---------------------------- Referre Main Code ----------------------------
-
-void InitRefPort() {
-    // 启动裁判系统
-    if (!referee_uart)
-        RM_ASSERT_TRUE(false, "Referee init failed!\r\n");
-    Referee_data = new communication::Referee(referee_uart);
-    SysStartData.RefereeInitFlag = 1;
+void InitReferee() {
+    bsp::UART* uart = atlas_referee_uart;
+    RM_ASSERT_TRUE(uart != nullptr, "Referee init failed");
+    g_referee = new communication::Referee(uart);
     osDelay(50);
 }
 
 uint8_t RefereeIsOnline() {
-    RobotStatus.RefereeOnline = (uint8_t)Referee_data->IsOnline();
-    return RobotStatus.RefereeOnline;
+    const bool online = g_referee != nullptr && g_referee->IsOnline();
+    return online ? 1U : 0U;
+}
+
+RefereeSnapshot_t RefereeGetSnapshot() {
+    RefereeSnapshot_t snapshot;
+    snapshot.online = RefereeIsOnline() != 0U;
+    if (!snapshot.online || g_referee == nullptr) return snapshot;
+
+    snapshot.match_running = g_referee->game_status.game_progress == 4;
+    snapshot.robot_id = g_referee->game_robot_status.robot_id;
+    snapshot.hp = g_referee->game_robot_status.remain_HP;
+    snapshot.max_hp = g_referee->game_robot_status.max_HP;
+    snapshot.chassis_power_enabled =
+        g_referee->game_robot_status.mains_power_chassis_output;
+    snapshot.gimbal_power_enabled =
+        g_referee->game_robot_status.mains_power_gimbal_output;
+    snapshot.shooter_power_enabled =
+        g_referee->game_robot_status.mains_power_shooter_output;
+    snapshot.chassis_power_limit =
+        g_referee->game_robot_status.chassis_power_limit;
+    snapshot.chassis_power_buffer =
+        g_referee->power_heat_data.chassis_power_buffer;
+    snapshot.chassis_power = g_referee->power_heat_data.chassis_power;
+    snapshot.shooter_heat_limit =
+        g_referee->game_robot_status.shooter_heat_limit;
+    snapshot.shooter_heat =
+        g_referee->power_heat_data.shooter_id1_17mm_cooling_heat;
+    snapshot.bullets_17mm =
+        g_referee->bullet_remaining.bullet_remaining_num_17mm;
+    snapshot.bullet_speed = g_referee->shoot_data.bullet_speed;
+    return snapshot;
+}
+
+communication::UserInterface* RefereeCreateUserInterface() {
+    if (g_referee == nullptr || atlas_referee_uart == nullptr) {
+        return nullptr;
+    }
+    return new communication::UserInterface(atlas_referee_uart,
+                                            g_referee);
 }

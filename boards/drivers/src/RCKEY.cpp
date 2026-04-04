@@ -111,6 +111,20 @@ static void clear_event(rc_key_state_t* key) {
     key->operation_done = true;
 }
 
+
+void rc_key_reset_states(void) {
+    for (int i = 0; i < rc_key_count; ++i) {
+        rc_keys[i].state = RC_KEY_STATE_IDLE;
+        rc_keys[i].press_time = 0;
+        rc_keys[i].release_time = 0;
+        rc_keys[i].last_process = 0;
+        rc_keys[i].is_pressed = false;
+        rc_keys[i].pending_event = RC_KEY_NONE;
+        rc_keys[i].event_deadline = 0;
+        rc_keys[i].operation_done = false;
+    }
+}
+
 void rc_key_process_events(void) {
     uint32_t now = bsp::GetHighresTickMilliSec();
 

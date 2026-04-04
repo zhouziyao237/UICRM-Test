@@ -27,6 +27,8 @@
 
 namespace bsp {
 
+    typedef void (*usb_rx_callback_t)(void* args);
+
     /**
      * @brief USB虚拟串口类
      * @details 用于USB虚拟串口的数据收发
@@ -129,6 +131,10 @@ namespace bsp {
          */
         uint32_t Write(uint8_t* data, uint32_t length);
 
+        void RegisterCallback(usb_rx_callback_t callback, void* args);
+
+        void SetupRxData(uint8_t** rx_ptr, uint32_t* rx_len);
+
       protected:
         /**
          * @brief 传输完成回调函数
@@ -205,6 +211,11 @@ namespace bsp {
         uint32_t tx_pending_;
         uint8_t* tx_write_;
         uint8_t* tx_read_;
+
+        uint8_t** rx_ptr_ = nullptr;
+        uint32_t* rx_len_ = nullptr;
+        usb_rx_callback_t callback_ = nullptr;
+        void* callback_args_ = nullptr;
     };
 
 } /* namespace bsp */

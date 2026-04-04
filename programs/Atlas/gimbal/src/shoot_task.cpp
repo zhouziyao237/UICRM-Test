@@ -1,377 +1,432 @@
-// Copyright (c) 2026. BNU-HKBU UIC RoboMaster
-//
-// This program is free software: you can redistribute it
-// and/or modify it under the terms of the GNU General
-// Public License as published by the Free Software
-// Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE.  See the GNU General
-// Public License for more details.
-//
-// You should have received a copy of the GNU General
-// Public License along with this program.  If not, see
-// <https://www.gnu.org/licenses/>.
-
-//
-// Created by Administrator on 2026/3/2.
-//
-
 #include "shoot_task.h"
 
-// ----------------------------- Shoot Task code -----------------------------
+#include <cmath>
+#include <cstdlib>
+
+#include "MotorCanBase.h"
+#include "bsp_os.h"
+#include "heat_control.h"
+#include "gimbal_task.h"
+#include "rc.h"
+#include "referee_task.h"
+#include "robot_state.h"
+#include "sys.h"
+#include "utils.h"
 
 osThreadId_t ShootTaskHandle;
 
-// ----------------------------- Shoot data code -----------------------------
+namespace {
+constexpr uint16_t kLeftFlywheelId = 0x202;
+constexpr uint16_t kRightFlywheelId = 0x203;
+constexpr uint16_t kFeederId = 0x201;
+constexpr float kFlywheelSpeed = 14.0f * PI;
+constexpr float kSingleFeedTheta = (2.0f * PI) / 7.0f;
+constexpr float kUnloadFeedTheta = PI / 7.0f;
+constexpr int16_t kStallSpeedThreshold = 50;
+constexpr int16_t kStallCurrentThreshold = 5000;
+constexpr uint32_t kStallConfirmMs = 500;
 
-#define FW_LEFT_MOTOR_ID 0x202
-#define FW_RIGHT_MOTOR_ID 0x203
-#define FEEDING_MOTOR_ID 0x201
+enum FlywheelState_e : uint8_t {
+    FLYWHEEL_OFF = 0,
+    FLYWHEEL_ON,
+};
 
-FrictionWheelMode_e FWMode = FW_MODE_OFF;
-driver::MotorCANBase* FWMotor[FW_NUM] = {nullptr};
-driver::MotorCANBase* FeedingMotror = nullptr;
+enum ShootRequestFlag : uint32_t {
+    SHOOT_REQUEST_SINGLE = 1U << 0,
+    SHOOT_REQUEST_DOUBLE = 1U << 1,
+    SHOOT_REQUEST_RAPID = 1U << 2,
+    SHOOT_REQUEST_UNLOAD = 1U << 3,
+    SHOOT_REQUEST_ALL = SHOOT_REQUEST_SINGLE | SHOOT_REQUEST_DOUBLE |
+                        SHOOT_REQUEST_RAPID | SHOOT_REQUEST_UNLOAD,
+};
 
-BoolEdgeDetector* shoot_edge[SEDGENUM] = {nullptr};
+driver::MotorCANBase* flywheel_left = nullptr;
+driver::MotorCANBase* flywheel_right = nullptr;
+driver::Motor2006* feeder = nullptr;
+control::HeatController heat_controller(control::SHOOTER_TYPE_COOL);
 
-StallDetection stall_detector;
+FlywheelState_e flywheel_state = FLYWHEEL_OFF;
+ShootMode_e shoot_mode = SHOOT_MODE_IDLE;
+ShooterTelemetry_t shoot_data{};
+uint32_t feeder_stall_start_ms = 0;
+BoolEdgeDetector friction_edge(false);
+BoolEdgeDetector unload_edge(false);
+uint32_t last_rc_generation = 0;
+uint32_t last_fire_sequence = 0;
 
-// control::HeatController heat_controller(HEAT_SHOOTER_TYPE);
-control::HeatController heat_controller(SHOOTER_TYPE_COOL);
+control::ConstrainedPID::PID_Init_t FlywheelPid() {
+    return {
+        .kp = 100,
+        .ki = 1,
+        .kd = 0,
+        .max_out = 1000,
+        .max_iout = 4000,
+        .deadband = 0,
+        .A = 3 * PI,
+        .B = 2 * PI,
+        .output_filtering_coefficient = 0.1,
+        .derivative_filtering_coefficient = 0,
+        .mode = control::ConstrainedPID::Integral_Limit |
+                control::ConstrainedPID::OutputFilter |
+                control::ConstrainedPID::Trapezoid_Intergral |
+                control::ConstrainedPID::ChangingIntegralRate,
+    };
+}
 
-// --------------------------- Shoot Callback code ---------------------------
+control::ConstrainedPID::PID_Init_t FeederAnglePid() {
+    return {
+        .kp = 30,
+        .ki = 0,
+        .kd = 0,
+        .max_out = 5 * PI,
+        .max_iout = 0,
+        .deadband = 0,
+        .A = 0,
+        .B = 0,
+        .output_filtering_coefficient = 0.1,
+        .derivative_filtering_coefficient = 0,
+        .mode = control::ConstrainedPID::OutputFilter,
+    };
+}
 
-void trigger_callback(uint8_t channel, rc_key_mode_t mode) {
-    if (channel == TRIGGER_CHANNEL || channel == MOUSE_LEFT_CHANNEL) {
-        if (FWMode == FW_MODE_OFF || ShootMode != SHOOTILDE)
-            return;
+control::ConstrainedPID::PID_Init_t FeederSpeedPid() {
+    return {
+        .kp = 200,
+        .ki = 0,
+        .kd = 10000,
+        .max_out = 10000,
+        .max_iout = 4000,
+        .deadband = 0,
+        .A = 3 * PI,
+        .B = 2 * PI,
+        .output_filtering_coefficient = 0.1,
+        .derivative_filtering_coefficient = 0,
+        .mode = control::ConstrainedPID::Integral_Limit |
+                control::ConstrainedPID::OutputFilter |
+                control::ConstrainedPID::Trapezoid_Intergral |
+                control::ConstrainedPID::ChangingIntegralRate |
+                control::ConstrainedPID::ErrorHandle,
+    };
+}
 
-        switch (mode) {
-            case RC_KEY_NONE:
-                break;
-            case RC_KEY_CLICK: {
-                ShootMode = SINGLESHOT;
-            } break;
-            case RC_KEY_DOUBLE_CLICK: {
-                ShootMode = DOUBLETAP;
-            } break;
-            case RC_KEY_LONG_PRESS: {
-                ShootMode = RAPIDFIRE;
-            } break;
+bool ShooterPowerAllowed() {
+#ifdef HAS_REFEREE
+    const RefereeSnapshot_t referee = RefereeGetSnapshot();
+    if (referee.online && !referee.shooter_power_enabled) return false;
+#endif
+    return true;
+}
 
-            default:
-                break;
-        };
+bool ShooterMotorsOnline() {
+    return feeder != nullptr && feeder->IsOnline() &&
+           flywheel_left != nullptr && flywheel_left->IsOnline() &&
+           flywheel_right != nullptr && flywheel_right->IsOnline();
+}
+
+bool ShooterRunAllowed() {
+    const GimbalTelemetry_t gimbal = GimbalGetTelemetry();
+    return RobotCanRun() && gimbal.initialized && gimbal.motors_online &&
+           ShooterPowerAllowed();
+}
+
+void PostShootRequest(uint32_t request) {
+    if (ShootTaskHandle != nullptr) {
+        osThreadFlagsSet(ShootTaskHandle, request & SHOOT_REQUEST_ALL);
     }
 }
 
-void stall_detection_callback(void* instance) {
-    driver::Motor2006* motor = static_cast<driver::Motor2006*>(instance);
-    stall_detector.Update(motor);
+void ClearShootRequests() {
+    if (ShootTaskHandle != nullptr) {
+        osThreadFlagsClear(SHOOT_REQUEST_ALL);
+    }
 }
 
-void StallCallback(void* instance) {
-    UNUSED(instance);
-    ShootMode = SUNLOADMODE;
-    unloadAmmo();
-    ShootMode = SHOOTILDE;
-    print("StallDetection\r\n");
+ShootMode_e ConsumeShootRequest() {
+    const uint32_t flags =
+        osThreadFlagsWait(SHOOT_REQUEST_ALL, osFlagsWaitAny, 0);
+    if ((flags & osFlagsError) != 0U) return SHOOT_MODE_IDLE;
+    if ((flags & SHOOT_REQUEST_UNLOAD) != 0U) return SHOOT_MODE_UNLOAD;
+    if ((flags & SHOOT_REQUEST_RAPID) != 0U) return SHOOT_MODE_RAPID;
+    if ((flags & SHOOT_REQUEST_DOUBLE) != 0U) return SHOOT_MODE_DOUBLE;
+    if ((flags & SHOOT_REQUEST_SINGLE) != 0U) return SHOOT_MODE_SINGLE;
+    return SHOOT_MODE_IDLE;
 }
 
-// ----------------------------- Shoot Main code -----------------------------
+void PrimeRemoteInput() {
+    const RemoteControl_t remote = RCGetSnapshot();
+    friction_edge.reset(remote.friction_toggle);
+    unload_edge.reset(remote.unload);
+    last_fire_sequence = remote.fire_sequence;
+}
+
+void ProcessRemoteInput() {
+    const RemoteControl_t remote = RCGetSnapshot();
+
+    friction_edge.input(remote.friction_toggle);
+    unload_edge.input(remote.unload);
+
+    if (friction_edge.posEdge()) {
+        flywheel_state = flywheel_state == FLYWHEEL_OFF
+                             ? FLYWHEEL_ON
+                             : FLYWHEEL_OFF;
+    }
+    if (unload_edge.posEdge()) {
+        PostShootRequest(SHOOT_REQUEST_UNLOAD);
+    }
+
+    if (remote.fire_sequence != last_fire_sequence) {
+        last_fire_sequence = remote.fire_sequence;
+        if (flywheel_state == FLYWHEEL_ON && shoot_mode == SHOOT_MODE_IDLE) {
+            switch (remote.fire_command) {
+                case REMOTE_FIRE_SINGLE:
+                    PostShootRequest(SHOOT_REQUEST_SINGLE);
+                    break;
+                case REMOTE_FIRE_DOUBLE:
+                    PostShootRequest(SHOOT_REQUEST_DOUBLE);
+                    break;
+                case REMOTE_FIRE_RAPID:
+                    PostShootRequest(SHOOT_REQUEST_RAPID);
+                    break;
+                case REMOTE_FIRE_NONE:
+                default:
+                    break;
+            }
+        }
+    }
+}
+
+void ApplyHeatRules() {
+#ifdef HAS_REFEREE
+    const RefereeSnapshot_t referee = RefereeGetSnapshot();
+    if (referee.online) {
+        if ((referee.match_running && referee.bullets_17mm == 0) ||
+            referee.bullet_speed >= 23.0f) {
+            shoot_mode = SHOOT_MODE_IDLE;
+        }
+
+        heat_controller.Update(referee.shooter_heat,
+                               referee.shooter_heat_limit);
+        if (referee.shooter_heat > heat_controller.GetSafeLimit()) {
+            shoot_mode = SHOOT_MODE_IDLE;
+        }
+        return;
+    }
+#endif
+    heat_controller.Update(0, 200);
+}
+
+void UpdateFlywheels() {
+    if (flywheel_state == FLYWHEEL_OFF) {
+        flywheel_left->SetTarget(0.0f);
+        flywheel_right->SetTarget(0.0f);
+        flywheel_left->Disable();
+        flywheel_right->Disable();
+        if (shoot_mode != SHOOT_MODE_UNLOAD) shoot_mode = SHOOT_MODE_IDLE;
+        return;
+    }
+
+    flywheel_left->Enable();
+    flywheel_left->SetTarget(-kFlywheelSpeed);
+    flywheel_right->Enable();
+    flywheel_right->SetTarget(kFlywheelSpeed);
+}
+
+bool SafeShootDelay(uint32_t delay_ms) {
+    const uint32_t start = bsp::GetHighresTickMilliSec();
+    while (bsp::GetHighresTickMilliSec() - start < delay_ms) {
+        if (!ShooterRunAllowed()) return false;
+        osDelay(5);
+    }
+    return true;
+}
+
+void UnloadFeeder() {
+    const float original_target = feeder->GetTarget();
+    feeder->SetTarget(original_target + kUnloadFeedTheta);
+    if (!SafeShootDelay(200)) return;
+    feeder->SetTarget(original_target);
+    SafeShootDelay(200);
+}
+
+void FeedShots(uint16_t count) {
+    for (uint16_t i = 0; i < count; ++i) {
+        feeder->SetTarget(feeder->GetTarget() + kSingleFeedTheta);
+        heat_controller.RecordShot();
+    }
+}
+
+void ExecuteShootMode() {
+    bool action_finished = false;
+    switch (shoot_mode) {
+        case SHOOT_MODE_UNLOAD:
+            feeder->Enable();
+            UnloadFeeder();
+            shoot_data.jammed = false;
+            action_finished = true;
+            break;
+        case SHOOT_MODE_SINGLE:
+            if (heat_controller.CanShoot()) FeedShots(1);
+            action_finished = true;
+            break;
+        case SHOOT_MODE_DOUBLE:
+            if (heat_controller.CanShoot(2)) {
+                FeedShots(2);
+            } else if (heat_controller.CanShoot()) {
+                FeedShots(1);
+            }
+            action_finished = true;
+            break;
+        case SHOOT_MODE_RAPID: {
+            uint16_t count = heat_controller.GetMaxShootCount();
+            if (count > 7) count = 7;
+            FeedShots(count);
+            action_finished = true;
+            break;
+        }
+        case SHOOT_MODE_IDLE:
+        default:
+            break;
+    }
+
+    if (!action_finished) return;
+    shoot_mode = SHOOT_MODE_IDLE;
+    if (SafeShootDelay(200)) {
+        feeder->Hold();
+        feeder->Stop();
+    }
+}
+
+void DisableShooterOutput() {
+    if (flywheel_left != nullptr) {
+        flywheel_left->SetTarget(0.0f);
+        flywheel_left->Disable();
+    }
+    if (flywheel_right != nullptr) {
+        flywheel_right->SetTarget(0.0f);
+        flywheel_right->Disable();
+    }
+    if (feeder != nullptr) feeder->Disable();
+
+    flywheel_state = FLYWHEEL_OFF;
+    shoot_mode = SHOOT_MODE_IDLE;
+    shoot_data.output_enabled = false;
+    shoot_data.jammed = false;
+    feeder_stall_start_ms = 0;
+}
+
+void UpdateShooterTelemetry() {
+    shoot_data.feeder_online = feeder != nullptr && feeder->IsOnline();
+    shoot_data.online = ShooterMotorsOnline();
+    shoot_data.friction_enabled = flywheel_state == FLYWHEEL_ON;
+    shoot_data.mode = shoot_mode;
+}
+
+void FeederUpdateCallback(void* instance) {
+    auto* motor = static_cast<driver::Motor2006*>(instance);
+    if (motor == nullptr) return;
+
+    const bool stalled =
+        std::abs(motor->GetOutput()) > kStallCurrentThreshold &&
+        std::abs(motor->GetOmega()) < kStallSpeedThreshold;
+    const uint32_t now = bsp::GetHighresTickMilliSec();
+
+    if (!stalled) {
+        feeder_stall_start_ms = 0;
+        shoot_data.jammed = false;
+        return;
+    }
+    if (feeder_stall_start_ms == 0) {
+        feeder_stall_start_ms = now;
+        return;
+    }
+    if (now - feeder_stall_start_ms >= kStallConfirmMs) {
+        shoot_data.jammed = true;
+        PostShootRequest(SHOOT_REQUEST_UNLOAD);
+        feeder_stall_start_ms = now;
+    }
+}
+}  // namespace
 
 void InitShoot() {
-    FWMotor[FW_LEFT] = new driver::Motor3508(can2, FW_LEFT_MOTOR_ID);
-    FWMotor[FW_RIGHT] = new driver::Motor3508(can2, FW_RIGHT_MOTOR_ID);
+    flywheel_left = new driver::Motor3508(atlas_can2, kLeftFlywheelId);
+    flywheel_right = new driver::Motor3508(atlas_can2, kRightFlywheelId);
 
-    for (int i = 0; i < FW_NUM; i++) {
-        FWMotor[i]->SetTransmissionRatio(19);
-        FWMotor[i]->ReInitPID(flywheel_pid_init, driver::MotorCANBase::SPEED_LOOP_CONTROL);
-        FWMotor[i]->SetMode(driver::MotorCANBase::SPEED_LOOP_CONTROL);
-        FWMotor[i]->SetTarget(0);
-        FWMode = FW_MODE_OFF;
+    driver::MotorCANBase* flywheels[] = {flywheel_left, flywheel_right};
+    for (auto* motor : flywheels) {
+        motor->SetTransmissionRatio(19.0f);
+        motor->ReInitPID(FlywheelPid(),
+                         driver::MotorCANBase::SPEED_LOOP_CONTROL);
+        motor->SetMode(driver::MotorCANBase::SPEED_LOOP_CONTROL);
+        motor->SetTarget(0.0f);
+        motor->Disable();
     }
 
-    FeedingMotror = new driver::Motor2006(can1, FEEDING_MOTOR_ID);
-    FeedingMotror->SetTransmissionRatio(36);
-    FeedingMotror->ReInitPID(steering_motor_omega_pid_init,
-                             driver::MotorCANBase::SPEED_LOOP_CONTROL);
-    FeedingMotror->ReInitPID(steering_motor_theta_pid_init,
-                             driver::MotorCANBase::ANGLE_LOOP_CONTROL);
-    FeedingMotror->SetMode(driver::MotorCANBase::ANGLE_LOOP_CONTROL |
-                           driver::MotorCANBase::SPEED_LOOP_CONTROL);
-    FeedingMotror->RegisterDataUpdateCallback(stall_detection_callback, FeedingMotror);
-    stall_detector.SetCallback(StallCallback, nullptr);
+    feeder = new driver::Motor2006(atlas_can1, kFeederId);
+    feeder->SetTransmissionRatio(36.0f);
+    feeder->ReInitPID(FeederSpeedPid(),
+                      driver::MotorCANBase::SPEED_LOOP_CONTROL);
+    feeder->ReInitPID(FeederAnglePid(),
+                      driver::MotorCANBase::ANGLE_LOOP_CONTROL);
+    feeder->SetMode(driver::MotorCANBase::ANGLE_LOOP_CONTROL |
+                    driver::MotorCANBase::SPEED_LOOP_CONTROL);
+    feeder->RegisterDataUpdateCallback(FeederUpdateCallback, feeder);
+    feeder->Disable();
 
-    for (int i = 0; i < FW_NUM; i++) {
-        FWMotor[i]->Disable();
-        FWMode = FW_MODE_OFF;
-    }
-
-    for (int i = 0; i < SEDGENUM; i++) {
-        shoot_edge[i] = new BoolEdgeDetector(false);
-    }
-
-    rc_key_add_callback(trigger_callback);
-}
-
-void unloadAmmo() {
-    FeedingMotror->SetTarget(FeedingMotror->GetTarget() + UNLOAD_FEED_THETA);
-    osDelay(200);
-    FeedingMotror->SetTarget(FeedingMotror->GetTarget() - UNLOAD_FEED_THETA);
-    osDelay(200);
-}
-
-void ShootHeatControl() {
-#ifdef HAS_REFEREE
-    // bool is_shoot_available = Referee_data->game_robot_status.mains_power_shooter_output != 0;
-    // if (!is_shoot_available) {
-    //     ShootMode = SHOOTILDE;
-    //     return;
-    // }
-
-    uint8_t game_progress = Referee_data->game_status.game_progress;
-    uint16_t game_progress_shifted = game_progress >> 3;
-    uint8_t game_progress_bit = game_progress_shifted & 0x01;
-
-    if (game_progress_bit == 4) {
-        uint16_t bullet_remaining_num_17mm =
-            Referee_data->bullet_remaining.bullet_remaining_num_17mm;
-        if (bullet_remaining_num_17mm == 0) {
-            print("not have bullet!\r\n");
-            ShootMode = SHOOTILDE;
-        }
-    }
-
-    float bullet_speed = Referee_data->shoot_data.bullet_speed;
-    if (bullet_speed >= 23.0f) {
-        osDelay(5);
-        bullet_speed = 0;
-    }
-
-    uint16_t heat_limit = Referee_data->game_robot_status.shooter_heat_limit;
-    uint16_t current_heat = Referee_data->power_heat_data.shooter_id1_17mm_cooling_heat;
-
-    heat_controller.Update(current_heat, heat_limit);
-
-    if (current_heat > heat_controller.GetSafeLimit()) {
-        ShootMode = SHOOTILDE;
-        print("overheat! heat: %d, limit: %d\r\n", current_heat, heat_controller.GetSafeLimit());
-        osDelay(5);
-    }
-
-    UNUSED(bullet_speed);
-
-#else
-    heat_controller.Update(0, 200);
-#endif
-}
-
-uint8_t ShootIsOnline() {
-    return RobotStatus.ShootOnline;
-}
-
-void ShootRCUpdata() {
-    shoot_edge[FEMODE_EDGE_CH]->input((bool)rcData[CH_FRIC_ONOFF]);
-    shoot_edge[FEMODE_EDGE_KEYBOARD]->input((bool)rcData[KEYBORAD_FRIC_ONOFF]);
-    if (shoot_edge[FEMODE_EDGE_CH]->posEdge() || shoot_edge[FEMODE_EDGE_KEYBOARD]->posEdge()) {
-        if (FWMode == FW_MODE_OFF) {
-            FWMode = FW_MODE_ON;
-        } else if (FWMode == FW_MODE_ON) {
-            FWMode = FW_MODE_OFF;
-        }
-    }
-
-    shoot_edge[CLEAR_FEEDER_CH]->input((bool)rcData[CH_UNLOAD]);
-    shoot_edge[CLEAR_FEEDER_KEYBOARD]->input((bool)rcData[KEYBORAD_UNLOAD]);
-    if (shoot_edge[CLEAR_FEEDER_CH]->posEdge() || shoot_edge[CLEAR_FEEDER_KEYBOARD]->posEdge()) {
-        ShootMode = SUNLOADMODE;
-    }
+    PrimeRemoteInput();
+    last_rc_generation = RCGetSnapshot().generation;
+    UpdateShooterTelemetry();
 }
 
 void ShootTask(void* arg) {
     UNUSED(arg);
+    RM_ASSERT_TRUE(feeder != nullptr && flywheel_left != nullptr &&
+                       flywheel_right != nullptr,
+                   "Shooter init failed");
 
-    for (int i = 0; i < FW_NUM; i++) {
-        if (!FWMotor[i] || !FeedingMotror)
-            RM_ASSERT_TRUE(false, "Shoot Init Failed!");
-    }
+    DisableShooterOutput();
+    shoot_data.initialized = true;
 
-    for (int i = 0; i < FW_NUM; i++) {
-        FWMotor[i]->Disable();
-    }
-    FeedingMotror->Disable();
-
-    bool InitFlag = false;
     while (true) {
-        for (int i = 0; i < FW_NUM; i++) {
-            if (!FWMotor[i]->IsOnline() || !FeedingMotror->IsOnline()) {
-                osDelay(10);
-                ShootMode = SKILLMODE;
-                FWMode = FW_MODE_OFF;
-                RobotStatus.ShootOnline = 0;
-                InitFlag = false;
-            }
+        const RemoteControl_t remote = RCGetSnapshot();
+        if (remote.generation != last_rc_generation) {
+            last_rc_generation = remote.generation;
+            PrimeRemoteInput();
+            ClearShootRequests();
         }
-        RobotStatus.ShootOnline = 1;
 
-        if (ShootMode == SKILLMODE) {
-            for (int i = 0; i < FW_NUM; i++) {
-                FWMotor[i]->Disable();
-            }
-            FWMode = FW_MODE_OFF;
-            FeedingMotror->Disable();
-            InitFlag = false;
+        if (!ShooterRunAllowed() || !ShooterMotorsOnline()) {
+            DisableShooterOutput();
+            ClearShootRequests();
+            PrimeRemoteInput();
+            UpdateShooterTelemetry();
             osDelay(10);
             continue;
         }
 
-        if (SysStartData.GimbalInitFlag && ShootMode == SHOOTILDE && RobotMode != RKILLMODE) {
-            InitFlag = true;
-            osDelay(10);
+        if (!shoot_data.output_enabled) {
+            feeder->Enable();
+            shoot_data.output_enabled = true;
         }
 
-        if (InitFlag) {
-            if (ShootMode == SKILLMODE) {
-                for (int i = 0; i < FW_NUM; i++) {
-                    FWMotor[i]->Disable();
-                }
-                FeedingMotror->Disable();
-                SysStartData.ShootInitFlag = 0;
-                InitFlag = false;
-                continue;
-            }
-            SysStartData.ShootInitFlag = 1;
-            for (int i = 0; i < FW_NUM; i++) {
-                FWMotor[i]->Enable();
-                FWMotor[i]->SetTarget(0);
-            }
-            FeedingMotror->Enable();
-            break;
-        }
-        osDelay(100);
-    }
-
-    while (true) {
-        if (ShootMode == SKILLMODE) {
-            for (int i = 0; i < FW_NUM; i++) {
-                FWMotor[i]->Disable();
-            }
-            FeedingMotror->Disable();
-            FWMode = FW_MODE_OFF;
-            while (ShootMode == SKILLMODE) {
-                osDelay(10);
-            }
-
-
-            for (int i = 0; i < FW_NUM; i++) {
-                FWMotor[i]->Enable();
-            }
-            FeedingMotror->Enable();
+        ProcessRemoteInput();
+        const ShootMode_e request = ConsumeShootRequest();
+        if (request == SHOOT_MODE_UNLOAD ||
+            (request != SHOOT_MODE_IDLE && flywheel_state == FLYWHEEL_ON)) {
+            shoot_mode = request;
         }
 
-        ShootRCUpdata();
-
-        ShootHeatControl();
-
-        for (int i = 0; i < FW_NUM; i++) {
-            if (!FWMotor[i]->IsOnline() || !FeedingMotror->IsOnline()) {
-                osDelay(10);
-                ShootMode = SHOOTILDE;
-                FWMode = FW_MODE_OFF;
-                FWMotor[i]->Disable();
-                FeedingMotror->Disable();
-                RobotStatus.ShootOnline = 0;
-                continue;
-            } else {
-                FWMotor[i]->Enable();
-                FeedingMotror->Enable();
-                RobotStatus.ShootOnline = 1;
-            }
-        }
-
-
-        switch (FWMode) {
-            case FW_MODE_OFF: {
-                for (int i = 0; i < FW_NUM; i++) {
-                    FWMotor[i]->Disable();
-                    FWMotor[i]->SetTarget(0);
-                }
-            } break;
-            case FW_MODE_ON: {
-                FWMotor[FW_LEFT]->Enable();
-                FWMotor[FW_LEFT]->SetTarget(-FW_SPEED);
-                FWMotor[FW_RIGHT]->Enable();
-                FWMotor[FW_RIGHT]->SetTarget(FW_SPEED);
-            } break;
-
-            default:
-                break;
-        }
-
-        if (FWMode == FW_MODE_OFF && ShootMode != SUNLOADMODE) {
-            ShootMode = SHOOTILDE;
-        }
-
-        bool fieeflag = false;
-
-        switch (ShootMode) {
-            case SUNLOADMODE: {
-                unloadAmmo();
-                ShootMode = SHOOTILDE;
-                fieeflag = true;
-            } break;
-            case SKILLMODE:
-                break;
-            case SHOOTILDE:
-                break;
-            case SINGLESHOT: {
-                if (heat_controller.CanShoot()) {
-                    FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
-                    heat_controller.RecordShot();
-                }
-                ShootMode = SHOOTILDE;
-                fieeflag = true;
-            } break;
-            case DOUBLETAP: {
-                if (heat_controller.CanShoot(2)) {
-                    FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
-                    heat_controller.RecordShot();
-                    FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
-                    heat_controller.RecordShot();
-                } else if (heat_controller.CanShoot()) {
-                    FeedingMotror->SetTarget(FeedingMotror->GetTarget() + SINGLE_FEED_THETA);
-                    heat_controller.RecordShot();
-                }
-                ShootMode = SHOOTILDE;
-                fieeflag = true;
-            } break;
-            case RAPIDFIRE: {
-                uint16_t max_shots = heat_controller.GetMaxShootCount();
-                if (max_shots > 7)
-                    max_shots = 7;
-                for (uint16_t i = 0; i < max_shots; i++) {
-                    FeedingMotror->SetTarget(FeedingMotror->GetTarget() + 7 * SINGLE_FEED_THETA);
-                    heat_controller.RecordShot();
-                }
-                ShootMode = SHOOTILDE;
-                fieeflag = true;
-            } break;
-            default:
-                break;
-        }
-
-        if (ShootMode == SHOOTILDE && fieeflag) {
-            osDelay(200);
-            FeedingMotror->Hold();
-            FeedingMotror->Stop();
-            fieeflag = false;
-        }
-
+        ApplyHeatRules();
+        UpdateFlywheels();
+        ExecuteShootMode();
+        UpdateShooterTelemetry();
         osDelay(1);
     }
+}
+
+uint8_t ShootIsOnline() {
+    return ShooterMotorsOnline() ? 1U : 0U;
+}
+
+ShooterTelemetry_t ShooterGetTelemetry() {
+    return shoot_data;
 }

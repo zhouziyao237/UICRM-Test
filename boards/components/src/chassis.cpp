@@ -20,6 +20,8 @@
 
 #include "chassis.h"
 
+#include <cmath>
+
 #include "bsp_error_handler.h"
 #include "bsp_os.h"
 
@@ -30,6 +32,9 @@ namespace control {
     Chassis::Chassis(const chassis_t chassis) {
         // acquired from user
         model_ = chassis.model;
+        if (model_ == CHASSIS_OMNI_WHEEL2) {
+            omni_wheel_setup_ = chassis.omni_wheel_setup_;
+        }
 
         // data initialization using acquired model
         switch (chassis.model) {
@@ -84,13 +89,17 @@ namespace control {
         power_limit_.enabled = chassis.power_limit_on;
         power_limit_.limiter = new NewPowerLimit(power_model);
         driver::MotorCANBase::RegisterPreOutputCallback(ApplyPowerLimitWrapper, this);
-        
+
         // LQR功率限制系统
         use_lqr_power_limit_ = chassis.use_lqr_power_limit;
         if (use_lqr_power_limit_) {
             LQRPowerLimit::Config lqr_config;
             lqr_config.season = chassis.season;
             lqr_config.blood_priority = chassis.blood_priority;
+            lqr_config.referee_safety_margin =
+                chassis.referee_power_safety_margin;
+            lqr_config.local_safety_margin =
+                chassis.local_power_safety_margin;
             lqr_power_limit_ = new LQRPowerLimit(lqr_config);
         }
 
@@ -146,6 +155,7 @@ namespace control {
             case CHASSIS_OMNI_WHEEL: {
                 float move_sum = fabs(x_speed) + fabs(y_speed) + fabs(turn_speed);
                 float scale = move_sum > max_motor_speed_ ? max_motor_speed_ / move_sum : 1.0f;
+                kinematic_scale_ = scale;
 
                 speeds_[FourWheel::front_left] =
                     scale * (y_speed + x_speed + turn_speed * (1 - chassis_offset_));  // 2
@@ -158,17 +168,26 @@ namespace control {
                 break;
             }
             case CHASSIS_OMNI_WHEEL2: {
-                float move_sum = fabs(x_speed) + fabs(y_speed) + fabs(turn_speed);
-                float scale = move_sum > max_motor_speed_ ? max_motor_speed_ / move_sum : 1.0f;
+                const float angle_a_rad = omni_wheel_setup_.Wheel_angle_a * PI / 180.0f;
+                const float angle_b_rad = omni_wheel_setup_.Wheel_angle_b * PI / 180.0f;
+
+                float scale = 1.0f;
+                float move_sum = fabsf(x_speed) + fabsf(y_speed) + fabsf(turn_speed);
+                scale = move_sum > max_motor_speed_ ? max_motor_speed_ / move_sum : 1.0f;
+                kinematic_scale_ = scale;
 
                 speeds_[FourWheel::front_left] =
-                    scale * (-x_speed * cos(omni_wheel_setup_.Wheel_angle_a) + y_speed * sin(omni_wheel_setup_.Wheel_angle_b) + omni_wheel_setup_.chassis_radius *turn_speed);  // 1
+                    scale * (-x_speed * cosf(angle_a_rad) + y_speed * sinf(angle_b_rad) +
+                             turn_speed);  // 1
                 speeds_[FourWheel::front_right] =
-                    scale * (x_speed * cos(omni_wheel_setup_.Wheel_angle_a) + y_speed * sin(omni_wheel_setup_.Wheel_angle_b) + omni_wheel_setup_.chassis_radius *turn_speed);  // 2
+                    scale * (x_speed * cosf(angle_a_rad) + y_speed * sinf(angle_b_rad) +
+                             turn_speed);  // 2
                 speeds_[FourWheel::back_left] =
-                    scale * (-x_speed * cos(omni_wheel_setup_.Wheel_angle_a) - y_speed * sin(omni_wheel_setup_.Wheel_angle_b) + omni_wheel_setup_.chassis_radius *turn_speed);  // 3
+                    scale * (-x_speed * cosf(angle_a_rad) - y_speed * sinf(angle_b_rad) +
+                             turn_speed);  // 3
                 speeds_[FourWheel::back_right] =
-                    scale * (x_speed * cos(omni_wheel_setup_.Wheel_angle_a) - y_speed * sin(omni_wheel_setup_.Wheel_angle_b) + omni_wheel_setup_.chassis_radius *turn_speed);  // 4
+                    scale * (x_speed * cosf(angle_a_rad) - y_speed * sinf(angle_b_rad) +
+                             turn_speed);  // 4
                 break;
             }
 
@@ -189,15 +208,37 @@ namespace control {
         return;
     }
 
-    void Chassis::UpdatePower(bool enabled, float max_watt, float current_voltage,
-                              uint8_t buffer_percent) {
+    void Chassis::UpdatePower(bool enabled, float max_watt,
+                              float current_voltage, float buffer_joule,
+                              float measured_power, bool referee_online) {
         power_limit_.enabled = enabled;
-        power_limit_.buffer_percent = buffer_percent;
-        // 双板通信下，云台可以选择不更新电压值，底盘可以使用自己采样的电压值
-        if (current_voltage > 1)
+        power_limit_.referee_online = referee_online;
+        power_limit_.buffer_joule =
+            std::isfinite(buffer_joule)
+                ? (buffer_joule < 0.0f
+                       ? 0.0f
+                       : (buffer_joule > 60.0f ? 60.0f : buffer_joule))
+                : 0.0f;
+        power_limit_.measured_power =
+            std::isfinite(measured_power) && measured_power >= 0.0f
+                ? measured_power
+                : -1.0f;
+        if (std::isfinite(current_voltage) && current_voltage > 1.0f) {
             power_limit_.voltage = current_voltage;
-        power_limit_.max_watt = max_watt;
-        // 这里仅记录信息，实际在在所有电机的PID计算完成、准备发送CAN前，调用ApplyPowerLimit直接设置电机输出，以进行功率限制
+        }
+        power_limit_.max_watt =
+            std::isfinite(max_watt) && max_watt > 0.0f ? max_watt : 0.0f;
+    }
+
+    void Chassis::UpdatePower(bool enabled, float max_watt,
+                              float current_voltage,
+                              uint8_t buffer_percent) {
+        const float buffer_joule =
+            60.0f * static_cast<float>(buffer_percent > 100 ? 100
+                                                            : buffer_percent) /
+            100.0f;
+        UpdatePower(enabled, max_watt, current_voltage, buffer_joule, -1.0f,
+                    false);
     }
 
     void Chassis::UpdatePowerVoltage(float voltage) {
@@ -237,13 +278,7 @@ namespace control {
         // 将解算得到的数据（每个电机的转速）传递给电机类，由电机类进行PID控制、CAN输出等
         switch (model_) {
             case CHASSIS_MECANUM_WHEEL:
-            case CHASSIS_OMNI_WHEEL: {
-                motors_[FourWheel::front_left]->SetTarget(speeds_[FourWheel::front_left]);
-                motors_[FourWheel::front_right]->SetTarget(speeds_[FourWheel::front_right]);
-                motors_[FourWheel::back_left]->SetTarget(speeds_[FourWheel::back_left]);
-                motors_[FourWheel::back_right]->SetTarget(speeds_[FourWheel::back_right]);
-                break;
-            }
+            case CHASSIS_OMNI_WHEEL:
             case CHASSIS_OMNI_WHEEL2: {
                 motors_[FourWheel::front_left]->SetTarget(speeds_[FourWheel::front_left]);
                 motors_[FourWheel::front_right]->SetTarget(speeds_[FourWheel::front_right]);
@@ -322,11 +357,14 @@ namespace control {
             }
         }
 
-        bool enabled = data.data_eight_uint8.data[0];
-        uint8_t max_watt = data.data_eight_uint8.data[1];
-        uint8_t buffer_percent = data.data_eight_uint8.data[2];
-        float voltage = data.data_two_float.data[1];
-        UpdatePower(enabled, max_watt, voltage, buffer_percent);
+        const bool enabled = data.data_eight_uint8.data[0] != 0U;
+        const uint8_t max_watt = data.data_eight_uint8.data[1];
+        const float buffer_joule =
+            static_cast<float>(data.data_eight_uint8.data[2]);
+        const bool referee_online = data.data_eight_uint8.data[3] != 0U;
+        const float voltage = data.data_two_float.data[1];
+        UpdatePower(enabled, max_watt, voltage, buffer_joule,
+                    power_limit_.measured_power, referee_online);
     }
     void Chassis::CanBridgeUpdateEventCurrentPower(communication::can_bridge_ext_id_t ext_id,
                                                    communication::can_bridge_data_t data) {
@@ -335,9 +373,11 @@ namespace control {
                 return;
             }
         }
-        UNUSED(data);
-        // current_chassis_power_ = data.data_two_float.data[0];
-        // current_chassis_power_buffer_ = data.data_two_float.data[1];
+        const float measured_power = data.data_two_float.data[0];
+        const float buffer_joule = data.data_two_float.data[1];
+        UpdatePower(power_limit_.enabled, power_limit_.max_watt,
+                    power_limit_.voltage, buffer_joule, measured_power,
+                    power_limit_.referee_online);
     }
     void Chassis::CanBridgeSetTxId(uint8_t tx_id) {
         can_bridge_tx_id_ = tx_id;
@@ -360,8 +400,10 @@ namespace control {
                 angular_velocity[i] = motors_[i]->GetOmega();
             }
             
-            lqr_power_limit_->UpdatePowerState(true, power_limit_.max_watt, power_limit_.voltage, 
-                                               power_limit_.buffer_percent);
+            lqr_power_limit_->UpdatePowerState(
+                true, power_limit_.max_watt, power_limit_.voltage,
+                power_limit_.buffer_joule, power_limit_.measured_power,
+                power_limit_.referee_online);
             lqr_power_limit_->UpdateMotorData(angular_velocity, turn_current, FourWheel::motor_num);
             lqr_power_limit_->ApplyLimit(turn_current, angular_velocity, FourWheel::motor_num);
             
@@ -372,9 +414,8 @@ namespace control {
             // 电流(A) = 功率(W) / 电压(V)
             float max_current = power_limit_.max_watt / power_limit_.voltage;
 
-            // 根据缓冲区剩余能量，使用线性插值，计算最大电流。
-            max_current = max_current *
-                          linear_interpolation<int>(20, 80, 80, 150, power_limit_.buffer_percent) / 100;
+            // Legacy limiter path is strict: never invent a 1.5x buffer multiplier.
+            max_current *= 0.90f;
 
             // 获取数据
             int16_t turn_current[FourWheel::motor_num];
@@ -423,6 +464,40 @@ namespace control {
         }
         return 0.0f;
     }
+
+    float Chassis::GetLimitedPowerEstimate() const {
+        return use_lqr_power_limit_ && lqr_power_limit_
+                   ? lqr_power_limit_->GetLimitedPowerEstimate()
+                   : 0.0f;
+    }
+
+    float Chassis::GetMeasuredPower() const {
+        return use_lqr_power_limit_ && lqr_power_limit_
+                   ? lqr_power_limit_->GetMeasuredPower()
+                   : -1.0f;
+    }
+
+    float Chassis::GetPowerLimit() const {
+        return use_lqr_power_limit_ && lqr_power_limit_
+                   ? lqr_power_limit_->GetPowerLimit()
+                   : power_limit_.max_watt;
+    }
+
+    float Chassis::GetModelCorrection() const {
+        return use_lqr_power_limit_ && lqr_power_limit_
+                   ? lqr_power_limit_->GetModelCorrection()
+                   : 1.0f;
+    }
+
+    bool Chassis::IsRefereePowerSource() const {
+        return use_lqr_power_limit_ && lqr_power_limit_ &&
+               lqr_power_limit_->IsRefereeSource();
+    }
+
+    bool Chassis::IsLocalPowerTripActive() const {
+        return use_lqr_power_limit_ && lqr_power_limit_ &&
+               lqr_power_limit_->IsLocalTripActive();
+    }
     
     float Chassis::GetBuffer() const {
         if (use_lqr_power_limit_ && lqr_power_limit_) {
@@ -448,6 +523,17 @@ namespace control {
     float Chassis::GetSpeedScale() const {
         if (use_lqr_power_limit_ && lqr_power_limit_) {
             return lqr_power_limit_->GetSpeedScale();
+        }
+        return 1.0f;
+    }
+
+    float Chassis::GetKinematicScale() const {
+        return kinematic_scale_;
+    }
+
+    float Chassis::GetCurrentScale() const {
+        if (use_lqr_power_limit_ && lqr_power_limit_) {
+            return lqr_power_limit_->GetCurrentScale();
         }
         return 1.0f;
     }
@@ -543,18 +629,46 @@ namespace control {
             }
         }
     }
-    void ChassisCanBridgeSender::UpdatePower(bool enabled, uint8_t max_watt, float current_voltage,
-                                             uint8_t buffer_percent) {
-        if (!chassis_enable_) {
-            return;
-        }
-        data_.data_eight_uint8.data[0] = enabled;
-        data_.data_eight_uint8.data[1] = max_watt;
-        data_.data_eight_uint8.data[2] = buffer_percent;
-        data_.data_two_float.data[1] = current_voltage;
+    void ChassisCanBridgeSender::UpdatePower(
+        bool enabled, uint8_t max_watt, float current_voltage,
+        float buffer_joule, float measured_power, bool referee_online) {
+        if (!chassis_enable_) return;
 
+        if (!std::isfinite(buffer_joule)) buffer_joule = 0.0f;
+        if (buffer_joule < 0.0f) buffer_joule = 0.0f;
+        if (buffer_joule > 60.0f) buffer_joule = 60.0f;
+        if (!std::isfinite(measured_power) || measured_power < 0.0f) {
+            measured_power = -1.0f;
+        }
+        if (!std::isfinite(current_voltage) || current_voltage <= 1.0f) {
+            current_voltage = 0.0f;
+        }
+
+        data_.data_eight_uint8.data[0] = enabled ? 1U : 0U;
+        data_.data_eight_uint8.data[1] = max_watt;
+        data_.data_eight_uint8.data[2] =
+            static_cast<uint8_t>(buffer_joule + 0.5f);
+        data_.data_eight_uint8.data[3] = referee_online ? 1U : 0U;
+        data_.data_two_float.data[1] = current_voltage;
         rx_id_.data.reg = chassis_power_limit_reg_id_;
         can_bridge_->Send(rx_id_, data_);
+        osDelay(1);
+
+        data_.data_two_float.data[0] = measured_power;
+        data_.data_two_float.data[1] = buffer_joule;
+        rx_id_.data.reg = chassis_current_power_reg_id_;
+        can_bridge_->Send(rx_id_, data_);
+    }
+
+    void ChassisCanBridgeSender::UpdatePower(bool enabled, uint8_t max_watt,
+                                             float current_voltage,
+                                             uint8_t buffer_percent) {
+        const float buffer_joule =
+            60.0f * static_cast<float>(buffer_percent > 100 ? 100
+                                                            : buffer_percent) /
+            100.0f;
+        UpdatePower(enabled, max_watt, current_voltage, buffer_joule, -1.0f,
+                    false);
     }
 
 } /* namespace control */

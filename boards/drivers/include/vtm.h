@@ -26,6 +26,7 @@
 #include "bsp_uart.h"
 #include "connection_driver.h"
 #include "vtm_package.h"
+#include "remote_input.h"
 #include "bsp_thread.h"
 
 namespace remote {
@@ -89,14 +90,16 @@ namespace remote {
         uint64_t ch5 : 1;
 
         /* 鼠标数据 - 直接嵌入现有结构体 */
-        vtm_mouse_t mouse;
+        vtm_mouse_t mouse{};
 
         /* 键盘数据 - 直接嵌入现有结构体 */
-        vtm_keyboard_t keyboard;
+        vtm_keyboard_t keyboard{};
 
         /* CRC校验 */
         uint16_t crc16;
     } __attribute__((packed)) vtm_raw_t;
+
+    static_assert(sizeof(vtm_raw_t) == PACKET_SIZE, "VTM frame layout must be 21 bytes");
 
     /**
      * @brief VTM 图传接收类
@@ -113,6 +116,8 @@ namespace remote {
         explicit VTM(bsp::UART* uart);
 
         bool IsReady();
+
+        RemoteInput GetInput() const;
 
         void VTMupdata(uint8_t* data);
 
@@ -132,61 +137,61 @@ namespace remote {
         /**
          * @brief 获取右摇杆的x轴值
          */
-        volatile int16_t ch0;
+        volatile int16_t ch0 = 0;
         /**
          * @brief 获取右摇杆的y轴值
          */
-        volatile int16_t ch1;
+        volatile int16_t ch1 = 0;
         /**
          * @brief 获取左摇杆的y轴值
          */
-        volatile int16_t ch2;
+        volatile int16_t ch2 = 0;
         /**
          * @brief 获取左摇杆的x轴值
          */
-        volatile int16_t ch3;
+        volatile int16_t ch3 = 0;
         /**
          * @brief 获取拨轮的值
          */
-        volatile int16_t ch4;
+        volatile int16_t ch4 = 0;
         /**
          * @brief 获取扳机键的值
          */
-        volatile int16_t ch5;
+        volatile int16_t ch5 = 0;
 
         // switch and button information
         /**
          * @brief 获取挡位切换开关的状态
          */
-        volatile vtm_gear_t gear_switch;
+        volatile vtm_gear_t gear_switch = VTM_GEAR_N;
         /**
          * @brief 获取暂停按键的状态
          */
-        volatile bool pause_button;
+        volatile bool pause_button = false;
         /**
          * @brief 获取自定义左按键的状态
          */
-        volatile bool custom_left;
+        volatile bool custom_left = false;
         /**
          * @brief 获取自定义右按键的状态
          */
-        volatile bool custom_right;
+        volatile bool custom_right = false;
 
         // mouse movement and button information
         /**
          * @brief 获取鼠标的数据
          */
-        vtm_mouse_t mouse;
+        vtm_mouse_t mouse{};
         // keyboard key information
         /**
          * @brief 获取键盘的数据
          */
-        vtm_keyboard_t keyboard;
+        vtm_keyboard_t keyboard{};
 
         static const int16_t ROCKER_MIN = VTM_ROCKER_MIN;
         static const int16_t ROCKER_MAX = VTM_ROCKER_MAX;
 
-        uint32_t timestamp;
+        uint32_t timestamp = 0U;
 
     private:
         bsp::UART* uart_ = nullptr;
@@ -194,6 +199,9 @@ namespace remote {
         uint8_t* read_ptr_ = nullptr;
         uint32_t read_len_ = 0;
         uint8_t bufferRx[VTM_BUFFER_SIZE] = {0};
+        RemoteInput input_frames_[2]{};
+        volatile uint8_t active_input_index_ = 0U;
+        volatile uint32_t input_generation_ = 0U;
 
         static void RxCallback(void* args);
 

@@ -60,6 +60,8 @@ namespace control {
         bool use_lqr_power_limit = false;
         SeasonRuleManager::SeasonType season = SeasonRuleManager::SEASON_2026;
         bool blood_priority = true;
+        float referee_power_safety_margin = 0.90f;
+        float local_power_safety_margin = 0.90f;
     };
 
     /**
@@ -109,13 +111,19 @@ namespace control {
                       bool enable_supercap = false);
 
         /**
-         * @brief 使用外部采集的底盘数据，更新功率控制信息。
-         * @note 这里仅记录信息，实际在回调函数中进行功率控制的计算。
+         * @brief 更新 2026 底盘功率控制输入。
          * @param enabled 功率控制开关
-         * @param max_watt 最大功率，单位为W（根据buffer动态调整，有时会更大）
-         * @param current_voltage 电池电压，单位为V
-         * @param buffer_percent 剩余缓冲能量百分比，范围为0~100，50%对应于最大电流的90%
+         * @param max_watt 裁判系统当前功率上限 Pl；无裁判时为本地测试上限
+         * @param current_voltage 电池电压，单位 V
+         * @param buffer_joule 当前缓冲能量 Z，2026 规则范围 0~60 J
+         * @param measured_power 裁判系统实测底盘功率；不可用时传负数
+         * @param referee_online 参数是否来自在线裁判系统
          */
+        void UpdatePower(bool enabled, float max_watt, float current_voltage,
+                         float buffer_joule, float measured_power,
+                         bool referee_online);
+
+        /** 兼容旧调用：按本地来源将百分比换算为 0~60 J。 */
         void UpdatePower(bool enabled, float max_watt, float current_voltage,
                          uint8_t buffer_percent);
 
@@ -139,6 +147,14 @@ namespace control {
         float GetPowerEstimate() const;
         
         float GetPowerPrediction() const;
+
+        /** 限流后、经裁判实测修正的功率估算。 */
+        float GetLimitedPowerEstimate() const;
+        float GetMeasuredPower() const;
+        float GetPowerLimit() const;
+        float GetModelCorrection() const;
+        bool IsRefereePowerSource() const;
+        bool IsLocalPowerTripActive() const;
         
         float GetBuffer() const;
         
@@ -147,6 +163,14 @@ namespace control {
         SeasonRuleManager::WarnType GetWarnType() const;
         
         float GetSpeedScale() const;
+
+        /** Kinematic pre-PID scaling applied by SetSpeed(). */
+        float GetKinematicScale() const;
+
+        /**
+         * @brief 获取实际应用到四轮电流上的公共缩放系数。
+         */
+        float GetCurrentScale() const;
         
         void SetBloodPriority(bool blood_priority);
         
@@ -214,9 +238,11 @@ namespace control {
 
         struct {
             bool enabled = false;
-            uint8_t buffer_percent = 0;  // 0~100
-            float max_watt = 0;
-            float voltage = 0;
+            bool referee_online = false;
+            float buffer_joule = 60.0f;
+            float measured_power = -1.0f;
+            float max_watt = 0.0f;
+            float voltage = 0.0f;
 
             NewPowerLimit* limiter = nullptr;
         } power_limit_;
@@ -233,6 +259,7 @@ namespace control {
         driver::SuperCap* super_capacitor_ = nullptr;
 
         float max_motor_speed_ = 2 * PI * 10;
+        float kinematic_scale_ = 1.0f;
 
       public:
         // Record for debugging
@@ -269,7 +296,13 @@ namespace control {
                       float chassis_power_buffer, bool enable_supercap = false,
                       bool force_update = false);
 
-        // Same as Chassis::SetPower
+        // Same as Chassis::UpdatePower. Sends limit/voltage and feedback on
+        // the existing 0x72/0x73 bridge registers.
+        void UpdatePower(bool enabled, uint8_t max_watt, float current_voltage,
+                         float buffer_joule, float measured_power,
+                         bool referee_online);
+
+        /** Compatibility overload for local percent-based callers. */
         void UpdatePower(bool enabled, uint8_t max_watt, float current_voltage,
                          uint8_t buffer_percent);
 

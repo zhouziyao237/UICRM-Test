@@ -65,3 +65,6 @@ const driver::BuzzerNoteDelayed ProtectWarning[] = {
 
 const driver::BuzzerNoteDelayed RemoteOfflineWarning[] = {
     {Note::Re2M, 200}, {Note::Silent, 100}, {Note::Re2M, 200}, {Note::Silent, 100}, {Note::Re2M, 200}, {Note::Finish, 0}};
+
+const driver::BuzzerNoteDelayed SingError[] = {
+    {Note::Do1M, 150}, {Note::Do1M, 150}, {Note::Do1M, 300}, {Note::Finish, 0}};

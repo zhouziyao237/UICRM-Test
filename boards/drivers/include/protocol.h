@@ -29,6 +29,7 @@
 #include "connection_driver.h"
 #include "dbus_package.h"
 
+
 namespace communication {
 
     constexpr int MAX_FRAME_LEN = 300;
@@ -129,7 +130,7 @@ namespace communication {
         package_t Transmit(int cmd_id) override;
 
       protected:
-        bsp::UART* uart_;
+        bsp::UART* uart_ = nullptr;
 
       private:
         uint8_t* read_ptr_ = nullptr;
@@ -153,6 +154,7 @@ namespace communication {
         int ProcessDataTx(int cmd_id, uint8_t* data) override;
     };
 
+    #ifndef NO_USB
     class USBProtocol : public virtual Protocol {
         friend class ProtocolAdapterManager;
 
@@ -163,7 +165,7 @@ namespace communication {
         package_t Transmit(int cmd_id) override;
 
       protected:
-        bsp::VirtualUSB* usb_;
+        bsp::VirtualUSB* usb_ = nullptr;
 
       private:
         uint8_t* read_ptr_ = nullptr;
@@ -186,6 +188,7 @@ namespace communication {
         bool ProcessDataRx(int cmd_id, const uint8_t* data, int length) override;
         int ProcessDataTx(int cmd_id, uint8_t* data) override;
     };
+#endif
 
     /* ProtocolAdapterManager for Mode */
 
@@ -197,7 +200,9 @@ namespace communication {
 
     struct Protocol_t {
         bsp::UART* uart = nullptr;
+#ifndef NO_USB
         bsp::VirtualUSB* usb = nullptr;
+#endif
     };
 
     class ProtocolAdapterManager {
@@ -206,7 +211,8 @@ namespace communication {
         ~ProtocolAdapterManager();
 
         // 统一的传输接口
-        package_t Transmit(int cmd_id);
+        package_t Transmit(Protocol* protocol, int cmd_id);
+        void SetReceiver(Protocol* protocol);
 
         // 从通信接口接收数据的统一入口
         void HandleReceivedData(package_t package, ProtocolType source);
@@ -219,22 +225,31 @@ namespace communication {
       private:
         // 协议实例
         std::unique_ptr<UARTProtocol> uart_protocol_;
+#ifndef NO_USB
         std::unique_ptr<USBProtocol> usb_protocol_;
+#endif
+        Protocol* receiver_ = nullptr;
 
         // 当前活跃的协议类型
         ProtocolType protocoltype = NONE;
 
         // 回调线程管理
         bsp::EventThread* uart_callback_thread_ = nullptr;
+#ifndef NO_USB
         bsp::EventThread* usb_callback_thread_ = nullptr;
+#endif
 
         // 回调函数包装器
         static void UARTCallbackWrapper(void* args);
+#ifndef NO_USB
         static void USBCallbackWrapper(void* args);
+#endif
 
         // 回调处理线程函数
         static void uart_callback_thread_func_(void* args);
+#ifndef NO_USB
         static void usb_callback_thread_func_(void* args);
+#endif
 
         // 回调线程属性
         const osThreadAttr_t callback_thread_attr_ = {.name = "ProtocolAdapterTask",
@@ -834,7 +849,14 @@ namespace communication {
 
     class Host : public Protocol {
       public:
-        Host(Protocol_t protocol_t);
+        Host();
+        explicit Host(bsp::UART* uart);
+#ifndef NO_USB
+        explicit Host(bsp::VirtualUSB* usb);
+#endif
+        explicit Host(Protocol_t protocol_t);
+
+        package_t Transmit(int cmd_id) override;
         pack_t pack{};
         target_angle_t target_angle{};
         no_target_flag_t no_target_flag{};

@@ -21,6 +21,7 @@
 #pragma once
 
 #include "main.h"
+#include "remote_input.h"
 
 namespace remote {
     // VTM鼠标数据结构
@@ -35,27 +36,7 @@ namespace remote {
 
 #define vtm_mouse_xy_max 32767.0
 
-    // VTM键盘数据结构
-    typedef union {
-        uint16_t code;
-        struct {
-            uint16_t W : 1;
-            uint16_t S : 1;
-            uint16_t A : 1;
-            uint16_t D : 1;
-            uint16_t SHIFT : 1;
-            uint16_t CTRL : 1;
-            uint16_t Q : 1;
-            uint16_t E : 1;
-            uint16_t R : 1;
-            uint16_t F : 1;
-            uint16_t G : 1;
-            uint16_t Z : 1;
-            uint16_t X : 1;
-            uint16_t C : 1;
-            uint16_t V : 1;
-            uint16_t B : 1;
-        } __packed bit;
-    } __packed vtm_keyboard_t;
+    // VTM and DBUS use the same 16-bit keyboard bitmap.
+    using vtm_keyboard_t = keyboard_t;
 
 }  // namespace remote

@@ -13,6 +13,6 @@ set(STM32F1_INCLUDES
 uicrm_add_board_specific_library(F103_Nano_general_platform
         TARGET F103_Nano_general
         SOURCES ${STM32F1_SOURCES}
-        INCLUDES ${STN32F1_INCLUDES}
+        INCLUDES ${STM32F1_INCLUDES}
 )
 target_include_directories(F103_Nano_general_platform PUBLIC ${STM32F1_INCLUDES})

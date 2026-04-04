@@ -13,6 +13,7 @@ uicrm_add_arm_executable(${PROJECT_NAME}_typeC
         src/buzzer_task.cpp
         src/imu_task.cpp
         src/sys.cpp
+        src/robot_state.cpp
         src/rc.cpp
 
         INCLUDES include)

@@ -24,82 +24,151 @@
 #include <cstring>
 
 #include "bsp_error_handler.h"
+#include "crc_check.h"
 #include "cmsis_os2.h"
 #include "vtm_package.h"
 #include "bsp_thread.h"
 #include "FreeRTOS.h"
+#include "utils.h"
+#include "bsp_os.h"
 
 namespace remote {
 
+    RemoteInput VTM::GetInput() const {
+        RemoteInput snapshot;
+        uint32_t first_generation = 0U;
+        uint32_t second_generation = 0U;
+        do {
+            first_generation = input_generation_;
+            snapshot = input_frames_[active_input_index_];
+            second_generation = input_generation_;
+        } while (first_generation != second_generation);
+        return snapshot;
+    }
+
     VTM::VTM(bsp::UART* uart) {
-        if (!uart)
+        if (!uart) {
             RM_ASSERT_TRUE(false, "VTM is NULL");
+            return;
+        }
         uart_ = uart;
         uart_->RegisterCallback(RxCallback, this);
 
         vtm_start_flag = true;
     }
 
-    void VTM::RxCallback(void *args) {
+    void VTM::RxCallback(void* args) {
         VTM* self = static_cast<VTM*>(args);
+        if (self == nullptr || self->uart_ == nullptr || !self->vtm_start_flag)
+            return;
 
-        if (self->vtm_start_flag) {
-            self->vtm_start_flag = false;
+        self->vtm_start_flag = false;
+        package_t package = {};
+        package.length = self->uart_->Read<true>(&package.data);
 
-            self->Heartbeat();
-            package_t package = {};
-            package.length = self->uart_->Read<true>(&package.data);
-            memcpy(self->bufferRx, package.data, package.length);
-            int start_idx;
-            int end_idx = 0;
-            while (end_idx < package.length) {
-                start_idx = end_idx;
-                while (++end_idx < package.length && self->bufferRx[end_idx] != VTM_FRAME_HEADER_1)
-                    ;
-                if (end_idx - start_idx >= PACKET_SIZE) {
-                    self->VTMupdata(self->bufferRx + start_idx);
+        bool valid_frame_received = false;
+        if (package.data != nullptr && package.length >= PACKET_SIZE) {
+            int offset = 0;
+            while (offset + PACKET_SIZE <= package.length) {
+                if (package.data[offset] != VTM_FRAME_HEADER_1 ||
+                    package.data[offset + 1] != VTM_FRAME_HEADER_2) {
+                    ++offset;
+                    continue;
+                }
+
+                if (verify_crc16_check_sum(package.data + offset, PACKET_SIZE)) {
+                    self->VTMupdata(package.data + offset);
+                    valid_frame_received = true;
+                    offset += PACKET_SIZE;
+                } else {
+                    ++offset;
                 }
             }
-            memset(self->bufferRx, 0, package.length);
-            self->vtm_start_flag = true;
         }
+
+        if (valid_frame_received)
+            self->Heartbeat();
+        self->vtm_start_flag = true;
     }
 
     void VTM::VTMupdata(uint8_t* data) {
-        // 重新解释数据缓冲区并解码到类属性
-        vtm_raw_t* repr = reinterpret_cast<vtm_raw_t*>(data);
+        const vtm_raw_t* repr = reinterpret_cast<const vtm_raw_t*>(data);
 
-        if (repr->header1 != VTM_FRAME_HEADER_1 || repr->header2 != VTM_FRAME_HEADER_2)
+        if (repr->header1 != VTM_FRAME_HEADER_1 ||
+            repr->header2 != VTM_FRAME_HEADER_2 ||
+            !verify_crc16_check_sum(data, PACKET_SIZE)) {
             return;
+        }
 
-        // 参考DBUS的方式，简化处理逻辑
-        this->ch0 = (int16_t)(repr->ch0 - VTM_ROCKER_MID);
-        this->ch1 = (int16_t)(repr->ch1 - VTM_ROCKER_MID);
-        this->ch2 = (int16_t)(repr->ch2 - VTM_ROCKER_MID);
-        this->ch3 = (int16_t)(repr->ch3 - VTM_ROCKER_MID);
-        this->ch4 = (int16_t)(repr->ch4 - VTM_ROCKER_MID);
+        RemoteInput next;
+        next.source = RemoteSource::VTM;
+        next.right_x = apply_deadband<int16_t>(
+            static_cast<int16_t>(repr->ch0 - VTM_ROCKER_MID),
+            VTM_ROCKER_ZERO_DRIFT);
+        next.right_y = apply_deadband<int16_t>(
+            static_cast<int16_t>(repr->ch1 - VTM_ROCKER_MID),
+            VTM_ROCKER_ZERO_DRIFT);
 
-        // 死区处理 - 直接简化写法
-        this->ch0 = abs(this->ch0) <= VTM_ROCKER_ZERO_DRIFT ? 0 : this->ch0;
-        this->ch1 = abs(this->ch1) <= VTM_ROCKER_ZERO_DRIFT ? 0 : this->ch1;
-        this->ch2 = abs(this->ch2) <= VTM_ROCKER_ZERO_DRIFT ? 0 : this->ch2;
-        this->ch3 = abs(this->ch3) <= VTM_ROCKER_ZERO_DRIFT ? 0 : this->ch3;
-        this->ch4 = abs(this->ch4) <= VTM_ROCKER_ZERO_DRIFT ? 0 : this->ch4;
+        // VTM packet order is ch2=left Y and ch3=left X. The common frame
+        // exposes semantic axes, so applications do not need protocol-specific
+        // channel swaps.
+        next.left_y = apply_deadband<int16_t>(
+            static_cast<int16_t>(repr->ch2 - VTM_ROCKER_MID),
+            VTM_ROCKER_ZERO_DRIFT);
+        next.left_x = apply_deadband<int16_t>(
+            static_cast<int16_t>(repr->ch3 - VTM_ROCKER_MID),
+            VTM_ROCKER_ZERO_DRIFT);
+        next.dial = apply_deadband<int16_t>(
+            static_cast<int16_t>(repr->ch4 - VTM_ROCKER_MID),
+            VTM_ROCKER_ZERO_DRIFT);
+        next.trigger = repr->ch5 != 0U ? RemoteInput::CHANNEL_MAX : 0;
 
-        // 开关和按键 - 简化处理
-        this->gear_switch = (vtm_gear_t)repr->gear_switch;
-        this->pause_button = repr->pause_button != 0;
-        this->custom_left = repr->custom_left != 0;
-        this->custom_right = repr->custom_right != 0;
+        switch (static_cast<vtm_gear_t>(repr->gear_switch)) {
+            case VTM_GEAR_C:
+                next.gear = GearPosition::C;
+                break;
+            case VTM_GEAR_N:
+                next.gear = GearPosition::N;
+                break;
+            case VTM_GEAR_S:
+                next.gear = GearPosition::S;
+                break;
+            default:
+                next.gear = GearPosition::NONE;
+                break;
+        }
+        next.pause_button = repr->pause_button != 0U;
+        next.custom_left = repr->custom_left != 0U;
+        next.custom_right = repr->custom_right != 0U;
 
-        // 额外通道
-        this->ch5 = (int16_t)repr->ch5;
+        next.mouse_x = repr->mouse.x;
+        next.mouse_y = repr->mouse.y;
+        next.mouse_z = repr->mouse.z;
+        next.mouse_left = repr->mouse.l != 0U;
+        next.mouse_right = repr->mouse.r != 0U;
+        next.mouse_middle = repr->mouse.m != 0U;
+        next.keyboard_code = repr->keyboard.code;
+        next.timestamp = bsp::GetHighresTickMilliSec();
 
-        // 直接内存拷贝 - 参考DBUS方式
-        memcpy(&this->mouse, &repr->mouse, sizeof(vtm_mouse_t));
-        memcpy(&this->keyboard, &repr->keyboard, sizeof(vtm_keyboard_t));
+        const uint8_t next_index = active_input_index_ ^ 1U;
+        input_frames_[next_index] = next;
+        active_input_index_ = next_index;
+        ++input_generation_;
 
-        this->timestamp = GetLastUptime();
+        // Keep the original VTM fields for existing programs.
+        ch0 = next.right_x;
+        ch1 = next.right_y;
+        ch2 = next.left_y;
+        ch3 = next.left_x;
+        ch4 = next.dial;
+        ch5 = repr->ch5 != 0U ? 1 : 0;
+        gear_switch = static_cast<vtm_gear_t>(repr->gear_switch);
+        pause_button = next.pause_button;
+        custom_left = next.custom_left;
+        custom_right = next.custom_right;
+        memcpy(&mouse, &repr->mouse, sizeof(vtm_mouse_t));
+        keyboard.code = next.keyboard_code;
+        timestamp = next.timestamp;
     }
 
 } /* namespace remote */

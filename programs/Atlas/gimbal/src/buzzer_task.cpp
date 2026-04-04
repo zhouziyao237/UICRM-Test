@@ -20,36 +20,38 @@
 
 #include "buzzer_task.h"
 
-osThreadId_t buzzerTaskHandle;
+osThreadId_t BuzzerTaskHandle;
 
-driver::Buzzer* buzzer = nullptr;
-const driver::BuzzerNoteDelayed* buzzer_song = nullptr;
+namespace {
+driver::Buzzer* g_buzzer = nullptr;
+const driver::BuzzerNoteDelayed* g_song = nullptr;
+}
 
 void Buzzer_Delay(uint32_t delay) {
     osDelay(delay);
 }
 
-bool Buzzer_Sing(const driver::BuzzerNoteDelayed* song) {
-    if (buzzer_song == nullptr) {
-        buzzer_song = song;
-        osThreadFlagsSet(buzzerTaskHandle, BUZZER_SIGNAL);
+bool BuzzerPlay(const driver::BuzzerNoteDelayed* song) {
+    if (g_song == nullptr) {
+        g_song = song;
+        osThreadFlagsSet(BuzzerTaskHandle, BUZZER_SIGNAL);
         return true;
     }
     return false;
 }
-void buzzerTask(void* arg) {
+void BuzzerTask(void* arg) {
     UNUSED(arg);
     while (1) {
         uint32_t flags = osThreadFlagsWait(BUZZER_SIGNAL, osFlagsWaitAll, osWaitForever);
         if (flags & BUZZER_SIGNAL) {
-            if (buzzer_song != nullptr) {
-                buzzer->SingSong(buzzer_song, Buzzer_Delay);
-                buzzer_song = nullptr;
+            if (g_song != nullptr) {
+                g_buzzer->SingSong(g_song, Buzzer_Delay);
+                g_song = nullptr;
             }
         }
     }
 }
 
-void init_buzzer() {
-    buzzer = new driver::Buzzer(&htim4, 3, 1000000);
+void InitBuzzer() {
+    g_buzzer = new driver::Buzzer(&htim4, 3, 1000000);
 }

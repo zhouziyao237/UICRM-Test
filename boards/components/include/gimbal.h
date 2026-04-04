@@ -1,45 +1,37 @@
-// Copyright (c) 2023-2026. BNU-HKBU UIC RoboMaster
-//
-// This program is free software: you can redistribute it
-// and/or modify it under the terms of the GNU General
-// Public License as published by the Free Software
-// Foundation, either version 3 of the License, or (at
-// your option) any later version.
-//
-// This program is distributed in the hope that it will be
-// useful, but WITHOUT ANY WARRANTY; without even
-// the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE.  See the GNU General
-// Public License for more details.
-//
-// You should have received a copy of the GNU General
-// Public License along with this program.  If not, see
-// <https://www.gnu.org/licenses/>.
+/*###########################################################
+ # Copyright (c) 2023-2024. BNU-HKBU UIC RoboMaster         #
+ #                                                          #
+ # This program is free software: you can redistribute it   #
+ # and/or modify it under the terms of the GNU General      #
+ # Public License as published by the Free Software         #
+ # Foundation, either version 3 of the License, or (at      #
+ # your option) any later version.                          #
+ #                                                          #
+ # This program is distributed in the hope that it will be  #
+ # useful, but WITHOUT ANY WARRANTY; without even           #
+ # the implied warranty of MERCHANTABILITY or FITNESS       #
+ # FOR A PARTICULAR PURPOSE.  See the GNU General           #
+ # Public License for more details.                         #
+ #                                                          #
+ # You should have received a copy of the GNU General       #
+ # Public License along with this program.  If not, see     #
+ # <https://www.gnu.org/licenses/>.                         #
+ ###########################################################*/
 
 #pragma once
 
 #include "MotorCanBase.h"
-#include <string>
 #include "pid.h"
 #include "utils.h"
 
 namespace control {
 
-    // 角度转换宏定义
-#ifndef DEG_TO_RAD
-#define DEG_TO_RAD(deg) ((deg) * M_PI / 180.0f)
-#endif
-
-#ifndef RAD_TO_DEG
-#define RAD_TO_DEG(rad) ((rad) * 180.0f / M_PI)
-#endif
-
     /**
-     * @brief 不同云台的电机偏移角度、最大角度、最小角度、减速比
+     * @brief 不同云台的电机偏移角度、最大角度、最小角度
      * @note 除了最小角度由用户决定，其他都应该通过读取编码器值通过uart/gdb获取
      */
     /**
-     * @brief offset, max, proximity angles and reduction ratios of different gimbals
+     * @brief offset, max, and proximity angles of different gimbals
      * @note except for proximity is determined by user, these should be obtained
      * by reading encoder values through uart/gdb
      */
@@ -49,14 +41,12 @@ namespace control {
         float yaw_offset_ = 0.0f;   /* yaw offset angle (angle when muzzle is at horizontal
                                   center) */
         float pitch_max_ = 0.0f;    /* maximum pitch angle the gimbal can turn from center */
-        float yaw_max_ = 0.0f;      /* maximum yaw angle the gimbal can turn from center */
+        float yaw_max_ = 0.0f;      /* maximum yaw angle the gimbal can turn from center      */
         bool yaw_circle_ = true;    /* yaw angle can circle or not */
         bool pitch_inverted = false;
         bool yaw_inverted = false;
         float pitch_eposition = 0;
         float yaw_eposition = 0;
-        float pitch_reduction = 1.0f; /* pitch axis reduction ratio (motor angle / gimbal angle) */
-        float yaw_reduction = 1.0f;   /* yaw axis reduction ratio (motor angle / gimbal angle) */
     };
 
     /**
@@ -183,45 +173,35 @@ namespace control {
          */
         void UpdateOffset(float pitch_offset, float yaw_offset);
 
-        /**
-         * @brief 获取云台俯仰轴的目标角度
-         *
-         * @return float 返回当前设置的俯仰轴目标角度值
-         */
+        /** Raw motor-coordinate target, kept for compatibility. */
         float getPitchTarget() const;
-
-        /**
-         * @brief 获取云台偏航轴的目标角度
-         *
-         * @return float 返回当前设置的偏航轴目标角度值
-         */
         float getYawTarget() const;
 
-        /**
-         * @brief 俯仰电机数据更新回调函数
-         *
-         * 当俯仰电机数据更新时被调用的回调函数
-         *
-         * @param arg 回调函数参数指针，通常指向Gimbal对象实例
+        /** Pitch target in the logical gimbal coordinate system. Positive
+         *  means the same physical direction regardless of motor gearing. */
+        float getPitchTargetLogical() const;
+
+        /*
+         * @brief 通过电机编码器 获取 云台相对于云台参数标定的零点 的pitch
          */
-        static void UpdataPitchByMotor(void* arg);
-
-        /**
-         * @brief 偏航电机数据更新回调函数
-         *
-         * 当偏航电机数据更新时被调用的回调函数
-         *
-         * @param arg 回调函数参数指针，通常指向Gimbal对象实例
+        float getPitchByMotor() const;
+        /*
+         * @brief 通过电机编码器 获取 云台相对于云台参数标定的零点 的yaw
          */
-        static void UpdataYawByMotor(void* arg);
-
-        float getPitchByMotor();
-
-        float getYawByMotor();
-
-        int GetDebugString(char* buffer, size_t size) const;
+        float getYawByMotor() const;
 
       private:
+        /** Resolve a configured one-turn offset onto the continuous branch
+         *  nearest to the current measured output-shaft coordinate. */
+        static float NearestEquivalentAngle(float configured_angle, float reference_angle);
+
+        /** Keep finite-axis center coordinates, targets and limits on the same
+         *  continuous branch as their motor feedback. */
+        void RefreshLinearCoordinates();
+
+        float PitchLogicalToMotor(float logical_delta) const;
+        float PitchMotorToLogical(float motor_delta) const;
+
         // acquired from user
         driver::MotorCANBase* pitch_motor_ = nullptr;
         driver::MotorCANBase* yaw_motor_ = nullptr;
@@ -229,31 +209,20 @@ namespace control {
         // pitch and yaw constants
         gimbal_data_t data_;
 
-        // 多圈累积状态结构体
-        struct MotorWrapState {
-            float offset_angle_;      // 电机轴累积圈数（有符号）
-            float theta;              // 电机轴角度
-            float last_motor_angle_;  // 上一次电机角度（用于差分检测）
-            bool initialized_;        // 是否已初始化
-            MotorWrapState() :
-            offset_angle_(0),
-            theta(0),
-            last_motor_angle_(0),
-            initialized_(false) {}
-        };
-
-        MotorWrapState pitch_wrap_;
-        MotorWrapState yaw_wrap_;
-
-        // pitch and yaw angle (gimbal frame)
+        // pitch and yaw angle
         float pitch_angle_; /* current gimbal pitch angle */
         float yaw_angle_;   /* current gimbal yaw angle   */
 
-        // pitch and yaw limit (gimbal frame)
+        // pitch and yaw limit
         float pitch_lower_limit_; /* pitch lower limit */
         float pitch_upper_limit_; /* pitch upper limit */
         float yaw_lower_limit_;   /* yaw lower limit   */
         float yaw_upper_limit_;   /* yaw upper limit   */
+
+        float pitch_center_coordinate_ = 0.0f;
+        float yaw_center_coordinate_ = 0.0f;
+        bool pitch_coordinate_initialized_ = false;
+        bool yaw_coordinate_initialized_ = false;
     };
 
 }  // namespace control

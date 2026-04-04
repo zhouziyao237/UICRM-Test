@@ -24,6 +24,7 @@
 #include <cstring>
 
 #include "bsp_error_handler.h"
+#include "utils.h"
 
 /* rocker range and deadzones */
 #define RC_ROCKER_MID 1024
@@ -53,33 +54,84 @@ namespace remote {
         SetupRx(sizeof(dbus_t) + 1);
     }
 
+    RemoteInput DBUS::GetInput() const {
+        RemoteInput snapshot;
+        uint32_t first_generation = 0U;
+        uint32_t second_generation = 0U;
+        do {
+            first_generation = input_generation_;
+            snapshot = input_frames_[active_input_index_];
+            second_generation = input_generation_;
+        } while (first_generation != second_generation);
+        return snapshot;
+    }
+
     void DBUS::RxCompleteCallback() {
-        Heartbeat();
+        uint8_t* data = nullptr;
+        // A partial/misaligned UART packet must not refresh the DBUS heartbeat.
+        if (this->Read<true>(&data) != sizeof(dbus_t)) return;
 
-        uint8_t* data;
-        // data frame misalignment
-        if (this->Read<true>(&data) != sizeof(dbus_t))
+        const dbus_t* repr = reinterpret_cast<const dbus_t*>(data);
+        if (repr->swr < static_cast<uint8_t>(remote::UP) ||
+            repr->swr > static_cast<uint8_t>(remote::MID) ||
+            repr->swl < static_cast<uint8_t>(remote::UP) ||
+            repr->swl > static_cast<uint8_t>(remote::MID)) {
             return;
+        }
 
-        // re-interpret the data buffer and decode into class properties
-        dbus_t* repr = reinterpret_cast<dbus_t*>(data);
-        this->ch0 = repr->ch0 - RC_ROCKER_MID;
-        this->ch1 = repr->ch1 - RC_ROCKER_MID;
-        this->ch2 = repr->ch2 - RC_ROCKER_MID;
-        this->ch3 = repr->ch3 - RC_ROCKER_MID;
-        this->ch4 = repr->ch4 - RC_ROCKER_MID;
-        this->ch0 = abs(this->ch0) <= RC_ROCKER_ZERO_DRIFT ? 0 : this->ch0;
-        this->ch1 = abs(this->ch1) <= RC_ROCKER_ZERO_DRIFT ? 0 : this->ch1;
-        this->ch2 = abs(this->ch2) <= RC_ROCKER_ZERO_DRIFT ? 0 : this->ch2;
-        this->ch3 = abs(this->ch3) <= RC_ROCKER_ZERO_DRIFT ? 0 : this->ch3;
-        this->ch4 = abs(this->ch4) <= RC_ROCKER_ZERO_DRIFT ? 0 : this->ch4;
-        this->swl = static_cast<switch_t>(repr->swl);
-        this->swr = static_cast<switch_t>(repr->swr);
+        RemoteInput next;
+        next.source = RemoteSource::DBUS;
+        next.right_x = apply_deadband<int16_t>(
+            static_cast<int16_t>(repr->ch0 - RC_ROCKER_MID),
+            RC_ROCKER_ZERO_DRIFT);
+        next.right_y = apply_deadband<int16_t>(
+            static_cast<int16_t>(repr->ch1 - RC_ROCKER_MID),
+            RC_ROCKER_ZERO_DRIFT);
+        next.left_x = apply_deadband<int16_t>(
+            static_cast<int16_t>(repr->ch2 - RC_ROCKER_MID),
+            RC_ROCKER_ZERO_DRIFT);
+        next.left_y = apply_deadband<int16_t>(
+            static_cast<int16_t>(repr->ch3 - RC_ROCKER_MID),
+            RC_ROCKER_ZERO_DRIFT);
+        next.dial = apply_deadband<int16_t>(
+            static_cast<int16_t>(repr->ch4 - RC_ROCKER_MID),
+            RC_ROCKER_ZERO_DRIFT);
+        next.has_left_switch = true;
+        next.has_right_switch = true;
+        next.left_switch = static_cast<switch_t>(repr->swl);
+        next.right_switch = static_cast<switch_t>(repr->swr);
+        next.mouse_x = repr->mouse.x;
+        next.mouse_y = repr->mouse.y;
+        next.mouse_z = repr->mouse.z;
+        next.mouse_left = repr->mouse.l != 0U;
+        next.mouse_right = repr->mouse.r != 0U;
+        next.mouse_middle = false;
+        next.keyboard_code = repr->keyboard.code;
 
-        memcpy(&this->mouse, &repr->mouse, sizeof(mouse_t));
-        memcpy(&this->keyboard, &repr->keyboard, sizeof(keyboard_t));
+        Heartbeat();
+        next.timestamp = GetLastUptime();
 
-        this->timestamp = GetLastUptime();
+        // Publish a complete frame only after all fields have been decoded.
+        const uint8_t next_index = active_input_index_ ^ 1U;
+        input_frames_[next_index] = next;
+        active_input_index_ = next_index;
+        ++input_generation_;
+
+        // Keep the original public fields for existing programs.
+        ch0 = next.right_x;
+        ch1 = next.right_y;
+        ch2 = next.left_x;
+        ch3 = next.left_y;
+        ch4 = next.dial;
+        swl = next.left_switch;
+        swr = next.right_switch;
+        mouse.x = next.mouse_x;
+        mouse.y = next.mouse_y;
+        mouse.z = next.mouse_z;
+        mouse.l = next.mouse_left ? 1U : 0U;
+        mouse.r = next.mouse_right ? 1U : 0U;
+        keyboard.code = next.keyboard_code;
+        timestamp = next.timestamp;
     }
 
 } /* namespace remote */

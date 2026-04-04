@@ -21,6 +21,8 @@
 #ifndef NO_USB
 #include "bsp_usb.h"
 
+#include <cstring>
+
 #include "bsp_error_handler.h"
 #include "cmsis_os.h"
 #include "task.h"
@@ -127,9 +129,16 @@ namespace bsp {
     }
 
     void VirtualUSB::RxCompleteCallback() {
+        if (rx_ptr_ != nullptr && rx_len_ != nullptr) {
+            *rx_len_ = this->Read(rx_ptr_);
+        }
+        if (callback_ != nullptr)
+            callback_(callback_args_);
     }
 
     uint32_t VirtualUSB::QueueUpRxData(const uint8_t* data, uint32_t length) {
+        if (data == nullptr || rx_write_ == nullptr || rx_size_ == 0)
+            return 0;
         if (length + rx_pending_ > rx_size_) {
             length = rx_size_ - rx_pending_;
             RM_EXPECT_TRUE(1, "usb data reception truncated");
@@ -145,8 +154,20 @@ namespace bsp {
     }
 
     void RxCompleteCallbackWrapper(uint8_t* data, uint32_t length) {
-        usb->QueueUpRxData(data, length);
-        usb->RxCompleteCallback();
+        if (usb != nullptr) {
+            usb->QueueUpRxData(data, length);
+            usb->RxCompleteCallback();
+        }
+    }
+
+    void VirtualUSB::RegisterCallback(usb_rx_callback_t callback, void* args) {
+        callback_ = callback;
+        callback_args_ = args;
+    }
+
+    void VirtualUSB::SetupRxData(uint8_t** rx_ptr, uint32_t* rx_len) {
+        rx_ptr_ = rx_ptr;
+        rx_len_ = rx_len;
     }
 
 } /* namespace bsp */
