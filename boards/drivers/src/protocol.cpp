@@ -380,6 +380,7 @@ namespace communication {
                 break;
             case POWER_HEAT_DATA:
                 memcpy(&power_heat_data, data, length);
+                ++power_heat_sequence_;
                 break;
             case GAME_ROBOT_POS:
                 memcpy(&game_robot_pos, data, length);

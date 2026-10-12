@@ -721,10 +721,16 @@ namespace control {
         data_.data_two_float.data[1] = 0.0f;
         rx_id_.data.reg = chassis_xy_reg_id_;
         can_bridge_->Send(rx_id_, data_);
+        // The two frames form one transaction on the lower board.  Keep a
+        // scheduler tick between them because the current bxCAN wrapper
+        // submits directly to the three HAL mailboxes and does not queue a
+        // failed submission when all mailboxes are occupied.
+        osDelay(1);
         data_.data_two_float.data[0] = 1.0f;
         data_.data_two_float.data[1] = 0.0f;
         rx_id_.data.reg = chassis_turn_on_reg_id_;
         can_bridge_->Send(rx_id_, data_);
+        osDelay(1);
     }
     void ChassisCanBridgeSender::Disable() {
         chassis_enable_ = false;
@@ -759,11 +765,16 @@ namespace control {
         data_.data_two_float.data[1] = y_speed;
         rx_id_.data.reg = chassis_xy_reg_id_;
         can_bridge_->Send(rx_id_, data_);
+        // Do not submit XY and turn/enable back-to-back.  The receiver only
+        // commits matching sequence numbers, so losing either frame leaves the
+        // previous motion command active.
+        osDelay(1);
 
         data_.data_two_float.data[0] = 1.0f;
         data_.data_two_float.data[1] = turn_speed;
         rx_id_.data.reg = chassis_turn_on_reg_id_;
         can_bridge_->Send(rx_id_, data_);
+        osDelay(1);
 
         chassis_vx = x_speed;
         chassis_vy = y_speed;

@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include "bsp_error_handler.h"
@@ -650,6 +651,12 @@ namespace communication {
     class Referee : public UARTProtocol {
       public:
         Referee(bsp::UART* uart);
+
+        /** Monotonic sequence of successfully received 0x0202 frames. */
+        uint32_t GetPowerHeatSequence() const {
+            return power_heat_sequence_;
+        }
+
         game_status_t game_status{};                            // 0x0001
         game_result_t game_result{};                            // 0x0002
         game_robot_HP_t game_robot_HP{};                        // 0x0003
@@ -690,6 +697,8 @@ namespace communication {
         void PrepareUIContent(content graph_content);
 
       private:
+        uint32_t power_heat_sequence_ = 0U;
+
         /**
          * @brief process the data for certain command and update corresponding status variables
          *
