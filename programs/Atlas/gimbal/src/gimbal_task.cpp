@@ -129,9 +129,17 @@ bool GimbalPowerAllowed() {
     return true;
 }
 
-bool GimbalRunAllowed() {
-    return RobotCanRun() && GimbalPowerAllowed() && GimbalMotorsOnline() &&
+bool GimbalRunAllowed(const RobotStateSnapshot_t& state) {
+    const bool robot_can_run =
+        state.mode != REMOTE_MODE_KILL && !state.hp_dead;
+    return robot_can_run && GimbalPowerAllowed() && GimbalMotorsOnline() &&
            ImuIsOnline();
+}
+
+// Long-running homing loops must re-check the newest safety state rather than
+// pinning one control-cycle snapshot for the whole calibration procedure.
+bool GimbalRunAllowed() {
+    return GimbalRunAllowed(RobotGetSnapshot());
 }
 
 void UpdateGimbalOnline() {
@@ -468,12 +476,14 @@ void GimbalTask(void* arg) {
 
     gimbal_data.initialized = true;
     SyncWorldTarget();
-    previous_mode = remote_mode;
+    previous_mode = RobotGetSnapshot().mode;
 
     while (true) {
         UpdateGimbalOnline();
+        const RobotStateSnapshot_t robot_state = RobotGetSnapshot();
+        const RemoteMode_e mode = robot_state.mode;
 
-        if (!GimbalRunAllowed()) {
+        if (!GimbalRunAllowed(robot_state)) {
             DisableGimbalOutput();
             UpdateGimbalTelemetry();
             osDelay(10);
@@ -482,30 +492,30 @@ void GimbalTask(void* arg) {
 
         if (!gimbal_output_enabled) {
             EnableGimbalOutput();
-            if (remote_mode == REMOTE_MODE_FOLLOW ||
-                remote_mode == REMOTE_MODE_SPIN ||
-                remote_mode == REMOTE_MODE_AUTOAIM) {
+            if (mode == REMOTE_MODE_FOLLOW ||
+                mode == REMOTE_MODE_SPIN ||
+                mode == REMOTE_MODE_AUTOAIM) {
                 SyncWorldTarget();
             } else {
                 SyncManualTarget();
             }
-            previous_mode = remote_mode;
+            previous_mode = mode;
         }
 
-        if (remote_mode != previous_mode) {
-            if (remote_mode == REMOTE_MODE_FOLLOW ||
-                remote_mode == REMOTE_MODE_SPIN ||
-                remote_mode == REMOTE_MODE_AUTOAIM) {
+        if (mode != previous_mode) {
+            if (mode == REMOTE_MODE_FOLLOW ||
+                mode == REMOTE_MODE_SPIN ||
+                mode == REMOTE_MODE_AUTOAIM) {
                 SyncWorldTarget();
                 pitch_motor->Stop();
                 yaw_motor->Stop();
-            } else if (remote_mode == REMOTE_MODE_MANUAL) {
+            } else if (mode == REMOTE_MODE_MANUAL) {
                 SyncManualTarget();
             }
-            previous_mode = remote_mode;
+            previous_mode = mode;
         }
 
-        RunGimbalMode(remote_mode, RCGetSnapshot());
+        RunGimbalMode(mode, RCGetSnapshot());
         UpdateGimbalTelemetry();
         MonitorPitchStall();
         osDelay(10);

@@ -26,6 +26,14 @@ enum RemoteMode_e : uint8_t {
     REMOTE_MODE_AUTO,
 };
 
+struct RobotStateSnapshot_t {
+    RemoteMode_e mode = REMOTE_MODE_KILL;
+    RemoteMode_e last_mode = REMOTE_MODE_MANUAL;
+    bool hp_dead = false;
+    bool rearm_required = true;
+    uint32_t generation = 0U;
+};
+
 extern volatile RemoteMode_e remote_mode;
 extern volatile RemoteMode_e last_remote_mode;
 extern volatile bool robot_hp_dead;
@@ -37,17 +45,19 @@ void UpdateRobotMode(const RemoteControl_t& remote,
                      uint32_t now_ms);
 void SetRobotMode(RemoteMode_e mode);
 RemoteMode_e NextRemoteMode(RemoteMode_e mode);
+RobotStateSnapshot_t RobotGetSnapshot();
 
 inline bool RobotIsKilled() {
-    return remote_mode == REMOTE_MODE_KILL;
+    return RobotGetSnapshot().mode == REMOTE_MODE_KILL;
 }
 
 inline bool RobotIsHpDead() {
-    return robot_hp_dead;
+    return RobotGetSnapshot().hp_dead;
 }
 
 inline bool RobotCanRun() {
-    return remote_mode != REMOTE_MODE_KILL && !robot_hp_dead;
+    const RobotStateSnapshot_t state = RobotGetSnapshot();
+    return state.mode != REMOTE_MODE_KILL && !state.hp_dead;
 }
 
 const char* RobotModeName(RemoteMode_e mode);

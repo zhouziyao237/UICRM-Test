@@ -8,6 +8,8 @@
 #include "dbus.h"
 #include "main.h"
 #include "utils.h"
+#include "cmsis_os.h"
+#include "task.h"
 
 osThreadId_t RCTaskHandle;
 
@@ -32,8 +34,21 @@ constexpr rc_key_config_t kKeyConfigs[] = {
 };
 
 remote::DBUS* dbus = nullptr;
+
+// RCTask owns remote_data. Control tasks only read a published frame so they
+// cannot observe a half-written RemoteControl_t during a preemption.
 RemoteControl_t remote_data{};
+RemoteControl_t remote_frames[2]{};
+volatile uint8_t active_remote_frame = 0U;
 bool was_online = false;
+
+void PublishRemoteData() {
+    const uint8_t next_index = active_remote_frame ^ 1U;
+    remote_frames[next_index] = remote_data;
+    taskENTER_CRITICAL();
+    active_remote_frame = next_index;
+    taskEXIT_CRITICAL();
+}
 
 struct KeyboardMotionState {
     float forward = 0.0f;
@@ -321,6 +336,9 @@ void InitRC() {
     }
     rc_key_add_callback(OnKeyEvent);
     ResetRemoteData(false);
+    remote_frames[0] = remote_data;
+    remote_frames[1] = remote_data;
+    active_remote_frame = 0U;
 }
 
 void RCTask(void* arg) {
@@ -337,14 +355,18 @@ void RCTask(void* arg) {
             ResetRemoteData(false);
             rc_key_reset_states();
         }
+        PublishRemoteData();
         osDelay(1);
     }
 }
 
 RemoteControl_t RCGetSnapshot() {
-    return remote_data;
+    taskENTER_CRITICAL();
+    const RemoteControl_t snapshot = remote_frames[active_remote_frame];
+    taskEXIT_CRITICAL();
+    return snapshot;
 }
 
 const char* RCSourceName() {
-    return remote_data.online ? "DBUS/DT7" : "NONE";
+    return RCGetSnapshot().online ? "DBUS/DT7" : "NONE";
 }

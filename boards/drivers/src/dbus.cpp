@@ -29,6 +29,7 @@
 /* rocker range and deadzones */
 #define RC_ROCKER_MID 1024
 #define RC_ROCKER_ZERO_DRIFT 10  // Range of possible drift around initial position
+#define DBUS_ONLINE_TIMEOUT_MS 80U  // Fail-safe stale-input deadline
 // Range of possible drift around min or max position
 
 namespace remote {
@@ -52,6 +53,9 @@ namespace remote {
 
     DBUS::DBUS(UART_HandleTypeDef* huart) : bsp::UART(huart) {
         SetupRx(sizeof(dbus_t) + 1);
+        // DBUS frames arrive much faster than the generic 500 ms connection
+        // timeout. Do not let stale operator commands survive a receiver/link loss.
+        SetThreshold(DBUS_ONLINE_TIMEOUT_MS);
     }
 
     RemoteInput DBUS::GetInput() const {

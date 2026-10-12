@@ -93,13 +93,19 @@ namespace control {
         // LQR功率限制系统
         use_lqr_power_limit_ = chassis.use_lqr_power_limit;
         if (use_lqr_power_limit_) {
-            LQRPowerLimit::Config lqr_config;
-            lqr_config.season = chassis.season;
-            lqr_config.blood_priority = chassis.blood_priority;
-            lqr_config.referee_safety_margin =
-                chassis.referee_power_safety_margin;
-            lqr_config.local_safety_margin =
-                chassis.local_power_safety_margin;
+            LQRPowerLimit::Config lqr_config = chassis.use_custom_power_control_config
+                                                    ? chassis.power_control_config
+                                                    : LQRPowerLimit::Config();
+            // The legacy fields remain authoritative unless the caller opts in
+            // to a complete per-vehicle profile.
+            if (!chassis.use_custom_power_control_config) {
+                lqr_config.season = chassis.season;
+                lqr_config.blood_priority = chassis.blood_priority;
+                lqr_config.referee_safety_margin =
+                    chassis.referee_power_safety_margin;
+                lqr_config.local_safety_margin =
+                    chassis.local_power_safety_margin;
+            }
             lqr_power_limit_ = new LQRPowerLimit(lqr_config);
         }
 
@@ -242,7 +248,51 @@ namespace control {
     }
 
     void Chassis::UpdatePowerVoltage(float voltage) {
-        power_limit_.voltage = voltage;
+        if (std::isfinite(voltage) && voltage > 1.0f) {
+            power_limit_.voltage = voltage;
+        }
+    }
+
+    void Chassis::UpdateLocalPowerMeasurement(float voltage, float current_amp,
+                                              bool valid) {
+        if (std::isfinite(voltage) && voltage > 1.0f) {
+            power_limit_.voltage = voltage;
+        }
+        if (use_lqr_power_limit_ && lqr_power_limit_) {
+            lqr_power_limit_->UpdateLocalBusMeasurement(voltage, current_amp, valid);
+        }
+    }
+
+    void Chassis::InvalidateLocalPowerMeasurement() {
+        if (use_lqr_power_limit_ && lqr_power_limit_) {
+            lqr_power_limit_->InvalidateLocalBusMeasurement();
+        }
+    }
+
+    void Chassis::PowerControlUpdate(float local_voltage) {
+        if (!use_lqr_power_limit_ || lqr_power_limit_ == nullptr) return;
+
+        const float voltage =
+            std::isfinite(local_voltage) && local_voltage > 1.0f
+                ? local_voltage
+                : power_limit_.voltage;
+
+        int16_t requested_current[FourWheel::motor_num];
+        float angular_velocity[FourWheel::motor_num];
+        for (uint8_t i = 0; i < FourWheel::motor_num; ++i) {
+            // Read-only snapshot of the most recently calculated motor command.
+            // Final safety does not depend on this snapshot: ApplyPowerLimit()
+            // re-reads the live command immediately before CAN TX.
+            requested_current[i] = motors_[i]->GetOutput();
+            angular_velocity[i] = motors_[i]->GetOmega();
+        }
+
+        lqr_power_limit_->UpdatePowerState(
+            power_limit_.enabled, power_limit_.max_watt, voltage,
+            power_limit_.buffer_joule, power_limit_.measured_power,
+            power_limit_.referee_online, power_limit_.referee_sample_sequence);
+        lqr_power_limit_->UpdateMotorData(angular_velocity, requested_current,
+                                          FourWheel::motor_num);
     }
 
     void Chassis::Update() {
@@ -321,33 +371,71 @@ namespace control {
 
     void Chassis::CanBridgeUpdateEventXY(communication::can_bridge_ext_id_t ext_id,
                                          communication::can_bridge_data_t data) {
-        if (can_bridge_tx_id_ != 0x00) {
-            if (can_bridge_tx_id_ != ext_id.data.tx_id) {
-                return;
-            }
+        if (can_bridge_tx_id_ != 0x00 && can_bridge_tx_id_ != ext_id.data.tx_id) {
+            return;
         }
-        can_bridge_vx_ = data.data_two_float.data[0];
-        can_bridge_vy_ = data.data_two_float.data[1];
+
+        const uint8_t sequence = ext_id.data.res & 0x07U;
+        if (can_bridge_turn_valid_ && can_bridge_turn_seq_ != sequence) {
+            // Do not allow an older turn frame to combine with a newer XY frame.
+            can_bridge_turn_valid_ = false;
+        }
+        can_bridge_pending_vx_ = data.data_two_float.data[0];
+        can_bridge_pending_vy_ = data.data_two_float.data[1];
+        can_bridge_xy_seq_ = sequence;
+        can_bridge_xy_valid_ = true;
+        TryCommitCanBridgeMotion();
     }
+
     void Chassis::CanBridgeUpdateEventTurn(communication::can_bridge_ext_id_t ext_id,
                                            communication::can_bridge_data_t data) {
-        if (can_bridge_tx_id_ != 0x00) {
-            if (can_bridge_tx_id_ != ext_id.data.tx_id) {
-                return;
+        if (can_bridge_tx_id_ != 0x00 && can_bridge_tx_id_ != ext_id.data.tx_id) {
+            return;
+        }
+
+        const float is_enable = data.data_two_float.data[0];
+        if (is_enable < 0.1f) {
+            // Disable is fail-safe and therefore commits immediately; it never waits
+            // for the matching XY frame.
+            can_bridge_xy_valid_ = false;
+            can_bridge_turn_valid_ = false;
+            can_bridge_vx_ = 0.0f;
+            can_bridge_vy_ = 0.0f;
+            can_bridge_vt_ = 0.0f;
+            if (chassis_enable_) {
+                Disable();
             }
+            SetSpeed(0.0f, 0.0f, 0.0f);
+            return;
         }
-        can_bridge_vt_ = data.data_two_float.data[1];
-        float is_enable = data.data_two_float.data[0];
-        if (is_enable > 0.1f && !chassis_enable_) {
+
+        const uint8_t sequence = ext_id.data.res & 0x07U;
+        if (can_bridge_xy_valid_ && can_bridge_xy_seq_ != sequence) {
+            // Do not allow an older XY frame to combine with a newer turn frame.
+            can_bridge_xy_valid_ = false;
+        }
+        can_bridge_pending_vt_ = data.data_two_float.data[1];
+        can_bridge_turn_seq_ = sequence;
+        can_bridge_turn_valid_ = true;
+        TryCommitCanBridgeMotion();
+    }
+
+    void Chassis::TryCommitCanBridgeMotion() {
+        if (!can_bridge_xy_valid_ || !can_bridge_turn_valid_ ||
+            can_bridge_xy_seq_ != can_bridge_turn_seq_) {
+            return;
+        }
+
+        can_bridge_vx_ = can_bridge_pending_vx_;
+        can_bridge_vy_ = can_bridge_pending_vy_;
+        can_bridge_vt_ = can_bridge_pending_vt_;
+        can_bridge_xy_valid_ = false;
+        can_bridge_turn_valid_ = false;
+
+        if (!chassis_enable_) {
             Enable();
-        } else if (is_enable < 0.1f && chassis_enable_) {
-            Disable();
         }
-        if (chassis_enable_) {
-            SetSpeed(can_bridge_vx_, can_bridge_vy_, can_bridge_vt_);
-        } else {
-            SetSpeed(0, 0, 0);
-        }
+        SetSpeed(can_bridge_vx_, can_bridge_vy_, can_bridge_vt_);
     }
     void Chassis::CanBridgeUpdateEventPowerLimit(communication::can_bridge_ext_id_t ext_id,
                                                  communication::can_bridge_data_t data) {
@@ -363,6 +451,7 @@ namespace control {
             static_cast<float>(data.data_eight_uint8.data[2]);
         const bool referee_online = data.data_eight_uint8.data[3] != 0U;
         const float voltage = data.data_two_float.data[1];
+        ++power_limit_.bridge_update_sequence;
         UpdatePower(enabled, max_watt, voltage, buffer_joule,
                     power_limit_.measured_power, referee_online);
     }
@@ -375,6 +464,11 @@ namespace control {
         }
         const float measured_power = data.data_two_float.data[0];
         const float buffer_joule = data.data_two_float.data[1];
+        // 0x73 is emitted at the 100 ms referee-power update cadence.  Sequence
+        // by arrival, not by value, so equal consecutive Pr samples are still
+        // fused exactly once by the Kalman estimator.
+        ++power_limit_.referee_sample_sequence;
+        ++power_limit_.bridge_update_sequence;
         UpdatePower(power_limit_.enabled, power_limit_.max_watt,
                     power_limit_.voltage, buffer_joule, measured_power,
                     power_limit_.referee_online);
@@ -400,12 +494,11 @@ namespace control {
                 angular_velocity[i] = motors_[i]->GetOmega();
             }
             
-            lqr_power_limit_->UpdatePowerState(
-                true, power_limit_.max_watt, power_limit_.voltage,
-                power_limit_.buffer_joule, power_limit_.measured_power,
-                power_limit_.referee_online);
-            lqr_power_limit_->UpdateMotorData(angular_velocity, turn_current, FourWheel::motor_num);
-            lqr_power_limit_->ApplyLimit(turn_current, angular_velocity, FourWheel::motor_num);
+            // The PowerManager thread owns estimation and dynamic LQR updates.
+            // This callback is intentionally only the synchronous final hard
+            // guard immediately before MotorCAN transmits the command.
+            lqr_power_limit_->ApplyLimit(turn_current, angular_velocity,
+                                         FourWheel::motor_num);
             
             for (uint8_t i = 0; i < FourWheel::motor_num; ++i) {
                 motors_[i]->SetOutput(turn_current[i]);
@@ -465,6 +558,18 @@ namespace control {
         return 0.0f;
     }
 
+    float Chassis::GetPowerRate() const {
+        return use_lqr_power_limit_ && lqr_power_limit_
+                   ? lqr_power_limit_->GetPowerRate()
+                   : 0.0f;
+    }
+
+    float Chassis::GetRequestedModelPower() const {
+        return use_lqr_power_limit_ && lqr_power_limit_
+                   ? lqr_power_limit_->GetRequestedModelPower()
+                   : 0.0f;
+    }
+
     float Chassis::GetLimitedPowerEstimate() const {
         return use_lqr_power_limit_ && lqr_power_limit_
                    ? lqr_power_limit_->GetLimitedPowerEstimate()
@@ -489,9 +594,47 @@ namespace control {
                    : 1.0f;
     }
 
+    float Chassis::GetLocalBusPower() const {
+        return use_lqr_power_limit_ && lqr_power_limit_
+                   ? lqr_power_limit_->GetLocalBusPower()
+                   : 0.0f;
+    }
+
+    bool Chassis::IsLocalBusPowerValid() const {
+        return use_lqr_power_limit_ && lqr_power_limit_ &&
+               lqr_power_limit_->IsLocalBusMeasurementValid();
+    }
+
+    float Chassis::GetControlPowerBudget() const {
+        return use_lqr_power_limit_ && lqr_power_limit_
+                   ? lqr_power_limit_->GetControlPowerBudgetPublic()
+                   : power_limit_.max_watt;
+    }
+
+    float Chassis::GetLQRScale() const {
+        return use_lqr_power_limit_ && lqr_power_limit_
+                   ? lqr_power_limit_->GetLQRScale()
+                   : 1.0f;
+    }
+
+    float Chassis::GetHardScale() const {
+        return use_lqr_power_limit_ && lqr_power_limit_
+                   ? lqr_power_limit_->GetHardScale()
+                   : 1.0f;
+    }
+
+    float Chassis::GetPredictedBuffer() const {
+        return use_lqr_power_limit_ && lqr_power_limit_
+                   ? lqr_power_limit_->GetPredictedBuffer()
+                   : 0.0f;
+    }
+
     bool Chassis::IsRefereePowerSource() const {
         return use_lqr_power_limit_ && lqr_power_limit_ &&
                lqr_power_limit_->IsRefereeSource();
+    }
+    uint32_t Chassis::GetPowerBridgeSequence() const {
+        return power_limit_.bridge_update_sequence;
     }
 
     bool Chassis::IsLocalPowerTripActive() const {
@@ -565,42 +708,63 @@ namespace control {
         chassis_current_power_reg_id_ = current_power_reg_id;
     }
     void ChassisCanBridgeSender::Enable() {
-        if (!chassis_enable_) {
-            chassis_enable_ = true;
-            data_.data_two_float.data[0] = 1.0f;
-            data_.data_two_float.data[1] = 0.0f;
-            rx_id_.data.reg = chassis_turn_on_reg_id_;
-            can_bridge_->Send(rx_id_, data_);
-        }
-    }
-    void ChassisCanBridgeSender::Disable() {
         if (chassis_enable_) {
-            chassis_enable_ = false;
+            return;
         }
-        data_.data_two_float.data[0] = 0;
-        data_.data_two_float.data[1] = 0;
+        chassis_enable_ = true;
+
+        // Explicit Enable is transmitted as a complete zero-speed transaction so
+        // a sequence-aware receiver can enable without consuming stale XY data.
+        motion_sequence_ = (motion_sequence_ + 1U) & 0x07U;
+        rx_id_.data.res = motion_sequence_;
+        data_.data_two_float.data[0] = 0.0f;
+        data_.data_two_float.data[1] = 0.0f;
+        rx_id_.data.reg = chassis_xy_reg_id_;
+        can_bridge_->Send(rx_id_, data_);
+        data_.data_two_float.data[0] = 1.0f;
+        data_.data_two_float.data[1] = 0.0f;
         rx_id_.data.reg = chassis_turn_on_reg_id_;
         can_bridge_->Send(rx_id_, data_);
     }
+    void ChassisCanBridgeSender::Disable() {
+        chassis_enable_ = false;
+        motion_sequence_ = (motion_sequence_ + 1U) & 0x07U;
+        rx_id_.data.res = motion_sequence_;
+        data_.data_two_float.data[0] = 0.0f;
+        data_.data_two_float.data[1] = 0.0f;
+        rx_id_.data.reg = chassis_turn_on_reg_id_;
+        can_bridge_->Send(rx_id_, data_);
+        chassis_vx = 0.0f;
+        chassis_vy = 0.0f;
+        chassis_vt = 0.0f;
+    }
     void ChassisCanBridgeSender::SetSpeed(const float x_speed, const float y_speed,
                                           const float turn_speed) {
-        if (chassis_enable_) {
-            data_.data_two_float.data[0] = x_speed;
-            data_.data_two_float.data[1] = y_speed;
-            rx_id_.data.reg = chassis_xy_reg_id_;
-            can_bridge_->Send(rx_id_, data_);
-            osDelay(1);
-            data_.data_two_float.data[0] = 1.0f;
-            data_.data_two_float.data[1] = turn_speed;
-            rx_id_.data.reg = chassis_turn_on_reg_id_;
-            can_bridge_->Send(rx_id_, data_);
-            osDelay(1);
-        } else {
+        if (!chassis_enable_) {
+            // Reassert the safe state without publishing the requested command.
             data_.data_two_float.data[0] = 0.0f;
             data_.data_two_float.data[1] = 0.0f;
+            rx_id_.data.reg = chassis_turn_on_reg_id_;
             can_bridge_->Send(rx_id_, data_);
-            osDelay(1);
+            chassis_vx = 0.0f;
+            chassis_vy = 0.0f;
+            chassis_vt = 0.0f;
+            return;
         }
+
+        motion_sequence_ = (motion_sequence_ + 1U) & 0x07U;
+        rx_id_.data.res = motion_sequence_;
+
+        data_.data_two_float.data[0] = x_speed;
+        data_.data_two_float.data[1] = y_speed;
+        rx_id_.data.reg = chassis_xy_reg_id_;
+        can_bridge_->Send(rx_id_, data_);
+
+        data_.data_two_float.data[0] = 1.0f;
+        data_.data_two_float.data[1] = turn_speed;
+        rx_id_.data.reg = chassis_turn_on_reg_id_;
+        can_bridge_->Send(rx_id_, data_);
+
         chassis_vx = x_speed;
         chassis_vy = y_speed;
         chassis_vt = turn_speed;
@@ -616,30 +780,25 @@ namespace control {
                 data_.data_eight_uint8.data[0] = power_limit_on;
                 data_.data_eight_uint8.data[1] = enable_supercap;
                 data_.data_two_float.data[1] = power_limit;
+                rx_id_.data.res = 0U;
                 rx_id_.data.reg = chassis_power_limit_reg_id_;
                 can_bridge_->Send(rx_id_, data_);
-                osDelay(1);
             }
             {
                 data_.data_two_float.data[0] = chassis_power;
                 data_.data_two_float.data[1] = chassis_power_buffer;
+                rx_id_.data.res = 0U;
                 rx_id_.data.reg = chassis_current_power_reg_id_;
                 can_bridge_->Send(rx_id_, data_);
-                osDelay(1);
             }
         }
     }
-    void ChassisCanBridgeSender::UpdatePower(
+    void ChassisCanBridgeSender::UpdatePowerLimitState(
         bool enabled, uint8_t max_watt, float current_voltage,
-        float buffer_joule, float measured_power, bool referee_online) {
-        if (!chassis_enable_) return;
-
+        float buffer_joule, bool referee_online) {
         if (!std::isfinite(buffer_joule)) buffer_joule = 0.0f;
         if (buffer_joule < 0.0f) buffer_joule = 0.0f;
         if (buffer_joule > 60.0f) buffer_joule = 60.0f;
-        if (!std::isfinite(measured_power) || measured_power < 0.0f) {
-            measured_power = -1.0f;
-        }
         if (!std::isfinite(current_voltage) || current_voltage <= 1.0f) {
             current_voltage = 0.0f;
         }
@@ -650,14 +809,36 @@ namespace control {
             static_cast<uint8_t>(buffer_joule + 0.5f);
         data_.data_eight_uint8.data[3] = referee_online ? 1U : 0U;
         data_.data_two_float.data[1] = current_voltage;
+        rx_id_.data.res = 0U;
         rx_id_.data.reg = chassis_power_limit_reg_id_;
         can_bridge_->Send(rx_id_, data_);
-        osDelay(1);
+    }
+
+    void ChassisCanBridgeSender::UpdateCurrentPower(float measured_power,
+                                                     float buffer_joule) {
+        if (!std::isfinite(buffer_joule)) buffer_joule = 0.0f;
+        if (buffer_joule < 0.0f) buffer_joule = 0.0f;
+        if (buffer_joule > 60.0f) buffer_joule = 60.0f;
+        if (!std::isfinite(measured_power) || measured_power < 0.0f) {
+            measured_power = -1.0f;
+        }
 
         data_.data_two_float.data[0] = measured_power;
         data_.data_two_float.data[1] = buffer_joule;
+        rx_id_.data.res = 0U;
         rx_id_.data.reg = chassis_current_power_reg_id_;
         can_bridge_->Send(rx_id_, data_);
+    }
+
+    void ChassisCanBridgeSender::UpdatePower(
+        bool enabled, uint8_t max_watt, float current_voltage,
+        float buffer_joule, float measured_power, bool referee_online) {
+        // Power transport is independent of motion enable/disable.  The
+        // dedicated Atlas PowerTask therefore keeps updating the lower
+        // board even while the chassis motion sender is disabled.
+        UpdatePowerLimitState(enabled, max_watt, current_voltage, buffer_joule,
+                              referee_online);
+        UpdateCurrentPower(measured_power, buffer_joule);
     }
 
     void ChassisCanBridgeSender::UpdatePower(bool enabled, uint8_t max_watt,

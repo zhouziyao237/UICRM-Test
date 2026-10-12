@@ -34,70 +34,34 @@ static const int BYTE = 8;
 
 namespace communication {
 
-    template <typename T>
-    static bool CopyExact(T& destination, const uint8_t* data, int length) {
-        if (data == nullptr || length != static_cast<int>(sizeof(T)))
-            return false;
-        memcpy(&destination, data, sizeof(T));
-        return true;
-    }
-
     bool Protocol::Receive(package_t package) {
-        constexpr int MIN_FRAME_LEN = FRAME_HEADER_LEN + CMD_ID_LEN + FRAME_TAIL_LEN;
-        if (package.data == nullptr || package.length < MIN_FRAME_LEN ||
-            package.length > MAX_FRAME_LEN) {
-            return false;
+        Heartbeat();
+        memcpy(bufferRx, package.data, package.length);
+        int start_idx;
+        int end_idx = 0;
+        while (end_idx < package.length) {
+            start_idx = end_idx;
+            while (++end_idx < package.length && bufferRx[end_idx] != SOF)
+                ;
+            if (end_idx - start_idx > FRAME_HEADER_LEN + CMD_ID_LEN + FRAME_TAIL_LEN) {
+                int DATA_LENGTH = bufferRx[start_idx + 2] << BYTE | bufferRx[start_idx + 1];
+                if (VerifyHeader(bufferRx + start_idx, FRAME_HEADER_LEN) &&
+                    VerifyFrame(bufferRx + start_idx,
+                                FRAME_HEADER_LEN + CMD_ID_LEN + DATA_LENGTH + FRAME_TAIL_LEN)) {
+                    int cmd_id = bufferRx[start_idx + FRAME_HEADER_LEN + 1] << BYTE |
+                                 bufferRx[start_idx + FRAME_HEADER_LEN];
+                    ProcessDataRx(cmd_id, bufferRx + start_idx + FRAME_HEADER_LEN + CMD_ID_LEN,
+                                  DATA_LENGTH);
+                }
+            }
         }
-
-        memcpy(bufferRx, package.data, static_cast<size_t>(package.length));
-        bool processed = false;
-        int offset = 0;
-
-        while (offset + MIN_FRAME_LEN <= package.length) {
-            while (offset < package.length && bufferRx[offset] != SOF) {
-                ++offset;
-            }
-            if (offset + MIN_FRAME_LEN > package.length) {
-                break;
-            }
-
-            if (!VerifyHeader(bufferRx + offset, FRAME_HEADER_LEN)) {
-                ++offset;
-                continue;
-            }
-
-            const int data_length =
-                (static_cast<int>(bufferRx[offset + 2]) << BYTE) | bufferRx[offset + 1];
-            const int frame_length = FRAME_HEADER_LEN + CMD_ID_LEN + data_length + FRAME_TAIL_LEN;
-            if (frame_length < MIN_FRAME_LEN || frame_length > MAX_FRAME_LEN) {
-                ++offset;
-                continue;
-            }
-            if (offset + frame_length > package.length) {
-                break;
-            }
-
-            if (VerifyFrame(bufferRx + offset, frame_length)) {
-                const int cmd_id =
-                    (static_cast<int>(bufferRx[offset + FRAME_HEADER_LEN + 1]) << BYTE) |
-                    bufferRx[offset + FRAME_HEADER_LEN];
-                processed |= ProcessDataRx(
-                    cmd_id, bufferRx + offset + FRAME_HEADER_LEN + CMD_ID_LEN, data_length);
-            }
-            offset += frame_length;
-        }
-
-        if (processed) {
-            Heartbeat();
-        }
-        return processed;
+        return true;
     }
 
     package_t Protocol::Transmit(int cmd_id) {
         bufferTx[0] = SOF;
         int DATA_LENGTH = ProcessDataTx(cmd_id, bufferTx + FRAME_HEADER_LEN + CMD_ID_LEN);
-        const int max_data_length = MAX_FRAME_LEN - FRAME_HEADER_LEN - CMD_ID_LEN - FRAME_TAIL_LEN;
-        if (DATA_LENGTH < 0 || DATA_LENGTH > max_data_length)
+        if (DATA_LENGTH < 0)
             return package_t{nullptr, 0};
         bufferTx[1] = (uint8_t)((uint32_t)DATA_LENGTH & 0xFF);
         bufferTx[2] = (uint8_t)((uint32_t)DATA_LENGTH >> BYTE);
@@ -143,8 +107,7 @@ namespace communication {
     }
     void UARTProtocol::CallbackWrapper(void* args) {
         UARTProtocol* uart_protocol_ = reinterpret_cast<UARTProtocol*>(args);
-        if (uart_protocol_ != nullptr && uart_protocol_->callback_thread_ != nullptr)
-            uart_protocol_->callback_thread_->Set();
+        uart_protocol_->callback_thread_->Set();
     }
     void UARTProtocol::callback_thread_func_(void* args) {
         UARTProtocol* uart_protocol_ = reinterpret_cast<UARTProtocol*>(args);
@@ -152,16 +115,11 @@ namespace communication {
             communication::package_t{uart_protocol_->read_ptr_, (int)uart_protocol_->read_len_});
     }
     UARTProtocol::~UARTProtocol() {
-        if (uart_ != nullptr) {
-            uart_->RegisterCallback(nullptr, nullptr);
-            uart_->SetupRxData(nullptr, nullptr);
-        }
         delete callback_thread_;
     }
     package_t UARTProtocol::Transmit(int cmd_id) {
         package_t package = Protocol::Transmit(cmd_id);
-        if (uart_ != nullptr && package.data != nullptr && package.length > 0)
-            uart_->Write(package.data, package.length);
+        uart_->Write(package.data, package.length);
         return package;
     }
 
@@ -180,7 +138,7 @@ namespace communication {
     }
 
     // ---------------------------------- USBProtocol Code ---------------------------------
-#ifndef NO_USB
+#ifdef HAS_USB
     USBProtocol::USBProtocol(bsp::VirtualUSB* USB) : Protocol() {
         if (USB == nullptr)
             return;
@@ -196,8 +154,7 @@ namespace communication {
     }
     void USBProtocol::CallbackWrapper(void* args) {
         USBProtocol* USB_protocol_ = reinterpret_cast<USBProtocol*>(args);
-        if (USB_protocol_ != nullptr && USB_protocol_->callback_thread_ != nullptr)
-            USB_protocol_->callback_thread_->Set();
+        USB_protocol_->callback_thread_->Set();
     }
     void USBProtocol::callback_thread_func_(void* args) {
         USBProtocol* USB_protocol_ = reinterpret_cast<USBProtocol*>(args);
@@ -205,16 +162,11 @@ namespace communication {
             communication::package_t{USB_protocol_->read_ptr_, (int)USB_protocol_->read_len_});
     }
     USBProtocol::~USBProtocol() {
-        if (usb_ != nullptr) {
-            usb_->RegisterCallback(nullptr, nullptr);
-            usb_->SetupRxData(nullptr, nullptr);
-        }
         delete callback_thread_;
     }
     package_t USBProtocol::Transmit(int cmd_id) {
         package_t package = Protocol::Transmit(cmd_id);
-        if (usb_ != nullptr && package.data != nullptr && package.length > 0)
-            usb_->Write(package.data, package.length);
+        usb_->Write(package.data, package.length);
         return package;
     }
 
@@ -251,7 +203,7 @@ namespace communication {
             uart_callback_thread_ = new bsp::EventThread(thread_init);
         }
 
-#ifndef NO_USB
+#ifdef HAS_USB
         if (protocol_t.usb) {
             usb_protocol_ = std::make_unique<USBProtocol>(protocol_t.usb);
             // 注册USB回调
@@ -269,7 +221,7 @@ namespace communication {
 
         if (protocol_t.uart) {
             protocoltype = UART_ONLY;
-#ifndef NO_USB
+#ifdef HAS_USB
         } else if (protocol_t.usb) {
             protocoltype = USB_ONLY;
 #endif
@@ -283,7 +235,7 @@ namespace communication {
         if (uart_callback_thread_) {
             delete uart_callback_thread_;
         }
-#ifndef NO_USB
+#ifdef HAS_USB
         if (usb_callback_thread_) {
             delete usb_callback_thread_;
         }
@@ -300,14 +252,15 @@ namespace communication {
         if (package.data == nullptr || package.length <= 0) {
             return package;
         }
-
+        int i = sizeof(&package.data);
+        UNUSED(i);
         switch (protocoltype) {
             case UART_ONLY:
                 if (uart_protocol_ && uart_protocol_->uart_ != nullptr) {
                     uart_protocol_->uart_->Write(package.data, package.length);
                 }
                 break;
-#ifndef NO_USB
+#ifdef HAS_USB
             case USB_ONLY:
                 if (usb_protocol_ && usb_protocol_->usb_ != nullptr) {
                     usb_protocol_->usb_->Write(package.data, package.length);
@@ -333,7 +286,7 @@ namespace communication {
         }
     }
 
-#ifndef NO_USB
+#ifdef HAS_USB
     void ProtocolAdapterManager::USBCallbackWrapper(void* args) {
         ProtocolAdapterManager* adapter = reinterpret_cast<ProtocolAdapterManager*>(args);
         if (adapter->usb_callback_thread_) {
@@ -347,18 +300,20 @@ namespace communication {
         ProtocolAdapterManager* adapter = reinterpret_cast<ProtocolAdapterManager*>(args);
         if (adapter->uart_protocol_) {
             // 直接使用读取指针和长度，而不是尝试获取
-            package_t package{adapter->uart_protocol_->read_ptr_, (int)adapter->uart_protocol_->read_len_};
+            package_t package{adapter->uart_protocol_->read_ptr_,
+                              (int)adapter->uart_protocol_->read_len_};
             adapter->HandleReceivedData(package, UART_ONLY);
         }
     }
 
-#ifndef NO_USB
+#ifdef HAS_USB
     // 修改 usb_callback_thread_func_ 函数
     void ProtocolAdapterManager::usb_callback_thread_func_(void* args) {
         ProtocolAdapterManager* adapter = reinterpret_cast<ProtocolAdapterManager*>(args);
         if (adapter->usb_protocol_) {
             // 直接使用读取指针和长度，而不是尝试获取
-            package_t package{adapter->usb_protocol_->read_ptr_, (int)adapter->usb_protocol_->read_len_};
+            package_t package{adapter->usb_protocol_->read_ptr_,
+                              (int)adapter->usb_protocol_->read_len_};
             adapter->HandleReceivedData(package, USB_ONLY);
         }
     }
@@ -378,7 +333,7 @@ namespace communication {
                     uart_protocol_->Receive(package);
                 }
                 break;
-#ifndef NO_USB
+#ifdef HAS_USB
             case USB_ONLY:
                 if (usb_protocol_) {
                     usb_protocol_->Receive(package);
@@ -400,76 +355,58 @@ namespace communication {
     bool Referee::ProcessDataRx(int cmd_id, const uint8_t* data, int length) {
         switch (cmd_id) {
             case GAME_STATUS:
-                if (!CopyExact(game_status, data, length))
-                    return false;
+                memcpy(&game_status, data, length);
                 break;
             case GAME_RESULT:
-                if (!CopyExact(game_result, data, length))
-                    return false;
+                memcpy(&game_result, data, length);
                 break;
             case GAME_ROBOT_HP:
-                if (!CopyExact(game_robot_HP, data, length))
-                    return false;
+                memcpy(&game_robot_HP, data, length);
                 break;
             case EVENT_DATA:
-                if (!CopyExact(event_data, data, length))
-                    return false;
+                memcpy(&event_data, data, length);
                 break;
             case SUPPLY_PROJECTILE_ACTION:
-                if (!CopyExact(supply_projectile_action, data, length))
-                    return false;
+                memcpy(&supply_projectile_action, data, length);
                 break;
             case REFEREE_WARNING:
-                if (!CopyExact(referee_warning, data, length))
-                    return false;
+                memcpy(&referee_warning, data, length);
                 break;
             case DART_REMAINING_TIME:
-                if (!CopyExact(dart_remaining_time, data, length))
-                    return false;
+                memcpy(&dart_remaining_time, data, length);
                 break;
             case GAME_ROBOT_STATUS:
-                if (!CopyExact(game_robot_status, data, length))
-                    return false;
+                memcpy(&game_robot_status, data, length);
                 break;
             case POWER_HEAT_DATA:
-                if (!CopyExact(power_heat_data, data, length))
-                    return false;
+                memcpy(&power_heat_data, data, length);
                 break;
             case GAME_ROBOT_POS:
-                if (!CopyExact(game_robot_pos, data, length))
-                    return false;
+                memcpy(&game_robot_pos, data, length);
                 break;
             case BUFF:
-                if (!CopyExact(buff, data, length))
-                    return false;
+                memcpy(&buff, data, length);
                 break;
             case AERIAL_ROBOT_ENERGY:
-                if (!CopyExact(aerial_robot_energy, data, length))
-                    return false;
+                memcpy(&aerial_robot_energy, data, length);
                 break;
             case ROBOT_HURT:
-                if (!CopyExact(robot_hurt, data, length))
-                    return false;
+                memcpy(&robot_hurt, data, length);
                 break;
             case SHOOT_DATA:
-                if (!CopyExact(shoot_data, data, length))
-                    return false;
+                memcpy(&shoot_data, data, length);
                 break;
             case BULLET_REMAINING:
-                if (!CopyExact(bullet_remaining, data, length))
-                    return false;
+                memcpy(&bullet_remaining, data, length);
                 break;
             case RFID_STATUS:
-                if (!CopyExact(rfid_status, data, length))
-                    return false;
+                memcpy(&rfid_status, data, length);
                 break;
             case DART_CLIENT_CMD:
-                if (!CopyExact(dart_client_cmd, data, length))
-                    return false;
+                memcpy(&dart_client_cmd, data, length);
                 break;
             case REMOTE_CONTROL_DATA:
-                if (!CopyExact(remote_control, data, length))
-                    return false;
+                memcpy(&remote_control, data, length);
                 break;
             default:
                 return false;
@@ -527,22 +464,6 @@ namespace communication {
 
     // ------------------------------------ MiniPC Code -----------------------------------
 
-    Host::Host() : Host(Protocol_t{}) {
-    }
-
-    Host::Host(bsp::UART* uart)
-#ifndef NO_USB
-        : Host(Protocol_t{uart, nullptr}) {
-#else
-        : Host(Protocol_t{uart}) {
-#endif
-    }
-
-#ifndef NO_USB
-    Host::Host(bsp::VirtualUSB* usb) : Host(Protocol_t{nullptr, usb}) {
-    }
-#endif
-
     Host::Host(Protocol_t protocol_t) : Protocol(), adapter_(protocol_t) {
         adapter_.SetReceiver(this);
     }
@@ -554,45 +475,34 @@ namespace communication {
     bool Host::ProcessDataRx(int cmd_id, const uint8_t* data, int length) {
         switch (cmd_id) {
             case PACK:
-                if (!CopyExact(pack, data, length))
-                    return false;
+                memcpy(&pack, data, length);
                 break;
             case TARGET_ANGLE:
-                // memset(&target_angle, 0, sizeof(target_angle));
-                if (!CopyExact(target_angle, data, length))
-                    return false;
+                memcpy(&target_angle, data, length);
                 break;
             case NO_TARGET_FLAG:
-                if (!CopyExact(no_target_flag, data, length))
-                    return false;
+                memcpy(&no_target_flag, data, length);
                 break;
             case SHOOT_CMD:
-                if (!CopyExact(shoot_cmd, data, length))
-                    return false;
+                memcpy(&shoot_cmd, data, length);
                 break;
             case ROBOT_MOVE_SPEED:
-                if (!CopyExact(robot_move, data, length))
-                    return false;
+                memcpy(&robot_move, data, length);
                 break;
             case ROBOT_POWER_HEAT_HP_UPLOAD:
-                if (!CopyExact(robot_power_heat_hp_upload, data, length))
-                    return false;
+                memcpy(&robot_power_heat_hp_upload, data, length);
                 break;
             case GIMBAL_CURRENT_STATUS:
-                if (!CopyExact(gimbal_current_status, data, length))
-                    return false;
+                memcpy(&gimbal_current_status, data, length);
                 break;
             case CHASSIS_CURRENT_STATUS:
-                if (!CopyExact(chassis_current_status, data, length))
-                    return false;
+                memcpy(&chassis_current_status, data, length);
                 break;
             case AUTOAIM_ENABLE:
-                if (!CopyExact(autoaim_enable, data, length))
-                    return false;
+                memcpy(&autoaim_enable, data, length);
                 break;
             case ROBOT_STATUS_UPLOAD:
-                if (!CopyExact(robot_status_upload, data, length))
-                    return false;
+                memcpy(&robot_status_upload, data, length);
                 break;
             default:
                 return false;

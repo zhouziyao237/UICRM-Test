@@ -62,6 +62,11 @@ namespace control {
         bool blood_priority = true;
         float referee_power_safety_margin = 0.90f;
         float local_power_safety_margin = 0.90f;
+
+        // Optional full vehicle-level power profile. When enabled, this keeps
+        // all motor-model/Kalman/LQR tuning outside the generic algorithm.
+        bool use_custom_power_control_config = false;
+        LQRPowerLimit::Config power_control_config{};
     };
 
     /**
@@ -132,6 +137,22 @@ namespace control {
          */
         void UpdatePowerVoltage(float voltage);
 
+        /** Fast local chassis-bus V/I measurement for PowerManager. */
+        void UpdateLocalPowerMeasurement(float voltage, float current_amp,
+                                         bool valid = true);
+        void InvalidateLocalPowerMeasurement();
+
+        /**
+         * @brief Run the estimator + dynamic common-scale controller from the
+         *        dedicated PowerManager thread.
+         * @param local_voltage Fresh chassis-board ADC voltage; pass <=1 V to
+         *        fall back to the latest bridged voltage.
+         *
+         * This does not write motor current.  The motor pre-output callback keeps
+         * the final hard guard immediately before CAN transmission.
+         */
+        void PowerControlUpdate(float local_voltage = -1.0f);
+
         /**
          * @brief 将解算得到的数据（每个电机的转速）传递给电机类，由电机类进行PID控制、CAN输出等
          * @note 检测底盘是否关闭，以及电机是否掉线（电机掉线则关闭底盘，需要手动重启）。
@@ -147,14 +168,24 @@ namespace control {
         float GetPowerEstimate() const;
         
         float GetPowerPrediction() const;
+        float GetPowerRate() const;
+        float GetRequestedModelPower() const;
 
         /** 限流后、经裁判实测修正的功率估算。 */
         float GetLimitedPowerEstimate() const;
         float GetMeasuredPower() const;
         float GetPowerLimit() const;
         float GetModelCorrection() const;
+        float GetLocalBusPower() const;
+        bool IsLocalBusPowerValid() const;
+        float GetControlPowerBudget() const;
+        float GetLQRScale() const;
+        float GetHardScale() const;
+        float GetPredictedBuffer() const;
         bool IsRefereePowerSource() const;
         bool IsLocalPowerTripActive() const;
+        /** Monotonic count of bridged 0x72/0x73 power updates received. */
+        uint32_t GetPowerBridgeSequence() const;
         
         float GetBuffer() const;
         
@@ -214,6 +245,10 @@ namespace control {
         void CanBridgeUpdateEventCurrentPower(communication::can_bridge_ext_id_t ext_id,
                                               communication::can_bridge_data_t data);
 
+      private:
+        void TryCommitCanBridgeMotion();
+
+      public:
         OMNI_Wheel_set_up omni_wheel_setup_{
             .Center_point_angle = 45,
             .Wheel_angle_a = 90 - omni_wheel_setup_.Center_point_angle,
@@ -227,6 +262,15 @@ namespace control {
         bool chassis_enable_ = true;
 
       private:
+        // 0x70 (XY) and 0x71 (turn/enable) form one motion transaction.
+        // The 3-bit CAN-Bridge reserved field carries the transaction sequence.
+        float can_bridge_pending_vx_ = 0.0f;
+        float can_bridge_pending_vy_ = 0.0f;
+        float can_bridge_pending_vt_ = 0.0f;
+        uint8_t can_bridge_xy_seq_ = 0U;
+        uint8_t can_bridge_turn_seq_ = 0U;
+        bool can_bridge_xy_valid_ = false;
+        bool can_bridge_turn_valid_ = false;
         // acquired from user
         driver::MotorCANBase** motors_ = nullptr;
         chassis_model_t model_;
@@ -243,6 +287,8 @@ namespace control {
             float measured_power = -1.0f;
             float max_watt = 0.0f;
             float voltage = 0.0f;
+            volatile uint32_t referee_sample_sequence = 0U;
+            volatile uint32_t bridge_update_sequence = 0U;
 
             NewPowerLimit* limiter = nullptr;
         } power_limit_;
@@ -296,8 +342,15 @@ namespace control {
                       float chassis_power_buffer, bool enable_supercap = false,
                       bool force_update = false);
 
-        // Same as Chassis::UpdatePower. Sends limit/voltage and feedback on
-        // the existing 0x72/0x73 bridge registers.
+        /** Send only the 0x72 limit/source/voltage state frame. */
+        void UpdatePowerLimitState(bool enabled, uint8_t max_watt,
+                                   float current_voltage, float buffer_joule,
+                                   bool referee_online);
+
+        /** Send only the 0x73 measured-power/buffer frame. */
+        void UpdateCurrentPower(float measured_power, float buffer_joule);
+
+        // Compatibility helper: sends both 0x72 and 0x73.
         void UpdatePower(bool enabled, uint8_t max_watt, float current_voltage,
                          float buffer_joule, float measured_power,
                          bool referee_online);
@@ -319,6 +372,7 @@ namespace control {
         uint8_t chassis_current_power_reg_id_ = 0x00;
         communication::can_bridge_ext_id_t rx_id_;
         communication::can_bridge_data_t data_;
+        uint8_t motion_sequence_ = 0U;
 
       public:
         // Record for debugging

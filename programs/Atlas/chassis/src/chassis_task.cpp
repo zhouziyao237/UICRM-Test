@@ -23,6 +23,7 @@
 #include "bsp_os.h"
 #include "bsp_print.h"
 #include "chassis.h"
+#include "power_control_profile.h"
 #include "user_define.h"
 
 driver::MotorCANBase* fl_motor = nullptr;
@@ -98,9 +99,8 @@ void init_chassis() {
     chassis_data.use_lqr_power_limit = true;
     chassis_data.season = control::SeasonRuleManager::SEASON_2026;
     chassis_data.blood_priority = true;
-    // Keep 10% headroom for model error and referee 10 Hz sampling delay.
-    chassis_data.referee_power_safety_margin = 0.90f;
-    chassis_data.local_power_safety_margin = 0.90f;
+    chassis_data.use_custom_power_control_config = true;
+    chassis_data.power_control_config = atlas_power::MakeProfile();
 
     chassis_data.omni_wheel_setup_.Center_point_angle = 45;
     chassis_data.omni_wheel_setup_.Wheel_angle_a = 45;

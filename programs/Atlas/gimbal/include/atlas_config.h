@@ -29,18 +29,17 @@ constexpr float kDefaultChassisFrameOffsetDeg = 90.0f;
  * No-referee bench power mode.
  *
  * This is a compile-time TEST switch, not a competition fallback.  The
- * delivered bench package keeps it enabled because the current robot has no
- * referee system connected.  For a competition build set it to 0, preferably
- * from the build system:
+ * delivered package keeps it disabled.  Enable it only for an explicit bench
+ * build with no referee system:
  *
- *   -DATLAS_ENABLE_NO_REFEREE_POWER_TEST=0
+ *   -DATLAS_ENABLE_NO_REFEREE_POWER_TEST=1
  *
  * When disabled, Atlas never invents 100 W / 60 J while the referee is
  * offline.  It waits for valid referee data and otherwise uses the conservative
  * 45 W / 0 J fail-safe below.
  */
 #ifndef ATLAS_ENABLE_NO_REFEREE_POWER_TEST
-#define ATLAS_ENABLE_NO_REFEREE_POWER_TEST 1
+#define ATLAS_ENABLE_NO_REFEREE_POWER_TEST 0
 #endif
 
 static_assert(ATLAS_ENABLE_NO_REFEREE_POWER_TEST == 0 ||

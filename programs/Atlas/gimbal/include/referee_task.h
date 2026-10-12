@@ -20,6 +20,7 @@ struct RefereeSnapshot_t {
     uint16_t chassis_power_limit = 100;
     uint16_t chassis_power_buffer = 30;
     float chassis_power = 0.0f;
+    uint32_t power_heat_sequence = 0U;
     uint16_t shooter_heat_limit = 200;
     uint16_t shooter_heat = 0;
     uint16_t bullets_17mm = 0;

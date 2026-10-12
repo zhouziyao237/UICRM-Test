@@ -87,50 +87,80 @@ namespace control {
         x_[1] = 0.0f;
     }
     
-    void KFPowerEstimator::Update(float P_meas) {
+    void KFPowerEstimator::Predict() {
         float x_pred[2];
         x_pred[0] = A_[0][0] * x_[0] + A_[0][1] * x_[1];
         x_pred[1] = A_[1][0] * x_[0] + A_[1][1] * x_[1];
-        
+
         float P_pred_mat[2][2];
-        P_pred_mat[0][0] = A_[0][0] * (A_[0][0] * P_[0][0] + A_[0][1] * P_[1][0]) + 
+        P_pred_mat[0][0] = A_[0][0] * (A_[0][0] * P_[0][0] + A_[0][1] * P_[1][0]) +
                            A_[0][1] * (A_[0][0] * P_[0][1] + A_[0][1] * P_[1][1]) + Q_[0][0];
-        P_pred_mat[0][1] = A_[0][0] * (A_[1][0] * P_[0][0] + A_[1][1] * P_[1][0]) + 
+        P_pred_mat[0][1] = A_[0][0] * (A_[1][0] * P_[0][0] + A_[1][1] * P_[1][0]) +
                            A_[0][1] * (A_[1][0] * P_[0][1] + A_[1][1] * P_[1][1]) + Q_[0][1];
-        P_pred_mat[1][0] = A_[1][0] * (A_[0][0] * P_[0][0] + A_[0][1] * P_[1][0]) + 
+        P_pred_mat[1][0] = A_[1][0] * (A_[0][0] * P_[0][0] + A_[0][1] * P_[1][0]) +
                            A_[1][1] * (A_[0][0] * P_[0][1] + A_[0][1] * P_[1][1]) + Q_[1][0];
-        P_pred_mat[1][1] = A_[1][0] * (A_[1][0] * P_[0][0] + A_[1][1] * P_[1][0]) + 
+        P_pred_mat[1][1] = A_[1][0] * (A_[1][0] * P_[0][0] + A_[1][1] * P_[1][0]) +
                            A_[1][1] * (A_[1][0] * P_[0][1] + A_[1][1] * P_[1][1]) + Q_[1][1];
-        
-        float y = P_meas - (H_[0] * x_pred[0] + H_[1] * x_pred[1]);
-        
-        float S = H_[0] * (H_[0] * P_pred_mat[0][0] + H_[1] * P_pred_mat[1][0]) + 
-                  H_[1] * (H_[0] * P_pred_mat[0][1] + H_[1] * P_pred_mat[1][1]) + R_;
-        
-        float K[2];
-        K[0] = (P_pred_mat[0][0] * H_[0] + P_pred_mat[0][1] * H_[1]) / S;
-        K[1] = (P_pred_mat[1][0] * H_[0] + P_pred_mat[1][1] * H_[1]) / S;
-        
-        x_[0] = x_pred[0] + K[0] * y;
-        x_[1] = x_pred[1] + K[1] * y;
-        
-        P_[0][0] = (1.0f - K[0] * H_[0]) * P_pred_mat[0][0] - K[0] * H_[1] * P_pred_mat[1][0];
-        P_[0][1] = (1.0f - K[0] * H_[0]) * P_pred_mat[0][1] - K[0] * H_[1] * P_pred_mat[1][1];
-        P_[1][0] = -K[1] * H_[0] * P_pred_mat[0][0] + (1.0f - K[1] * H_[1]) * P_pred_mat[1][0];
-        P_[1][1] = -K[1] * H_[0] * P_pred_mat[0][1] + (1.0f - K[1] * H_[1]) * P_pred_mat[1][1];
-        
+
+        x_[0] = x_pred[0];
+        x_[1] = x_pred[1];
+        P_[0][0] = P_pred_mat[0][0];
+        P_[0][1] = P_pred_mat[0][1];
+        P_[1][0] = P_pred_mat[1][0];
+        P_[1][1] = P_pred_mat[1][1];
         P_est_ = x_[0];
-        
-        float A_100[2][2] = {{1.0f, 0.1f}, {0.0f, 1.0f}};
-        P_pred_ = A_100[0][0] * x_[0] + A_100[0][1] * x_[1];
+        P_pred_ = x_[0] + 0.1f * x_[1];
     }
-    
+
+    void KFPowerEstimator::Correct(float P_meas, float measurement_noise) {
+        if (measurement_noise > 0.0f) R_ = measurement_noise;
+
+        const float y = P_meas - (H_[0] * x_[0] + H_[1] * x_[1]);
+        const float S = H_[0] * (H_[0] * P_[0][0] + H_[1] * P_[1][0]) +
+                        H_[1] * (H_[0] * P_[0][1] + H_[1] * P_[1][1]) + R_;
+        if (S <= 1e-9f) return;
+
+        float K[2];
+        K[0] = (P_[0][0] * H_[0] + P_[0][1] * H_[1]) / S;
+        K[1] = (P_[1][0] * H_[0] + P_[1][1] * H_[1]) / S;
+
+        const float p00 = P_[0][0];
+        const float p01 = P_[0][1];
+        const float p10 = P_[1][0];
+        const float p11 = P_[1][1];
+
+        x_[0] += K[0] * y;
+        x_[1] += K[1] * y;
+
+        P_[0][0] = (1.0f - K[0] * H_[0]) * p00 - K[0] * H_[1] * p10;
+        P_[0][1] = (1.0f - K[0] * H_[0]) * p01 - K[0] * H_[1] * p11;
+        P_[1][0] = -K[1] * H_[0] * p00 + (1.0f - K[1] * H_[1]) * p10;
+        P_[1][1] = -K[1] * H_[0] * p01 + (1.0f - K[1] * H_[1]) * p11;
+
+        P_est_ = x_[0];
+        P_pred_ = x_[0] + 0.1f * x_[1];
+    }
+
+    void KFPowerEstimator::Update(float P_meas) {
+        Predict();
+        Correct(P_meas, R_);
+    }
+
     float KFPowerEstimator::GetEstimate() const {
         return P_est_;
     }
     
     float KFPowerEstimator::GetPrediction() const {
         return P_pred_;
+    }
+
+    float KFPowerEstimator::GetRate() const {
+        return x_[1];
+    }
+
+    float KFPowerEstimator::PredictAhead(float horizon_s) const {
+        if (horizon_s < 0.0f) horizon_s = 0.0f;
+        return x_[0] + horizon_s * x_[1];
     }
     
     void KFPowerEstimator::Reset() {

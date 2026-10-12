@@ -35,12 +35,22 @@ for path in sources:
 
 for path in sources:
     text = path.read_text()
-    for legacy in ("RobotStateInput", "RobotStateSnapshot", "RobotStateStep(",
+    for legacy in ("RobotStateInput", "RobotStateStep(",
                    "RCRegisterFireCallback", "RCRegisterUiCallback"):
         if legacy in text:
             errors.append(f"{path}: legacy complexity token {legacy}")
     if re.search(r"\bAtlasHardware\s*\(\s*\)", text):
         errors.append(f"{path}: legacy complexity token AtlasHardware()")
+
+# Real-time hardening keeps the procedural architecture but freezes one published
+# POD state frame per control iteration. This is deliberately not a controller class
+# or hidden dispatch layer.
+for name in ("chassis_task.cpp", "gimbal_task.cpp"):
+    text = (ATLAS / "src" / name).read_text()
+    if "RobotGetSnapshot()" not in text or "const RemoteMode_e mode" not in text:
+        errors.append(f"{name}: control iteration does not freeze a robot-state snapshot")
+    if "switch (remote_mode)" in text:
+        errors.append(f"{name}: reads mutable remote_mode directly in control switch")
 
 if errors:
     print("Atlas simple-architecture check FAILED")
@@ -48,6 +58,7 @@ if errors:
     sys.exit(1)
 
 print("Atlas simple-architecture check PASS")
-print("One global remote_mode and one UpdateRobotMode()")
+print("One writer-owned remote_mode and one UpdateRobotMode()")
 print("No Atlas application controller classes")
-print("Mode behavior uses direct switch statements")
+print("Control tasks use one published POD state snapshot per iteration")
+print("Mode behavior still uses direct switch statements")

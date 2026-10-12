@@ -29,6 +29,7 @@
 #include "connection_driver.h"
 #include "dbus_package.h"
 
+#define HAS_USB
 
 namespace communication {
 
@@ -154,7 +155,7 @@ namespace communication {
         int ProcessDataTx(int cmd_id, uint8_t* data) override;
     };
 
-    #ifndef NO_USB
+#ifdef HAS_USB
     class USBProtocol : public virtual Protocol {
         friend class ProtocolAdapterManager;
 
@@ -165,7 +166,7 @@ namespace communication {
         package_t Transmit(int cmd_id) override;
 
       protected:
-        bsp::VirtualUSB* usb_ = nullptr;
+        bsp::VirtualUSB* usb_;
 
       private:
         uint8_t* read_ptr_ = nullptr;
@@ -200,7 +201,7 @@ namespace communication {
 
     struct Protocol_t {
         bsp::UART* uart = nullptr;
-#ifndef NO_USB
+#ifdef HAS_USB
         bsp::VirtualUSB* usb = nullptr;
 #endif
     };
@@ -225,7 +226,7 @@ namespace communication {
       private:
         // 协议实例
         std::unique_ptr<UARTProtocol> uart_protocol_;
-#ifndef NO_USB
+#ifdef HAS_USB
         std::unique_ptr<USBProtocol> usb_protocol_;
 #endif
         Protocol* receiver_ = nullptr;
@@ -235,19 +236,19 @@ namespace communication {
 
         // 回调线程管理
         bsp::EventThread* uart_callback_thread_ = nullptr;
-#ifndef NO_USB
+#ifdef HAS_USB
         bsp::EventThread* usb_callback_thread_ = nullptr;
 #endif
 
         // 回调函数包装器
         static void UARTCallbackWrapper(void* args);
-#ifndef NO_USB
+#ifdef HAS_USB
         static void USBCallbackWrapper(void* args);
 #endif
 
         // 回调处理线程函数
         static void uart_callback_thread_func_(void* args);
-#ifndef NO_USB
+#ifdef HAS_USB
         static void usb_callback_thread_func_(void* args);
 #endif
 
@@ -849,13 +850,7 @@ namespace communication {
 
     class Host : public Protocol {
       public:
-        Host();
-        explicit Host(bsp::UART* uart);
-#ifndef NO_USB
-        explicit Host(bsp::VirtualUSB* usb);
-#endif
-        explicit Host(Protocol_t protocol_t);
-
+        Host(Protocol_t protocol_t);
         package_t Transmit(int cmd_id) override;
         pack_t pack{};
         target_angle_t target_angle{};

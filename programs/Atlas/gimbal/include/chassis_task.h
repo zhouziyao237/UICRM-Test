@@ -27,20 +27,18 @@ struct ChassisTelemetry_t {
     float heading_error = 0.0f;
     float follow_error = 0.0f;
     bool heading_hold_active = false;
-    float battery_voltage = 0.0f;
-    float battery_percent = 0.0f;
-    bool power_from_referee = false;
-    bool power_local_test = false;
-    bool power_failsafe = false;
-    float power_limit_w = 0.0f;
-    float power_buffer_joule = 0.0f;
-    float measured_power_w = -1.0f;
     float max_xy_speed = 0.0f;
     float max_turn_speed = 0.0f;
 };
 
 void InitChassis();
 void ChassisTask(void* arg);
+
+/** PowerTask-only transport API. Never performs power control here. */
+bool ChassisForwardPowerLimit(bool enabled, uint8_t max_watt,
+                              float buffer_joule, bool referee_online);
+bool ChassisForwardCurrentPower(float measured_power, float buffer_joule);
+
 ChassisTelemetry_t ChassisGetTelemetry();
 float ChassisGetTurnSpeed();
 

@@ -99,10 +99,22 @@ namespace control {
         explicit KFPowerEstimator(float dt = 0.001f);
         
         void Update(float P_meas);
+
+        /** Advance the [P, dP/dt] state by one estimator period without measurement correction. */
+        void Predict();
+
+        /** Correct the already-predicted state with one same-time power measurement. */
+        void Correct(float P_meas, float measurement_noise);
         
         float GetEstimate() const;
         
         float GetPrediction() const;
+
+        /** Power slope estimate in W/s. */
+        float GetRate() const;
+
+        /** Predict power at an arbitrary future horizon without changing state. */
+        float PredictAhead(float horizon_s) const;
         
         void Reset();
         

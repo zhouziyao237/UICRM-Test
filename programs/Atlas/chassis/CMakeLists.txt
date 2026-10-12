@@ -6,5 +6,6 @@ uicrm_add_arm_executable(${PROJECT_NAME}_typeC
         SOURCES
         src/main.cpp
         src/chassis_task.cpp
+        src/power_task.cpp
         src/buzzer_task.cpp
         INCLUDES include)

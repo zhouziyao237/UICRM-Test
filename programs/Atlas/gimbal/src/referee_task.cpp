@@ -4,6 +4,8 @@
 #include "protocol.h"
 #include "user_interface.h"
 #include "sys.h"
+#include "cmsis_os.h"
+#include "task.h"
 
 namespace {
 communication::Referee* g_referee = nullptr;
@@ -26,6 +28,10 @@ RefereeSnapshot_t RefereeGetSnapshot() {
     snapshot.online = RefereeIsOnline() != 0U;
     if (!snapshot.online || g_referee == nullptr) return snapshot;
 
+    // Referee::ProcessDataRx publishes each protocol struct in a short
+    // critical section. Hold the same scheduler/IRQ gate while composing the
+    // Atlas subset so one snapshot never contains a partially copied struct.
+    taskENTER_CRITICAL();
     snapshot.match_running = g_referee->game_status.game_progress == 4;
     snapshot.robot_id = g_referee->game_robot_status.robot_id;
     snapshot.hp = g_referee->game_robot_status.remain_HP;
@@ -41,6 +47,7 @@ RefereeSnapshot_t RefereeGetSnapshot() {
     snapshot.chassis_power_buffer =
         g_referee->power_heat_data.chassis_power_buffer;
     snapshot.chassis_power = g_referee->power_heat_data.chassis_power;
+    snapshot.power_heat_sequence = g_referee->GetPowerHeatSequence();
     snapshot.shooter_heat_limit =
         g_referee->game_robot_status.shooter_heat_limit;
     snapshot.shooter_heat =
@@ -48,6 +55,7 @@ RefereeSnapshot_t RefereeGetSnapshot() {
     snapshot.bullets_17mm =
         g_referee->bullet_remaining.bullet_remaining_num_17mm;
     snapshot.bullet_speed = g_referee->shoot_data.bullet_speed;
+    taskEXIT_CRITICAL();
     return snapshot;
 }
 

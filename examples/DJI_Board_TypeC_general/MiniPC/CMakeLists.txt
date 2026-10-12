@@ -1,4 +1,4 @@
-project(example_NewMiniPC_${BOARD_NAME} ASM C CXX)
+project(example_MiniPC_${BOARD_NAME} ASM C CXX)
 
 uicrm_add_arm_executable(${PROJECT_NAME}
         TARGET ${BOARD_NAME}

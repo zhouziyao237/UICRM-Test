@@ -4,7 +4,6 @@
 
 #include "MotorCanBase.h"
 #include "atlas_config.h"
-#include "bsp_batteryvol.h"
 #include "bsp_can.h"
 #include "can_bridge.h"
 #include "chassis.h"
@@ -57,7 +56,7 @@ constexpr float kHeadingHoldMaxCommand = 0.10f;  // normalized command
 
 communication::CanBridge* g_can_bridge = nullptr;
 control::ChassisCanBridgeSender* g_chassis = nullptr;
-bsp::BatteryVol* g_battery = nullptr;
+control::ChassisCanBridgeSender* g_power_sender = nullptr;
 
 // Translation is rate-limited as one 2-D vector.  Independent X/Y Ease
 // objects distort a rotating command into axis-aligned/diamond transients.
@@ -76,9 +75,6 @@ float g_relative_yaw_continuous = 0.0f;
 float g_spin_direction = 1.0f;
 bool g_heading_hold_active = false;
 float g_heading_target = 0.0f;
-uint32_t g_last_power_update_ms = 0U;
-bool g_power_update_initialized = false;
-constexpr uint32_t kPowerUpdatePeriodMs = 100U;
 
 float WrapPi(float angle) {
     return wrap<float>(angle, -PI, PI);
@@ -181,86 +177,6 @@ void ReadOperatorCommand(float& x, float& y, float& turn) {
     x = remote.chassis_forward;
     y = remote.chassis_lateral;
     turn = remote.chassis_turn;
-}
-
-void UpdateBatteryAndPowerLimit(bool force = false) {
-    const uint32_t now_ms = HAL_GetTick();
-    if (!force && g_power_update_initialized &&
-        static_cast<uint32_t>(now_ms - g_last_power_update_ms) <
-            kPowerUpdatePeriodMs) {
-        return;
-    }
-    g_last_power_update_ms = now_ms;
-    g_power_update_initialized = true;
-
-    // Start from the formal safety state.  The optional no-referee bench
-    // values are selected only under ATLAS_ENABLE_NO_REFEREE_POWER_TEST.
-    uint8_t max_watt = kInvalidRefereePowerLimitW;
-    float buffer_joule = kInvalidRefereeBufferJoule;
-    float measured_power = -1.0f;
-    bool referee_source_active = false;
-    bool referee_limit_valid = false;
-    bool local_test_active = false;
-    bool referee_failsafe = true;
-
-#ifdef HAS_REFEREE
-    const RefereeSnapshot_t referee = RefereeGetSnapshot();
-    if (referee.online) {
-        // Keep competition limits authoritative even when the optional measured
-        // power sample is temporarily invalid.  Falling back to the 100 W bench
-        // setting while a level-1 infantry limit is 45/60 W would be unsafe.
-        referee_source_active = true;
-        referee_limit_valid =
-            referee.chassis_power_limit > 0U &&
-            static_cast<float>(referee.chassis_power_limit) <=
-                kMaxValidRefereePowerW &&
-            referee.chassis_power_buffer <= 60U;
-
-        if (referee_limit_valid) {
-            max_watt = static_cast<uint8_t>(referee.chassis_power_limit);
-            buffer_joule = static_cast<float>(referee.chassis_power_buffer);
-            referee_failsafe = false;
-            if (std::isfinite(referee.chassis_power) &&
-                referee.chassis_power >= 0.0f) {
-                measured_power = referee.chassis_power;
-            }
-        } else {
-            // Online-but-invalid data is a competition fail-safe, not a bench
-            // fallback.  Use the minimum 2026 infantry power and no buffer.
-            max_watt = kInvalidRefereePowerLimitW;
-            buffer_joule = kInvalidRefereeBufferJoule;
-            measured_power = -1.0f;
-            referee_failsafe = true;
-        }
-    }
-#endif
-
-#if ATLAS_ENABLE_NO_REFEREE_POWER_TEST
-    // Explicit bench-only mode.  An online referee, including its invalid-data
-    // fail-safe state, always has priority over this test source.
-    if (!referee_source_active) {
-        max_watt = kLocalChassisPowerLimitW;
-        buffer_joule = kLocalChassisBufferJoule;
-        measured_power = -1.0f;
-        local_test_active = true;
-        referee_failsafe = false;
-    }
-#endif
-
-    g_telemetry.battery_voltage =
-        g_battery ? g_battery->GetBatteryVol() : 0.0f;
-    g_telemetry.battery_percent =
-        g_battery ? g_battery->GetBatteryPercentage() : 0.0f;
-    g_telemetry.power_from_referee = referee_limit_valid;
-    g_telemetry.power_local_test = local_test_active;
-    g_telemetry.power_failsafe = referee_failsafe;
-    g_telemetry.power_limit_w = static_cast<float>(max_watt);
-    g_telemetry.power_buffer_joule = buffer_joule;
-    g_telemetry.measured_power_w = measured_power;
-
-    g_chassis->UpdatePower(true, max_watt, g_telemetry.battery_voltage,
-                           buffer_joule, measured_power,
-                           referee_source_active);
 }
 
 float UpdateContinuousRelativeYaw(float wrapped_yaw) {
@@ -397,12 +313,17 @@ float ChassisGetFrameOffsetDeg() {
 }
 
 void InitChassis() {
-    g_battery =
-        new bsp::BatteryVol(&hadc3, ADC_CHANNEL_8, 1, ADC_SAMPLETIME_3CYCLES);
     g_can_bridge = new communication::CanBridge(atlas_can1, 0x51);
     g_chassis = new control::ChassisCanBridgeSender(g_can_bridge, 0x52);
     g_chassis->SetChassisRegId(0x70, 0x71, 0x72, 0x73);
     g_chassis->Disable();
+
+    // Power forwarding owns an independent sender object.  ChassisTask and
+    // PowerTask may therefore publish concurrently without sharing the
+    // sender's mutable frame scratch buffer.  Both still use the R1 CAN
+    // latest-value scheduler underneath.
+    g_power_sender = new control::ChassisCanBridgeSender(g_can_bridge, 0x52);
+    g_power_sender->SetChassisRegId(0x70, 0x71, 0x72, 0x73);
 
     g_telemetry.max_xy_speed = kMaxXySpeed;
     g_telemetry.max_turn_speed = kMaxTurnSpeed;
@@ -418,7 +339,15 @@ void ChassisTask(void* arg) {
     osDelay(1000);
 
     while (true) {
-        if (!RobotCanRun() || !ChassisPowerAllowed()) {
+        // Freeze one robot-state generation for this whole control iteration.
+        // SysTask may publish a newer mode meanwhile, but this cycle never mixes
+        // transition logic from one mode with output logic from another.
+        const RobotStateSnapshot_t robot_state = RobotGetSnapshot();
+        const RemoteMode_e mode = robot_state.mode;
+        const bool robot_can_run =
+            mode != REMOTE_MODE_KILL && !robot_state.hp_dead;
+
+        if (!robot_can_run || !ChassisPowerAllowed()) {
             DisableOutput();
             g_previous_mode = REMOTE_MODE_KILL;
             osDelay(5);
@@ -428,9 +357,8 @@ void ChassisTask(void* arg) {
         if (!g_telemetry.output_enabled) {
             g_chassis->Enable();
             ResetMotion();
-            UpdateBatteryAndPowerLimit(true);
             g_telemetry.output_enabled = true;
-            g_previous_mode = remote_mode;
+            g_previous_mode = mode;
         }
 
         float command_x = 0.0f;
@@ -441,7 +369,7 @@ void ChassisTask(void* arg) {
         // GimbalGetRelativeYaw() is a logical angle: positive has the same
         // meaning as positive operator yaw, independent of yaw motor mounting.
         const float relative_yaw = WrapPi(GimbalGetRelativeYaw());
-        HandleModeTransition(remote_mode, command_turn, relative_yaw);
+        HandleModeTransition(mode, command_turn, relative_yaw);
         const float continuous_relative_yaw =
             UpdateContinuousRelativeYaw(relative_yaw);
         g_telemetry.relative_yaw = relative_yaw;
@@ -469,7 +397,7 @@ void ChassisTask(void* arg) {
         float target_vy_command = 0.0f;
         float target_vt_command = 0.0f;
 
-        switch (remote_mode) {
+        switch (mode) {
             case REMOTE_MODE_MANUAL:
                 target_vx_command = command_x;
                 target_vy_command = command_y;
@@ -533,10 +461,26 @@ void ChassisTask(void* arg) {
         g_chassis->SetSpeed(g_telemetry.library_x_speed,
                             g_telemetry.library_y_speed, g_telemetry.vt);
 
-        UpdateBatteryAndPowerLimit();
         g_telemetry.online = true;
         osDelay(5);
     }
+}
+
+bool ChassisForwardPowerLimit(bool enabled, uint8_t max_watt,
+                              float buffer_joule, bool referee_online) {
+    if (g_power_sender == nullptr) return false;
+    // 0x72 keeps the legacy voltage slot reserved at 0.0 V. The lower board
+    // owns chassis-bus voltage/current acquisition and never depends on an
+    // upper-board ADC value for power control.
+    g_power_sender->UpdatePowerLimitState(enabled, max_watt, 0.0f,
+                                          buffer_joule, referee_online);
+    return true;
+}
+
+bool ChassisForwardCurrentPower(float measured_power, float buffer_joule) {
+    if (g_power_sender == nullptr) return false;
+    g_power_sender->UpdateCurrentPower(measured_power, buffer_joule);
+    return true;
 }
 
 ChassisTelemetry_t ChassisGetTelemetry() {

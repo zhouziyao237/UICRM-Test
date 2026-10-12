@@ -65,22 +65,26 @@ int main() {
     // One 10 Hz referee measurement may be read repeatedly by the 1 kHz motor
     // loop. It must update the model once, not integrate the stale value 100x.
     int16_t correction_command[4] = {22000, -22000, 22000, -22000};
-    limiter.UpdatePowerState(true, 100.0f, 24.0f, 60.0f, 105.0f, true);
+    limiter.UpdatePowerState(true, 100.0f, 24.0f, 60.0f, 105.0f, true, 1U);
     limiter.UpdateMotorData(omega, correction_command, 4);
     limiter.ApplyLimit(correction_command, omega, 4);
     const float correction_after_new_sample = limiter.GetModelCorrection();
 
     for (int step = 0; step < 100; ++step) {
         int16_t command[4] = {22000, -22000, 22000, -22000};
-        limiter.UpdatePowerState(true, 100.0f, 24.0f, 60.0f, 105.0f, true);
+        limiter.UpdatePowerState(true, 100.0f, 24.0f, 60.0f, 105.0f, true, 1U);
         limiter.UpdateMotorData(omega, command, 4);
         limiter.ApplyLimit(command, omega, 4);
     }
     assert(Near(limiter.GetModelCorrection(), correction_after_new_sample,
                 1e-6f));
 
-    // A distinct measurement advances the slow correction, within hard bounds.
-    limiter.UpdatePowerState(true, 100.0f, 24.0f, 60.0f, 106.0f, true);
+    // A new arrival advances the slow correction even if the numeric value is
+    // equal; sequence/timestamp identity is the correct freshness criterion.
+    int16_t next_command[4] = {22000, -22000, 22000, -22000};
+    limiter.UpdatePowerState(true, 100.0f, 24.0f, 60.0f, 105.0f, true, 2U);
+    limiter.UpdateMotorData(omega, next_command, 4);
+    limiter.ApplyLimit(next_command, omega, 4);
     assert(!Near(limiter.GetModelCorrection(), correction_after_new_sample,
                  1e-6f));
     assert(limiter.GetModelCorrection() >= 0.60f);

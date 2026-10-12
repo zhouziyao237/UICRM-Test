@@ -1,6 +1,8 @@
 #include "robot_state.h"
 
 #include "utils.h"
+#include "cmsis_os.h"
+#include "task.h"
 
 namespace {
 constexpr uint32_t kHpRecoveryDebounceMs = 300;
@@ -14,6 +16,25 @@ BoolEdgeDetector cycle_edge(false);
 BoolEdgeDetector manual_edge(false);
 BoolEdgeDetector spin_edge(false);
 BoolEdgeDetector follow_edge(false);
+
+RobotStateSnapshot_t state_frames[2]{};
+volatile uint8_t active_state_frame = 0U;
+uint32_t state_generation = 0U;
+
+void PublishRobotState() {
+    RobotStateSnapshot_t next;
+    next.mode = remote_mode;
+    next.last_mode = last_remote_mode;
+    next.hp_dead = robot_hp_dead;
+    next.rearm_required = robot_rearm_required;
+    next.generation = ++state_generation;
+
+    const uint8_t next_index = active_state_frame ^ 1U;
+    state_frames[next_index] = next;
+    taskENTER_CRITICAL();
+    active_state_frame = next_index;
+    taskEXIT_CRITICAL();
+}
 
 void SyncModeEdges(const RemoteControl_t& remote) {
     cycle_edge.reset(remote.cycle_mode);
@@ -99,6 +120,17 @@ void InitRobotMode() {
     manual_edge.reset(false);
     spin_edge.reset(false);
     follow_edge.reset(false);
+
+    state_generation = 0U;
+    RobotStateSnapshot_t initial;
+    initial.mode = remote_mode;
+    initial.last_mode = last_remote_mode;
+    initial.hp_dead = robot_hp_dead;
+    initial.rearm_required = robot_rearm_required;
+    initial.generation = state_generation;
+    state_frames[0] = initial;
+    state_frames[1] = initial;
+    active_state_frame = 0U;
 }
 
 RemoteMode_e NextRemoteMode(RemoteMode_e mode) {
@@ -116,10 +148,12 @@ RemoteMode_e NextRemoteMode(RemoteMode_e mode) {
 void SetRobotMode(RemoteMode_e mode) {
     if (mode == REMOTE_MODE_KILL) {
         EnterKill();
+        PublishRobotState();
         return;
     }
     remote_mode = mode;
     last_remote_mode = mode;
+    PublishRobotState();
 }
 
 void UpdateRobotMode(const RemoteControl_t& remote,
@@ -153,12 +187,14 @@ void UpdateRobotMode(const RemoteControl_t& remote,
             robot_rearm_required = false;
             last_remote_mode = REMOTE_MODE_MANUAL;
         }
+        PublishRobotState();
         return;
     }
 
     if (!remote.online || remote.physical_kill || robot_hp_dead) {
         EnterKill();
         SyncModeEdges(remote);
+        PublishRobotState();
         return;
     }
 
@@ -168,6 +204,7 @@ void UpdateRobotMode(const RemoteControl_t& remote,
         remote_mode = REMOTE_MODE_MANUAL;
         last_remote_mode = REMOTE_MODE_MANUAL;
         SyncModeEdges(remote);
+        PublishRobotState();
         return;
     }
 
@@ -188,6 +225,14 @@ void UpdateRobotMode(const RemoteControl_t& remote,
     if (manual_edge.posEdge()) remote_mode = REMOTE_MODE_MANUAL;
 
     SaveLastRunMode();
+    PublishRobotState();
+}
+
+RobotStateSnapshot_t RobotGetSnapshot() {
+    taskENTER_CRITICAL();
+    const RobotStateSnapshot_t snapshot = state_frames[active_state_frame];
+    taskEXIT_CRITICAL();
+    return snapshot;
 }
 
 const char* RobotModeName(RemoteMode_e mode) {

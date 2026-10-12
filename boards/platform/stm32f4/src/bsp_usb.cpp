@@ -118,8 +118,11 @@ namespace bsp {
         uint8_t status = CDC_Transmit_FS(data, length);
         if (status == USBD_BUSY || tx_pending_) {
             /* usb not available, queuing up data */
-            if (length + tx_pending_ > tx_size_) {
-                length = tx_size_ - tx_pending_;
+            const uint32_t free_space = tx_size_ - tx_pending_;
+            if (length > free_space) {
+                const uint32_t discard = length - free_space;
+                memmove(tx_write_, tx_write_ + discard, tx_pending_ - discard);
+                tx_pending_ -= discard;
                 RM_EXPECT_TRUE(1, "usb data transmission truncated");
             }
             memcpy(tx_write_ + tx_pending_, data, length);
@@ -164,8 +167,15 @@ namespace bsp {
     uint32_t VirtualUSB::QueueUpRxData(const uint8_t* data, uint32_t length) {
         if (data == nullptr || rx_write_ == nullptr || rx_size_ == 0)
             return 0;
-        if (length + rx_pending_ > rx_size_) {
-            length = rx_size_ - rx_pending_;
+        if (length > rx_size_) {
+            data += length - rx_size_;
+            length = rx_size_;
+        }
+        const uint32_t free_space = rx_size_ - rx_pending_;
+        if (length > free_space) {
+            const uint32_t discard = length - free_space;
+            memmove(rx_write_, rx_write_ + discard, rx_pending_ - discard);
+            rx_pending_ -= discard;
             RM_EXPECT_TRUE(1, "usb data reception truncated");
         }
         memcpy(rx_write_ + rx_pending_, data, length);

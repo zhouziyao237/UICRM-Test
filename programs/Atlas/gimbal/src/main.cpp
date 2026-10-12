@@ -7,6 +7,7 @@
 #include "gimbal_task.h"
 #include "imu_task.h"
 #include "minipc_task.h"
+#include "power_task.h"
 #include "rc.h"
 #include "referee_task.h"
 #include "robot_state.h"
@@ -25,6 +26,7 @@ void RM_RTOS_Init(void) {
     // InitMiniPC();
     InitGimbal();
     InitChassis();
+    InitPower();
     InitShoot();
     if (kEnableUi) InitUI();
 
@@ -38,6 +40,8 @@ void RM_RTOS_Threads_Init(void) {
     SysTaskHandle = osThreadNew(SysTask, nullptr, &SysTaskAttribute);
     GimbalTaskHandle = osThreadNew(GimbalTask, nullptr, &GimbalTaskAttribute);
     ChassisTaskHandle = osThreadNew(ChassisTask, nullptr, &ChassisTaskAttribute);
+    PowerTaskHandle =
+        osThreadNew(PowerTask, nullptr, &PowerTaskAttribute);
     ShootTaskHandle = osThreadNew(ShootTask, nullptr, &ShootTaskAttribute);
     if (kEnableUi) {
         UITaskHandle = osThreadNew(UITask, nullptr, &UITaskAttribute);
@@ -86,14 +90,17 @@ void RM_RTOS_Default_Task(const void* arg) {
               chassis.chassis_heading, chassis.heading_hold_active ? 1 : 0,
               chassis.heading_target, chassis.heading_error,
               chassis.follow_error);
-        const char* power_source = chassis.power_from_referee
+        const PowerForwardTelemetry_t power = PowerForwardGetTelemetry();
+        const char* power_source = power.power_from_referee
                                        ? "REFEREE"
-                                       : (chassis.power_local_test
+                                       : (power.power_local_test
                                               ? "LOCAL_TEST"
                                               : "FAILSAFE");
-        print("Power src=%s limit=%.1fW measured=%.2fW buffer=%.1fJ battery=%.2fV\r\n",
-              power_source, chassis.power_limit_w, chassis.measured_power_w,
-              chassis.power_buffer_joule, chassis.battery_voltage);
+        print("PowerFwd src=%s limit=%.1fW measured=%.2fW buffer=%.1fJ ref_seq=%lu fwd_seq=%lu\r\n",
+              power_source, power.power_limit_w, power.measured_power_w,
+              power.power_buffer_joule,
+              static_cast<unsigned long>(power.referee_power_sequence),
+              static_cast<unsigned long>(power.forwarded_power_sequence));
 
 #ifdef HAS_REFEREE
         const RefereeSnapshot_t referee = RefereeGetSnapshot();

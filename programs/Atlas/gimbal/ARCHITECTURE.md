@@ -1,21 +1,25 @@
-# Atlas simple control layout
+# Atlas simple real-time control layout
 
-Atlas now uses a deliberately direct application structure.
+Atlas keeps the original UICRM procedural application style. The real-time
+hardening adds published POD snapshots, not controller classes or a new runtime
+framework.
 
 ```text
-DBUS -> rc.cpp -> RemoteControl_t
-                     |
-                     v
-              UpdateRobotMode()
-                     |
-              remote_mode global
-            /        |        \
-     ChassisTask  GimbalTask  ShootTask
+DBUS -> rc.cpp writer -> RemoteControl_t published frame
+                              |
+                              v
+                       UpdateRobotMode()
+                              |
+                     robot_state.cpp writer
+                              |
+                     RobotStateSnapshot_t
+                       /       |       \
+                ChassisTask GimbalTask ShootTask
 ```
 
 ## Mode control
 
-There is one run-mode variable only:
+There is still one writer-owned run-mode state in `robot_state.cpp`:
 
 ```cpp
 volatile RemoteMode_e remote_mode;
@@ -28,9 +32,19 @@ volatile RemoteMode_e last_remote_mode;
 UpdateRobotMode(remote, referee, now_ms);
 ```
 
-The chassis and gimbal tasks use an ordinary `switch (remote_mode)`.
-There are no application-level mode controller classes, transition tables,
-polymorphic mode objects or hidden dispatch layers.
+`robot_state.cpp` publishes a small `RobotStateSnapshot_t` after each state
+update. A control task reads that frame once at the beginning of an iteration:
+
+```cpp
+const RobotStateSnapshot_t robot_state = RobotGetSnapshot();
+const RemoteMode_e mode = robot_state.mode;
+```
+
+The rest of that iteration uses `mode` and an ordinary `switch (mode)`. This
+prevents a higher-priority `SysTask` update from mixing transition logic from
+one mode with output logic from another mode. There are still no
+application-level mode controller classes, transition tables, polymorphic mode
+objects, service containers or hidden dispatch layers.
 
 ## Adding a new mode
 
@@ -47,18 +61,31 @@ No class needs to be created.
 | File | Responsibility |
 |---|---|
 | `sys.*` | Named hardware pointers and the 10 ms mode-update task |
-| `rc.*` | DBUS decode, normalization and one-shot operator events |
-| `robot_state.*` | `remote_mode`, HP=0 latch and reconnect re-arm |
+| `rc.*` | DBUS decode, normalization, one-shot events and RC frame publication |
+| `robot_state.*` | mode writer, HP=0 policy, reconnect re-arm and state publication |
 | `imu_task.*` | BMI088/AHRS data |
-| `gimbal_task.*` | Pitch/Yaw motors, homing and mode switch |
+| `gimbal_task.*` | Pitch/Yaw motors, homing and direct mode switch |
 | `chassis_task.*` | Chassis command switch and power limiting |
 | `shoot_task.*` | Flywheel/feeder state and shot actions |
-| `referee_task.*` | Referee snapshot |
+| `referee_task.*` | Referee application snapshot |
 | `ui_task.*` | Read-only display |
 
-The low-level motor, CAN, UART, AHRS and GUI libraries remain C++ classes because
-those are existing reusable drivers. Atlas application behavior itself is
-procedural.
+Low-level motor, CAN, UART, AHRS and GUI libraries remain C++ classes because
+those are reusable UICRM drivers/components. Atlas application behavior itself
+remains procedural.
+
+## I/O ownership rules
+
+- A DMA RX buffer stays owned by the UART driver. Deferred parsers consume the
+  UART software stream through `ReadBuffered()`.
+- A protocol transport chunk is not assumed to be one protocol frame; the
+  parser retains an incomplete tail across chunks.
+- bxCAN producers still call the original `CAN::Transmit()` API, but the CAN
+  object owns HAL TX mailbox access and keeps only the latest pending value for
+  each CAN ID.
+- The chassis bridge retains registers `0x70/0x71`; the reserved 3-bit extension
+  ID field is used as a transaction sequence so XY and turn/enable commit only
+  when they belong to the same command generation.
 
 ## Control mapping configuration
 

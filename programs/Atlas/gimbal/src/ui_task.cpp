@@ -152,7 +152,6 @@ void UITask(void* arg) {
     float relative_angle = 0;
     float pitch_angle = 0;
 
-    float power_percent = 1;
     RemoteMode_e last_mode = REMOTE_MODE_KILL;
     bool last_fric_mode = false;
     ShootMode_e last_shoot_frequency = SHOOT_MODE_IDLE;
@@ -199,9 +198,10 @@ void UITask(void* arg) {
         chassisGUI->Update(normalized_vx, normalized_vy, relative_angle);
         osDelay(UI_OS_DELAY);
 
-        // 更新电源百分比
-        power_percent = chassis.battery_percent;
-        batteryGUI->Update(power_percent);
+        // Chassis-bus voltage/current are sampled on the lower board.
+        // Do not fabricate an upper-board battery percentage here.
+        // Keep the legacy battery widget unchanged until lower-board telemetry
+        // is explicitly bridged back to the upper board.
         osDelay(UI_OS_DELAY);
 
         // 更新云台小坦克
